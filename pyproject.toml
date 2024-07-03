@@ -1,0 +1,78 @@
+[tool.poetry]
+name = "dpyverification"
+version = "0.1.0"
+description = ""
+authors = ["Aljen Uitbeijerse <aljen.uitbeijerse@vortech.nl>"]
+readme = "README.md"
+packages = [{include = "dpyverification", from = "src"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+xarray = "^2024.6.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.2.2"
+ruff = "^0.5.0"
+mypy = "^1.10.1"
+
+
+[tool.mypy]
+mypy_path = "$MYPY_CONFIG_FILE_DIR/src"
+files = ["**/*.py"]
+warn_unused_configs = true
+python_version = "3.10"
+platform = "linux" # even though the development is done on Windows
+warn_unused_ignores = true
+warn_return_any = true
+check_untyped_defs = true
+warn_unreachable = true
+# Start with strict checking, disable when appropriate for our project
+disallow_untyped_defs = true
+disallow_untyped_calls = true
+disallow_untyped_decorators = true
+disallow_any_expr = true
+disallow_any_decorated = true
+disallow_any_explicit = true
+# Options that are not enabled yet, but may turn out to be appropriate for our project
+# Move to above this commment when enabled
+#explicit_package_bases = true
+
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+indent-width = 4
+
+[tool.ruff.format]
+indent-style = "space"
+
+[tool.ruff.lint]
+# Start of with selecting all linting checks, add specific ignores when appropriate for our project
+select = ["ALL"]
+# Since we are using ruff >=0.5.0, no need to explicitly ignore deprecated rules
+ignore = []
+
+[tool.ruff.lint.mccabe]
+# Flag errors (`C901`) whenever the complexity level exceeds max-complexity
+# Default level is 10, TBD whether this is appropriate for our project
+max-complexity = 10
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"  # what we do with Sauron
+
+[tool.ruff.lint.isort]
+known-first-party = ["my-project-name"]  # again, not needed with a 'flat' project layout
+
+[tool.ruff.lint.per-file-ignores]
+"**/__init__.py" = [
+    "F401",  # imported but unused
+]
+"tests/**" = [
+    "S101",  # use of `assert`
+    "SLF001",  # Private member access
+]
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
