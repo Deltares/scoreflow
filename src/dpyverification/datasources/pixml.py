@@ -1,7 +1,7 @@
 """PI-XML support module."""
 
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Self
 
 import xarray as xr
 from fewsio.pi import Timeseries  # type: ignore[import-untyped]
@@ -65,8 +65,8 @@ class PiXmlFile(GenericDatasource):
         # Create xarray DataArray
         return pi_df2.to_xarray()
 
-    @staticmethod
-    def get_data(dsconfig: DataSource) -> xr.DataArray:
+    @classmethod
+    def get_data(cls, dsconfig: DataSource) -> list[Self]:
         """Retrieve pixml content as an xarray DataArray."""
         if dsconfig.datasourcetype != DataSourceTypeEnum.pixml:
             msg = "Input dsconfig does not have datasourcetype pixml"
@@ -74,5 +74,8 @@ class PiXmlFile(GenericDatasource):
         if dsconfig.simobstype == SimObsType.combined:
             msg = "Cannot yet handle combined simobs data"
             raise NotImplementedError(msg)
+
         filepath = Path(dsconfig.directory) / dsconfig.filename
-        return PiXmlFile._pi_xml_to_xarray(filepath)
+        pif = cls(dsconfig)
+        pif.xarray = cls._pi_xml_to_xarray(filepath)
+        return [pif]

@@ -19,12 +19,14 @@ def test_happy() -> None:
     forecastdata = PiXmlFile.get_data(parsed_content.datasources[0])
 
     assert (
-        forecastdata.loc[  # type: ignore[misc]
+        forecastdata[0]
+        .xarray.loc[  # type: ignore[misc]
             np.datetime64("2024-07-03T05:00"),
             "LOC2",
             "Q.fs",
             frozenset(),
             20:21,
-        ].data.tolist()
+        ]
+        .data.tolist()
         == [468.22, 468.27]
     )

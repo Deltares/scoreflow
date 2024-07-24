@@ -5,6 +5,7 @@ Specification is expected to be in a configuration file.
 Results can at least be written to netcdf file.
 """
 
+import itertools
 import pathlib
 
 from dpyverification.configuration import Config, ConfigTypes, DataSourceTypeEnum
@@ -20,13 +21,14 @@ def execute_pipeline(configfile: pathlib.Path, conf_type: str | None = "yaml") -
     # Else use try-except for nice error message
     config = Config(configfile, conftype)
 
-    datalist = []
+    datalists = []
     for datasource in config.datasources:
         # Might want to turn this if-elif into a mapping when many different datasourcetypes
         if datasource.datasourcetype == DataSourceTypeEnum.pixml:
-            datalist.append(PiXmlFile.get_data(datasource))
+            datalists.append(PiXmlFile.get_data(datasource))
         else:
             raise NotImplementedError
+    datalist = list(itertools.chain.from_iterable(datalists))
 
     # Until pipeline complete enough, as a last action mention the last-generated object
     _ = datalist

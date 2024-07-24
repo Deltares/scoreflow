@@ -1,5 +1,7 @@
 """The various datasources that can be used as input data."""
 
+from typing import Self
+
 import xarray
 
 from dpyverification.configuration import DataSource, SimObsType
@@ -11,6 +13,7 @@ class GenericDatasource:
     def __init__(self, dsconfig: DataSource) -> None:
         self.config = dsconfig
         self.simobstype = dsconfig.simobstype
+        self.xarray = xarray.DataArray()
 
     @property
     def simobstype(self) -> SimObsType:
@@ -29,8 +32,10 @@ class GenericDatasource:
             raise ValueError(msg)
         self._simobstype = new_simobstype
 
-    @staticmethod
-    def get_data(dsconfig: DataSource) -> xarray.DataArray:
-        """Get the data from the datasource, and return it in a predetermined format."""
-        _ = GenericDatasource(dsconfig)
-        return xarray.DataArray()
+    @classmethod
+    def get_data(cls, dsconfig: DataSource) -> list[Self]:
+        """Get the data from the datasource, and return it in a predetermined format.
+
+        Returns a list of datasource objects, one for each sim or obs
+        """
+        return [cls(dsconfig)]
