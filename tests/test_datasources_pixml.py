@@ -20,11 +20,10 @@ def test_happy() -> None:
 
     assert (
         forecastdata[0]
-        .xarray.loc[  # type: ignore[misc]
+        .xarray.Q.loc[  # type: ignore[misc]
             np.datetime64("2024-07-03T05:00"),
             "LOC2",
             "Q.fs",
-            frozenset(),
             20:21,
         ]
         .data.tolist()

@@ -13,7 +13,7 @@ class GenericDatasource:
     def __init__(self, dsconfig: DataSource) -> None:
         self.config = dsconfig
         self.simobstype = dsconfig.simobstype
-        self.xarray = xarray.DataArray()
+        self.xarray = xarray.Dataset()
 
     @property
     def simobstype(self) -> SimObsType:

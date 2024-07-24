@@ -21,8 +21,8 @@ class PiXmlFile(GenericDatasource):
     """For reading data from a pixml file."""
 
     @staticmethod
-    def _pi_xml_to_xarray(path: Path) -> xr.DataArray:
-        """Read pi-xml file and return xr.DataArray.
+    def _pi_xml_to_xarray(path: Path) -> xr.Dataset:
+        """Read pi-xml file and return xr.Dataset.
 
         Compatible with both observations and (ensemble) forecasts.
 
@@ -37,8 +37,8 @@ class PiXmlFile(GenericDatasource):
 
         Returns
         -------
-        xr.DataArray
-            DataArray representation of the pi-xml file.
+        xr.Dataset
+            Dataset representation of the pi-xml file.
 
         Raises
         ------
@@ -62,8 +62,15 @@ class PiXmlFile(GenericDatasource):
             level=list(range(len(pi_df.columns.names))),
         )
 
+        # HARDCODED: Only for parameter Q for now, need to think of how to handle other situations
+        par_ids: list[str] = (
+            pi_df2.index.get_level_values("parameter_id").unique().to_numpy().tolist()  # type: ignore[misc]
+        )
+        if len(par_ids) != 1 or par_ids[0][0] != "Q":
+            raise NotImplementedError
+
         # Create xarray DataArray
-        return pi_df2.to_xarray()
+        return pi_df2.to_xarray().to_dataset(name=xname)
 
     @classmethod
     def get_data(cls, dsconfig: DataSource) -> list[Self]:
