@@ -7,7 +7,7 @@ import xarray as xr
 from fewsio.pi import Timeseries  # type: ignore[import-untyped]
 
 from dpyverification.configuration import DataSource, DataSourceTypeEnum, SimObsType
-from dpyverification.datasources import GenericDatasource
+from dpyverification.datasources.genericdatasource import GenericDatasource
 
 if TYPE_CHECKING:
     import pandas as pd
