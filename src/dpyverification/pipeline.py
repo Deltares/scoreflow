@@ -9,6 +9,7 @@ import itertools
 import pathlib
 
 from dpyverification.configuration import Config, ConfigTypes, DataSourceTypeEnum
+from dpyverification.datamodel import DataModel
 from dpyverification.datasources.pixml import PiXmlFile
 
 
@@ -30,5 +31,7 @@ def execute_pipeline(configfile: pathlib.Path, conf_type: str | None = "yaml") -
             raise NotImplementedError
     datalist = list(itertools.chain.from_iterable(datalists))
 
+    datamodel = DataModel(datalist)
+
     # Until pipeline complete enough, as a last action mention the last-generated object
-    _ = datalist
+    _ = datamodel

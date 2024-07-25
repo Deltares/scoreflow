@@ -21,7 +21,7 @@ class PiXmlFile(GenericDatasource):
     """For reading data from a pixml file."""
 
     @staticmethod
-    def _pi_xml_to_xarray(path: Path) -> xr.Dataset:
+    def _pi_xml_to_xarray(path: Path, kind: SimObsType) -> xr.Dataset:
         """Read pi-xml file and return xr.Dataset.
 
         Compatible with both observations and (ensemble) forecasts.
@@ -62,12 +62,34 @@ class PiXmlFile(GenericDatasource):
             level=list(range(len(pi_df.columns.names))),
         )
 
-        # HARDCODED: Only for parameter Q for now, need to think of how to handle other situations
+        # HARDCODED: Only for single parameter for now, need to think of how to handle multiple
+        # Use parameter_id as variable name in the dataset
         par_ids: list[str] = (
             pi_df2.index.get_level_values("parameter_id").unique().to_numpy().tolist()  # type: ignore[misc]
         )
-        if len(par_ids) != 1 or par_ids[0][0] != "Q":
+        if len(par_ids) != 1:
             raise NotImplementedError
+        pi_df2 = pi_df2.droplevel("parameter_id")
+        xname = par_ids[0]
+
+        # WHAT TO DO WITH QUALIFIER_IDS? For now, check and squeeze. Need better definition of what
+        #  it can be, and means, before using.
+        qual_ids: list[frozenset[str]] = (
+            pi_df2.index.get_level_values("qualifier_ids").unique().to_numpy().tolist()  # type: ignore[misc]
+        )
+        if len(qual_ids) != 1 or qual_ids[0] != frozenset():
+            raise NotImplementedError
+        pi_df2 = pi_df2.droplevel("qualifier_ids")
+
+        if kind == SimObsType.obs and "ensemble_member" in pi_df2.index.names:  # type: ignore[misc]
+            # obs should not contain ensemble member dimension, however fewsio Timeseries may have
+            #  added it
+            ens_ids: list[int] = (
+                pi_df2.index.get_level_values("ensemble_member").unique().to_numpy().tolist()  # type: ignore[misc]
+            )
+            if len(ens_ids) != 1 or ens_ids[0] != 0:
+                raise NotImplementedError
+            pi_df2 = pi_df2.droplevel("ensemble_member")
 
         # Create xarray DataArray
         return pi_df2.to_xarray().to_dataset(name=xname)
@@ -84,5 +106,5 @@ class PiXmlFile(GenericDatasource):
 
         filepath = Path(dsconfig.directory) / dsconfig.filename
         pif = cls(dsconfig)
-        pif.xarray = cls._pi_xml_to_xarray(filepath)
+        pif.xarray = cls._pi_xml_to_xarray(filepath, dsconfig.simobstype)
         return [pif]

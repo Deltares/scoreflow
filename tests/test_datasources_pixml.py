@@ -14,16 +14,17 @@ def test_happy() -> None:
         testconf = yaml.safe_load(cf)  # type: ignore[misc]
         testconf["datasources"][0]["directory"] = str(TESTS_FORECASTS_FILE.parent)  # type: ignore[misc]
         testconf["datasources"][0]["filename"] = TESTS_FORECASTS_FILE.name  # type: ignore[misc]
+        testconf["datasources"][0]["simobstype"] = "sim"  # type: ignore[misc]
     parsed_content = YamlSchema(**testconf)  # type: ignore[misc]
 
     forecastdata = PiXmlFile.get_data(parsed_content.datasources[0])
 
     assert (
         forecastdata[0]
-        .xarray.Q.loc[  # type: ignore[misc]
+        .xarray["Q.fs"]
+        .loc[  # type: ignore[misc]
             np.datetime64("2024-07-03T05:00"),
             "LOC2",
-            "Q.fs",
             20:21,
         ]
         .data.tolist()
