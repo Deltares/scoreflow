@@ -8,18 +8,18 @@ packages = [{include = "dpyverification", from = "src"}]
 
 [tool.poetry.dependencies]
 python = "^3.11"
-xarray = "^2024.6.0"
+xarray = "^2024.6.0" # for now NOT with the io extra, since only want netcdf4 support, not all the other packages that are part of io like scipy
 pyyaml = "^6.0.1"
 fews-io = "^0.0.2"
 pydantic = "^2.8.2"
+netcdf4 = "^1.7.1.post1" # explicitly use this package, instead of through xarray with extras = io
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2.2"
 ruff = "^0.5.0"
 mypy = "^1.10.1"
-# types definitions needed for mypy
-types-pyyaml = "^6.0.12.20240311"
-pandas-stubs = "^2.2.2.240603"
+types-pyyaml = "^6.0.12.20240311" # types definitions needed for mypy
+pandas-stubs = "^2.2.2.240603" # types definitions needed for mypy
 
 
 [tool.mypy]
