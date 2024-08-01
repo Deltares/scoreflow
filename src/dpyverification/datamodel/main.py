@@ -24,11 +24,23 @@ class DataModel:
     """The dpyverification internal DataModel."""
 
     input: xarray.Dataset
-    output: xarray.Dataset
 
     def __init__(self, datalist: Sequence[GenericDatasource]) -> None:
         # unpack the list
         self._xarrays_from_inputs(datalist)
+
+    @property
+    def output(self) -> xarray.Dataset:
+        """The combined output of the verifications."""
+        return self._output
+
+    @output.setter
+    def output(self, _: xarray.Dataset) -> None:
+        msg: str = (
+            "DataModel.output cannot be set directly, use the add_to_output method to specify"
+            " how to combine the existing output and the new output."
+        )
+        raise ValueError(msg)
 
     def _xarrays_from_inputs(self, datalist: Sequence[GenericDatasource]) -> None:
         time_coord: xarray.DataArray
@@ -106,7 +118,7 @@ class DataModel:
 
         # Add extra output dimensions / coordinates here, e.g. leadtime
 
-        self.output = xarray.Dataset(coords=coords)  # type: ignore[misc]  # Due to the numpy arrays
+        self._output = xarray.Dataset(coords=coords)  # type: ignore[misc]  # Due to the numpy arrays
 
     @staticmethod
     def _create_time_coord(
@@ -169,4 +181,4 @@ class DataModel:
         # Ok to add
         # No conflicts between the to-be-added output and earlier created outputs
         # Do we indeed want to use merge here?
-        self.output = self.output.merge(new_output)
+        self._output = self._output.merge(new_output)
