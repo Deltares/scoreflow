@@ -8,6 +8,18 @@ import xarray
 from dpyverification.datasources.genericdatasource import GenericDatasource, SimObsType
 
 
+class DataModelCoords:
+    """List of coordinate names.
+
+    To avoid hardcoded strings in multiple places,
+    have a single list with the names of known coordinates / dimensions.
+    """
+
+    time = "time"
+    location = "location_id"
+    ensemble = "ensemble_member"
+
+
 class DataModel:
     """The dpyverification internal DataModel."""
 
@@ -31,8 +43,8 @@ class DataModel:
         ensemble_list: list[int] = []
         for ds in datalist:
             # all ds should have these dimensions
-            obs_dims = frozenset(["time", "location_id"])
-            sim_dims = ["ensemble_member", *obs_dims]
+            obs_dims = frozenset([DataModelCoords.time, DataModelCoords.location])
+            sim_dims = [DataModelCoords.ensemble, *obs_dims]
             if ds.simobstype == SimObsType.obs:
                 if frozenset(ds.xarray.sizes) != obs_dims:
                     msg = "For Observations data, the exact required dimensions are: " + str(
@@ -51,7 +63,7 @@ class DataModel:
                     raise ValueError(msg)
                 sim_list.append(ds)
 
-            if not ds.xarray.sizes["time"] > 1:
+            if not ds.xarray.sizes[DataModelCoords.time] > 1:
                 msg = "Scalar time dimension not supported"
                 raise ValueError(msg)
 
@@ -67,12 +79,12 @@ class DataModel:
             time_ends.append(max(time_coord.data))  # type: ignore[misc] # Due to the time_coord numpy array
 
             # SHOULD CHECK that location_ids are indeed strings
-            l_temp: list[str] = ds.xarray.location_id.data.tolist()  # type: ignore[misc]
+            l_temp: list[str] = ds.xarray[DataModelCoords.location].data.tolist()  # type: ignore[misc]
             locations_list += l_temp
 
-            if "ensemble_member" in ds.xarray.dims:
+            if DataModelCoords.ensemble in ds.xarray.dims:
                 # SHOULD CHECK that ensemble_members are indeed int
-                e_temp: list[int] = ds.xarray.ensemble_member.data.tolist()  # type: ignore[misc]
+                e_temp: list[int] = ds.xarray[DataModelCoords.ensemble].data.tolist()  # type: ignore[misc]
                 ensemble_list += e_temp
 
         time_coord = self._create_time_coord(time_starts, time_ends, time_steps, datalist)
@@ -80,9 +92,9 @@ class DataModel:
         unique_ensembles = list(set(ensemble_list))
 
         coords = {
-            "time": time_coord.data,  # type: ignore[misc]  # Due to the numpy arrays
-            "location_id": unique_locations,
-            "ensemble_member": unique_ensembles,
+            DataModelCoords.time: time_coord.data,  # type: ignore[misc]  # Due to the numpy arrays
+            DataModelCoords.location: unique_locations,
+            DataModelCoords.ensemble: unique_ensembles,
         }
 
         self.input = xarray.Dataset(coords=coords)  # type: ignore[misc]  # Due to the numpy arrays
