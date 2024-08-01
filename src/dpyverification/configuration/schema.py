@@ -17,7 +17,7 @@ from typing import Annotated, Literal, TypeAlias
 
 from pydantic import BaseModel, Field
 
-from dpyverification.constants import CalculationTypeEnum, DataSourceTypeEnum, SimObsType
+from dpyverification.constants import CalculationTypeEnum, DataSourceTypeEnum, SimObsType, TimeUnits
 
 
 class FewsWebservice(BaseModel):
@@ -52,6 +52,9 @@ class SimObsPairs(BaseModel):
     # One combination of list-of-leadtimes and list-of-variablepairs, use multiple SimObsPairs
     # to define more combinations
     leadtimes: list[int] | None = None  # Use GeneralInfo leadtimes when empty
+    leadtimesunit: Literal[TimeUnits.day, TimeUnits.hour, TimeUnits.minute, TimeUnits.second] = (
+        TimeUnits.minute
+    )
     variablepairs: list[SimObsPair]
 
 
@@ -63,6 +66,9 @@ Calculation: TypeAlias = (
 class GeneralInfo(BaseModel):
     # Is this general info, or might it be different for different calculations?
     leadtimes: list[int] | None = None  # Do we need a default value, if it is optional? Yes
+    leadtimesunit: Literal[TimeUnits.day, TimeUnits.hour, TimeUnits.minute, TimeUnits.second] = (
+        TimeUnits.minute
+    )
 
 
 class ConfigSchema(BaseModel):

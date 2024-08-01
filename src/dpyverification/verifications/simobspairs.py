@@ -19,16 +19,19 @@ def simobspairs(
         raise TypeError(msg)
     if calcconfig.leadtimes:
         leadtimes = calcconfig.leadtimes
+        leadtimesunit = str(calcconfig.leadtimesunit)
     elif fullconfig.general.leadtimes:
         leadtimes = fullconfig.general.leadtimes
+        leadtimesunit = str(fullconfig.general.leadtimesunit)
     else:
         leadtimes = [0]
+        leadtimesunit = "m"
     leadsets = []
     for leadtime in leadtimes:
         leadset = data.input.coords.to_dataset()
         # need to document that leadtime is expected to be in minutes
         newtime: list[datetime64] = list(
-            data.input[DataModelCoords.time].data + timedelta64(leadtime, "m"),  # type: ignore[misc] # Quite certain that data.input[DataModelCoords.time].data will be a 1D array of datetime64
+            data.input[DataModelCoords.time].data + timedelta64(leadtime, leadtimesunit),  # type: ignore[misc] # Quite certain that data.input[DataModelCoords.time].data will be a 1D array of datetime64
         )
         newcoord = {DataModelCoords.time: newtime}
         leadset = leadset.assign_coords(newcoord)

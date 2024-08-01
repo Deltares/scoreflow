@@ -34,6 +34,18 @@ class CalculationTypeEnum(StrEnum):
     pinscore = "pinscore"
 
 
+class TimeUnits(StrEnum):
+    """Time unit strings, compatible with numpy datetime64 and timedelta64."""
+
+    year = "Y"
+    month = "M"
+    week = "W"
+    day = "D"
+    hour = "h"
+    minute = "m"
+    second = "s"
+
+
 def _set_version_info() -> tuple[str, str]:
     version = importlib_metadata.version("dpyverification")
     version_extra = ""
