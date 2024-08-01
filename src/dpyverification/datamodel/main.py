@@ -5,7 +5,7 @@ from collections.abc import Sequence
 import numpy as np
 import xarray
 
-from dpyverification.constants import SimObsType
+from dpyverification.constants import NAME, VERSION_FULL, SimObsType
 from dpyverification.datasources.genericdatasource import GenericDatasource
 
 
@@ -83,6 +83,8 @@ class DataModel:
         # Add extra output dimensions / coordinates here, e.g. leadtime
 
         self._output = xarray.Dataset(coords=coords)  # type: ignore[misc]  # Due to the numpy arrays
+        source_str = NAME + " version " + VERSION_FULL
+        self._output.attrs.update(source=source_str)  # type: ignore[misc]  # Yes, attrs is een any-any dict, however here we only add to it.
 
     @staticmethod
     def _parse_source(
