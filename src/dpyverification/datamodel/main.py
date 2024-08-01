@@ -55,6 +55,7 @@ class DataModel:
         locations_list: list[str] = []
         ensemble_list: list[int] = []
         for ds in datalist:
+            obs_list.append(ds) if ds.simobstype == SimObsType.obs else sim_list.append(ds)
             # all ds should have these dimensions
             obs_dims = frozenset([DataModelCoords.time, DataModelCoords.location])
             sim_dims = [DataModelCoords.ensemble, *obs_dims]
@@ -64,8 +65,7 @@ class DataModel:
                         obs_dims,
                     )
                     raise ValueError(msg)
-                obs_list.append(ds)
-            if ds.simobstype == SimObsType.sim:
+            else:
                 if not all(x in ds.xarray.dims for x in obs_dims):
                     msg = "For Simulations data, the minimum required dimensions are: " + str(
                         obs_dims,
@@ -74,7 +74,6 @@ class DataModel:
                 if any(x not in sim_dims for x in ds.xarray.dims):
                     msg = "For Simulations data, the only allowed dimensions are: " + str(sim_dims)
                     raise ValueError(msg)
-                sim_list.append(ds)
 
             if not ds.xarray.sizes[DataModelCoords.time] > 1:
                 msg = "Scalar time dimension not supported"
