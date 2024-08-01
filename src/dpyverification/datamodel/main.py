@@ -44,8 +44,6 @@ class DataModel:
         raise ValueError(msg)
 
     def _xarrays_from_inputs(self, datalist: Sequence[GenericDatasource]) -> None:
-        time_coord: xarray.DataArray
-
         # Determine sizes and values of combined dimensions.
         time_starts: list[np.datetime64] = []
         time_ends: list[np.datetime64] = []
@@ -56,48 +54,14 @@ class DataModel:
         ensemble_list: list[int] = []
         for ds in datalist:
             obs_list.append(ds) if ds.simobstype == SimObsType.obs else sim_list.append(ds)
-            # all ds should have these dimensions
-            obs_dims = frozenset([DataModelCoords.time, DataModelCoords.location])
-            sim_dims = [DataModelCoords.ensemble, *obs_dims]
-            if ds.simobstype == SimObsType.obs:
-                if frozenset(ds.xarray.sizes) != obs_dims:
-                    msg = "For Observations data, the exact required dimensions are: " + str(
-                        obs_dims,
-                    )
-                    raise ValueError(msg)
-            else:
-                if not all(x in ds.xarray.dims for x in obs_dims):
-                    msg = "For Simulations data, the minimum required dimensions are: " + str(
-                        obs_dims,
-                    )
-                    raise ValueError(msg)
-                if any(x not in sim_dims for x in ds.xarray.dims):
-                    msg = "For Simulations data, the only allowed dimensions are: " + str(sim_dims)
-                    raise ValueError(msg)
 
-            if not ds.xarray.sizes[DataModelCoords.time] > 1:
-                msg = "Scalar time dimension not supported"
-                raise ValueError(msg)
+            step, start, end, loc, ens = self._parse_source(ds)
 
-            time_coord = ds.xarray.time
-
-            # register the start, end and timestep of the time dimension
-            timediffs = np.unique(np.diff(time_coord.data))  # type: ignore[misc] # Due to the time_coord numpy array
-            if len(timediffs) > 1:  # type: ignore[misc] # Due to the time_coord numpy array
-                msg = "Time dimension should be uniformly increasing"
-                raise ValueError(msg)
-            time_steps.append(timediffs[0])  # type: ignore[misc] # Due to the time_coord numpy array
-            time_starts.append(min(time_coord.data))  # type: ignore[misc] # Due to the time_coord numpy array
-            time_ends.append(max(time_coord.data))  # type: ignore[misc] # Due to the time_coord numpy array
-
-            # SHOULD CHECK that location_ids are indeed strings
-            l_temp: list[str] = ds.xarray[DataModelCoords.location].data.tolist()  # type: ignore[misc]
-            locations_list += l_temp
-
-            if DataModelCoords.ensemble in ds.xarray.dims:
-                # SHOULD CHECK that ensemble_members are indeed int
-                e_temp: list[int] = ds.xarray[DataModelCoords.ensemble].data.tolist()  # type: ignore[misc]
-                ensemble_list += e_temp
+            time_steps.append(step)
+            time_starts.append(start)
+            time_ends.append(end)
+            locations_list += loc
+            ensemble_list += ens
 
         time_coord = self._create_time_coord(time_starts, time_ends, time_steps, datalist)
         unique_locations = list(set(locations_list))
@@ -119,6 +83,51 @@ class DataModel:
         # Add extra output dimensions / coordinates here, e.g. leadtime
 
         self._output = xarray.Dataset(coords=coords)  # type: ignore[misc]  # Due to the numpy arrays
+
+    @staticmethod
+    def _parse_source(
+        ds: GenericDatasource,
+    ) -> tuple[np.timedelta64, np.datetime64, np.datetime64, list[str], list[int]]:
+        # all ds should have these dimensions
+        obs_dims = frozenset([DataModelCoords.time, DataModelCoords.location])
+        sim_dims = [DataModelCoords.ensemble, *obs_dims]
+        if ds.simobstype == SimObsType.obs:
+            if frozenset(ds.xarray.sizes) != obs_dims:
+                msg = "For Observations data, the exact required dimensions are: " + str(
+                    obs_dims,
+                )
+                raise ValueError(msg)
+        else:
+            if not all(x in ds.xarray.dims for x in obs_dims):
+                msg = "For Simulations data, the minimum required dimensions are: " + str(
+                    obs_dims,
+                )
+                raise ValueError(msg)
+            if any(x not in sim_dims for x in ds.xarray.dims):
+                msg = "For Simulations data, the only allowed dimensions are: " + str(sim_dims)
+                raise ValueError(msg)
+
+        if not ds.xarray.sizes[DataModelCoords.time] > 1:
+            msg = "Scalar time dimension not supported"
+            raise ValueError(msg)
+        time_coord: xarray.DataArray = ds.xarray.time
+
+        # register the start, end and timestep of the time dimension
+        timediffs = np.unique(np.diff(time_coord.data))  # type: ignore[misc] # Due to the time_coord numpy array
+        if len(timediffs) > 1:  # type: ignore[misc] # Due to the time_coord numpy array
+            msg = "Time dimension should be uniformly increasing"
+            raise ValueError(msg)
+
+        # SHOULD CHECK that location_ids are indeed strings
+        l_temp: list[str] = ds.xarray[DataModelCoords.location].data.tolist()  # type: ignore[misc]
+
+        if DataModelCoords.ensemble in ds.xarray.dims:
+            # SHOULD CHECK that ensemble_members are indeed int
+            e_temp: list[int] = ds.xarray[DataModelCoords.ensemble].data.tolist()  # type: ignore[misc]
+        else:
+            e_temp = []
+
+        return timediffs[0], min(time_coord.data), max(time_coord.data), l_temp, e_temp  # type: ignore[misc] # Due to the time_coord numpy array
 
     @staticmethod
     def _create_time_coord(
