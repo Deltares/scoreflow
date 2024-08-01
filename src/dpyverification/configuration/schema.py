@@ -49,6 +49,40 @@ DataSource: TypeAlias = (
 )  # A Type Alias for the combination of data source schema classes
 
 
+class CalculationTypeEnum(StrEnum):
+    simobspairs = "simobspair"
+    pinscore = "pinscore"
+
+
+class SimObsPair(BaseModel):
+    sim: str
+    obs: str
+
+
+class PinScore(BaseModel):
+    calculationtype: Literal[CalculationTypeEnum.pinscore]
+
+
+class SimObsPairs(BaseModel):
+    calculationtype: Literal[CalculationTypeEnum.simobspairs]
+    # One combination of list-of-leadtimes and list-of-variablepairs, use multiple SimObsPairs
+    # to define more combinations
+    leadtimes: list[int] | None = None  # Use GeneralInfo leadtimes when empty
+    variablepairs: list[SimObsPair]
+
+
+Calculation: TypeAlias = (
+    SimObsPairs | PinScore  # A Type Alias for the combination of calculation schema classes
+)
+
+
+class GeneralInfo(BaseModel):
+    # Is this general info, or might it be different for different calculations?
+    leadtimes: list[int] | None = None  # Do we need a default value, if it is optional? Yes
+
+
 class ConfigSchema(BaseModel):
+    calculations: Annotated[list[Calculation], Field(min_length=1)]
     datasources: Annotated[list[DataSource], Field(min_length=1)]
+    general: GeneralInfo
     fileversion: str

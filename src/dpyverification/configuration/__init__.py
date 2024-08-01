@@ -2,4 +2,11 @@
 
 # The public interface
 from .main import Config, ConfigTypes
-from .schema import ConfigSchema, DataSource, DataSourceTypeEnum, SimObsType
+from .schema import (
+    Calculation,
+    CalculationTypeEnum,
+    ConfigSchema,
+    DataSource,
+    DataSourceTypeEnum,
+    SimObsType,
+)

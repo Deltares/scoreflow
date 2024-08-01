@@ -5,7 +5,7 @@ from enum import Enum
 
 import yaml
 
-from .schema import ConfigSchema, DataSource
+from .schema import Calculation, ConfigSchema, DataSource
 
 
 class ConfigTypes(Enum):
@@ -38,4 +38,6 @@ class Config:
 
         self.filename = configfile
         self.configtype = configtype
+        self.general = parsed_content.general
         self.datasources: list[DataSource] = parsed_content.datasources
+        self.calculations: list[Calculation] = parsed_content.calculations

@@ -1,4 +1,10 @@
 fileversion: "0.0.1"
+general: {
+  leadtimes: [
+    1440,
+    2880,
+  ]
+}
 datasources: [
   {
     datasourcetype: "pixml",
@@ -11,5 +17,16 @@ datasources: [
     simobstype: "sim",
     directory: "twee",
     filename: "drie",
+  },
+]
+calculations: [
+  {
+    calculationtype: "simobspair",
+    variablepairs: [
+      {
+        sim: "Q.fs",
+        obs: "Q.m",
+      },
+    ]
   },
 ]
