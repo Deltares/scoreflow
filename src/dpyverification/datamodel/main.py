@@ -5,20 +5,8 @@ from collections.abc import Sequence
 import numpy as np
 import xarray
 
-from dpyverification.constants import NAME, VERSION_FULL, SimObsType
+from dpyverification.constants import NAME, VERSION_FULL, DataModelCoords, DataModelDims, SimObsType
 from dpyverification.datasources.genericdatasource import GenericDatasource
-
-
-class DataModelCoords:
-    """List of coordinate names.
-
-    To avoid hardcoded strings in multiple places,
-    have a single list with the names of known coordinates / dimensions.
-    """
-
-    time = "time"
-    location = "location_id"
-    ensemble = "ensemble_member"
 
 
 class DataModel:
@@ -50,30 +38,54 @@ class DataModel:
         time_steps: list[np.timedelta64] = []
         obs_list: list[GenericDatasource] = []
         sim_list: list[GenericDatasource] = []
-        locations_list: list[str] = []
+        locations_list: list[xarray.Coordinates] = []
         ensemble_list: list[int] = []
+        simstart_list: list[np.datetime64] = []
         for ds in datalist:
             obs_list.append(ds) if ds.simobstype == SimObsType.obs else sim_list.append(ds)
 
-            step, start, end, loc, ens = self._parse_source(ds)
+            self._check_source_dims_and_coords(
+                ds,
+            )  # Method will raise an error when there is a problem
+            step, start, end, location, ens, simstart = self._parse_source(ds)
 
             time_steps.append(step)
             time_starts.append(start)
             time_ends.append(end)
-            locations_list += loc
+            locations_list.append(location)
             ensemble_list += ens
+            simstart_list += simstart
 
-        time_coord = self._create_time_coord(time_starts, time_ends, time_steps, datalist)
-        unique_locations = list(set(locations_list))
-        unique_ensembles = list(set(ensemble_list))
+        try:
+            locations = xarray.merge(locations_list)
+        except Exception as incompat:
+            # STILL NEEDS: list of ids, lat, lon, ordered by id, to be able to find the problem
+            msg = "Incompatible locations in combination of datasources"
+            raise AttributeError(msg) from incompat
+        ensemble_list = list(set(ensemble_list))
+        simstart_list = list(set(simstart_list))
 
-        coords = {
-            DataModelCoords.time: time_coord.data,  # type: ignore[misc]  # Due to the numpy arrays
-            DataModelCoords.location: unique_locations,
-            DataModelCoords.ensemble: unique_ensembles,
-        }
+        time_coord = self._create_time_coord(
+            time_starts,
+            time_ends,
+            time_steps,
+            datalist,
+        )
 
-        self.input = xarray.Dataset(coords=coords)  # type: ignore[misc]  # Due to the numpy arrays
+        # When we allow datasets with leadtime already taken into account, cannot mix with simstart
+        #  based datasets? In that case, need to parse the simstart datasets approximately HERE
+        #  into leadtime datasets.
+
+        # Add the other coordinates to the location coordinates to get the full set
+        coords = locations.coords.assign(
+            {
+                DataModelCoords.time: time_coord.data,  # type: ignore[misc]  # Due to the numpy arrays
+                DataModelCoords.ensemble: ensemble_list,
+                DataModelCoords.simstart: simstart_list,
+            },
+        )
+
+        self.input = xarray.Dataset(coords=coords)
         # THERE REALLY HAS NOT BEEN ENOUGH CHECKING YET, e.g. on variable names being unique
         obs_sets = [obs.xarray for obs in obs_list]
         sim_sets = [sim.xarray for sim in sim_list]
@@ -81,25 +93,49 @@ class DataModel:
         self.input = xarray.merge(merge_set)
 
         # Add extra output dimensions / coordinates here, e.g. leadtime
+        # Do make sure to check that that does not affect the self.input
 
-        self._output = xarray.Dataset(coords=coords)  # type: ignore[misc]  # Due to the numpy arrays
+        self._output = xarray.Dataset(coords=coords)
         source_str = NAME + " version " + VERSION_FULL
         self._output.attrs.update(source=source_str)  # type: ignore[misc]  # Yes, attrs is een any-any dict, however here we only add to it.
 
     @staticmethod
-    def _parse_source(
-        ds: GenericDatasource,
-    ) -> tuple[np.timedelta64, np.datetime64, np.datetime64, list[str], list[int]]:
+    def _check_source_dims_and_coords(ds: GenericDatasource) -> None:
         # all ds should have these dimensions
-        obs_dims = frozenset([DataModelCoords.time, DataModelCoords.location])
-        sim_dims = [DataModelCoords.ensemble, *obs_dims]
+        obs_dims = frozenset(
+            [
+                DataModelDims.time,
+                DataModelDims.location,
+            ],
+        )
+        obs_coords = frozenset(
+            [
+                DataModelCoords.time,
+                DataModelCoords.location,
+                DataModelCoords.lat,
+                DataModelCoords.lon,
+            ],
+        )
+        # sim ds are allowed to have these dimensions
+        # DO THEY need to have simstart, or can do without? Will depend on whether leadtime already
+        #   taken into account in the ds? So need either simstart or leadtime?
+        sim_dims = [DataModelDims.ensemble, DataModelDims.simstart, *obs_dims]
+        sim_coords = [DataModelCoords.ensemble, DataModelCoords.simstart, *obs_coords]
+
         if ds.simobstype == SimObsType.obs:
             if frozenset(ds.xarray.sizes) != obs_dims:
                 msg = "For Observations data, the exact required dimensions are: " + str(
                     obs_dims,
                 )
                 raise ValueError(msg)
+            if frozenset(ds.xarray.coords) != obs_coords:
+                msg = "For Observations data, the exact required coordinates are: " + str(
+                    obs_dims,
+                )
+                raise ValueError(msg)
         else:
+            # For sim data, need at least obs dims and coords, and can have additional entries
+            # from the list of allowed sim dims and coords
             if not all(x in ds.xarray.dims for x in obs_dims):
                 msg = "For Simulations data, the minimum required dimensions are: " + str(
                     obs_dims,
@@ -108,28 +144,71 @@ class DataModel:
             if any(x not in sim_dims for x in ds.xarray.dims):
                 msg = "For Simulations data, the only allowed dimensions are: " + str(sim_dims)
                 raise ValueError(msg)
+            if not all(x in ds.xarray.coords for x in obs_coords):
+                msg = "For Simulations data, the minimum required coordinates are: " + str(
+                    obs_coords,
+                )
+                raise ValueError(msg)
+            if any(x not in sim_coords for x in ds.xarray.coords):
+                msg = "For Simulations data, the only allowed coordinates are: " + str(sim_coords)
+                raise ValueError(msg)
 
+    @staticmethod
+    def _parse_source(
+        ds: GenericDatasource,
+    ) -> tuple[
+        np.timedelta64,
+        np.datetime64,
+        np.datetime64,
+        xarray.Coordinates,
+        list[int],
+        list[np.datetime64],
+    ]:
         if not ds.xarray.sizes[DataModelCoords.time] > 1:
+            # Not inside _check_source_dims_and_coords, because might want to allow this, in that
+            # case directly related to the code line following
             msg = "Scalar time dimension not supported"
             raise ValueError(msg)
         time_coord: xarray.DataArray = ds.xarray.time
 
         # register the start, end and timestep of the time dimension
-        timediffs = np.unique(np.diff(time_coord.data))  # type: ignore[misc] # Due to the time_coord numpy array
-        if len(timediffs) > 1:  # type: ignore[misc] # Due to the time_coord numpy array
+        start: np.datetime64 = min(time_coord.data)  # type: ignore[misc] # Due to the time_coord numpy array
+        end: np.datetime64 = max(time_coord.data)  # type: ignore[misc] # Due to the time_coord numpy array
+        timediffs: list[np.timedelta64] = list(np.unique(np.diff(time_coord.data)))  # type: ignore[misc] # Due to the time_coord numpy array
+        if len(timediffs) > 1:
             msg = "Time dimension should be uniformly increasing"
             raise ValueError(msg)
 
-        # SHOULD CHECK that location_ids are indeed strings
-        l_temp: list[str] = ds.xarray[DataModelCoords.location].data.tolist()  # type: ignore[misc]
+        # This will return a Coordinates object, that holds has the lat and lon coordinates (i.e.
+        #  all coordinates for the dimensions of ds.xarray[DataModelCoords.location])
+        location = ds.xarray[DataModelCoords.location].coords  # type: ignore[misc] # coords is a DataArrayCoordinates[Any]
 
-        if DataModelCoords.ensemble in ds.xarray.dims:
+        # Note: in the following statements, use list(X) since that conserves numpy datatype, using
+        #  X.tolist() would convert to python type
+
+        if DataModelCoords.ensemble in ds.xarray.coords:
             # SHOULD CHECK that ensemble_members are indeed int
-            e_temp: list[int] = ds.xarray[DataModelCoords.ensemble].data.tolist()  # type: ignore[misc]
+            ens: list[int] = list(ds.xarray[DataModelCoords.ensemble].data)  # type: ignore[misc]
         else:
-            e_temp = []
+            ens = []
 
-        return timediffs[0], min(time_coord.data), max(time_coord.data), l_temp, e_temp  # type: ignore[misc] # Due to the time_coord numpy array
+        if DataModelCoords.simstart in ds.xarray.coords:
+            # SHOULD CHECK that simstart are indeed np.datetime64
+            # SHOULD CHECK that simstart is part of the time coord values (actually, just that it is
+            #  at a valid timediff, does not need to be part of the time coord values)
+            #  Because simstart+leadtime needs to be a potentially valid time coord value
+            simstart: list[np.datetime64] = list(ds.xarray[DataModelCoords.simstart].data)  # type: ignore[misc]
+        else:
+            simstart = []
+
+        return (
+            timediffs[0],
+            start,
+            end,
+            location,  # type: ignore[misc] # coords is a DataArrayCoordinates[Any]
+            ens,
+            simstart,
+        )
 
     @staticmethod
     def _create_time_coord(

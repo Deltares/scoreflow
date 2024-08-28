@@ -46,6 +46,36 @@ class TimeUnits(StrEnum):
     second = "s"
 
 
+class DataModelDims:
+    """List of dimension names.
+
+    To avoid hardcoded strings in multiple places,
+    have a single list with the names of known dimensions.
+    """
+
+    time = "time"
+    location = "location_id"
+    ensemble = "ensemble_member"
+    simstart = "simulation_starttime"
+
+
+class DataModelCoords:
+    """List of coordinate names.
+
+    To avoid hardcoded strings in multiple places,
+    have a single list with the names of known coordinates.
+
+    Coordinates with matching dimension will have the same name as the dimension
+    """
+
+    time = DataModelDims.time
+    location = DataModelDims.location
+    lat = "lat"
+    lon = "lon"
+    ensemble = DataModelDims.ensemble
+    simstart = DataModelDims.simstart
+
+
 def _set_version_info() -> tuple[str, str]:
     version = importlib_metadata.version("dpyverification")
     version_extra = ""
