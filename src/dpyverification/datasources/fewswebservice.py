@@ -36,6 +36,9 @@ class FewsWebService(GenericDatasource):
             # Work out the correct forecastStartTime and forecastEndTime
             # so that all forecasts overlapping with the verification period
             # defined by start_time and end_time will be requested from the web service.
+            if giconfig.leadtimes is None:
+                msg = "No lead times specified for simulation."
+                raise ValueError(msg)
             start_forecast_time = start - max(giconfig.leadtimes.timedelta)
             end_forecast_time = end
             params = {
@@ -56,7 +59,7 @@ class FewsWebService(GenericDatasource):
                 "documentFormat": dsconfig.document_format,
                 "documentVersion": dsconfig.document_version,
             }
-        elif dsconfig.simobstype == SimObsType.obs:
+        if dsconfig.simobstype == SimObsType.obs:
             params = {
                 "locationIds": dsconfig.location_ids,
                 "parameterIds": dsconfig.parameter_ids,
@@ -67,20 +70,19 @@ class FewsWebService(GenericDatasource):
                 "documentFormat": dsconfig.document_format,
                 "documentVersion": dsconfig.document_version,
             }
-        else:
-            msg = "Can not handle other than sim or obs data."
-            raise NotImplementedError(msg)
         response = requests.get(url=url, params=params, timeout=FewsWebService.timeout)
         response.raise_for_status()
         return response
 
     @classmethod
-    def get_data(cls, dsconfig: DataSource, giconfig: GeneralInfo) -> list[Self]:
+    def get_data(cls, dsconfig: DataSource, giconfig: GeneralInfo | None = None) -> list[Self]:
         """Retrieve :py::class`~xarray.Dataset` from Delft-FEWS Webservice."""
         if dsconfig.datasourcetype != DataSourceTypeEnum.fewswebservice:
             msg = "Input dsconfig does not have datasourcetype fewswebservice"
             raise TypeError(msg)
-
+        if giconfig is None:
+            msg = "giconfig cannot be None. General Info is required."
+            raise TypeError(msg)
         fws = cls(dsconfig)
         response = cls.get_timeseries(dsconfig=dsconfig, giconfig=giconfig)
         with tempfile.NamedTemporaryFile(delete=False, suffix=".tmp") as temp_file:

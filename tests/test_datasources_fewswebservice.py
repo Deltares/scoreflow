@@ -16,7 +16,7 @@ VALID_RESPONSE_CODE = 200
 
 def test_webservice_live() -> None:
     """Test that a webservice is live and can find filters."""
-    url = "http://localhost:8080/FewsWebServices/rest/fewspiservice/v1"  # type: ignore[misc]
+    url = "http://localhost:8080/FewsWebServices/rest/fewspiservice/v1"
     endpoint = "filters"
     test_endpoint_url = url + "/" + endpoint
     response = requests.get(test_endpoint_url, timeout=10)
@@ -27,50 +27,50 @@ def test_get_timeseries_sim_happy() -> None:
     """Check that the imported pixml gives an xarray with the expected content."""
     with TESTS_CONFIGURATION_FILE.open() as cf:
         leadtimes = LeadTimes(unit=TimeUnits.hour, values=[3, 6])
-        testconf = yaml.safe_load(cf)
-        testconf["general"]["verificationperiod"]["start"]["value"] = "2024-06-01T00:00:00Z"
-        testconf["general"]["verificationperiod"]["end"]["value"] = "2024-06-03T00:00:00Z"
-        testconf["datasources"][0]["simobstype"] = "sim"
-        testconf["datasources"][0]["datasourcetype"] = "fewswebservice"
-        testconf["datasources"][0]["url"] = (
+        testconf = yaml.safe_load(cf)  # type: ignore[misc]
+        testconf["general"]["verificationperiod"]["start"]["value"] = "2024-06-01T00:00:00Z"  # type: ignore[misc]
+        testconf["general"]["verificationperiod"]["end"]["value"] = "2024-06-03T00:00:00Z"  # type: ignore[misc]
+        testconf["datasources"][0]["simobstype"] = "sim"  # type: ignore[misc]
+        testconf["datasources"][0]["datasourcetype"] = "fewswebservice"  # type: ignore[misc]
+        testconf["datasources"][0]["url"] = (  # type: ignore[misc]
             "http://localhost:8080/FewsWebServices/rest/fewspiservice/v1"
         )
-        testconf["datasources"][0]["location_ids"] = ["H-RN-0001"]
-        testconf["datasources"][0]["parameter_ids"] = ["Q.fs"]
-        testconf["datasources"][0]["module_instance_ids"] = ["SBK3_MaxRTK_ECMWF_ENS"]
-        testconf["datasources"][0]["qualifier_ids"] = []
-        testconf["datasources"][0]["document_format"] = "PI_XML"
-        testconf["datasources"][0]["document_version"] = "1.32"
-        testconf["datasources"][0]["leadtimes"] = leadtimes
-        testconf["datasources"][0]["document_version"] = "1.32"
+        testconf["datasources"][0]["location_ids"] = ["H-RN-0001"]  # type: ignore[misc]
+        testconf["datasources"][0]["parameter_ids"] = ["Q.fs"]  # type: ignore[misc]
+        testconf["datasources"][0]["module_instance_ids"] = ["SBK3_MaxRTK_ECMWF_ENS"]  # type: ignore[misc]
+        testconf["datasources"][0]["qualifier_ids"] = []  # type: ignore[misc]
+        testconf["datasources"][0]["document_format"] = "PI_XML"  # type: ignore[misc]
+        testconf["datasources"][0]["document_version"] = "1.32"  # type: ignore[misc]
+        testconf["datasources"][0]["leadtimes"] = leadtimes  # type: ignore[misc]
+        testconf["datasources"][0]["document_version"] = "1.32"  # type: ignore[misc]
 
-    parsed_content = ConfigSchema(**testconf)
+    parsed_content = ConfigSchema(**testconf)  # type: ignore[misc]
 
     data = FewsWebService.get_data(parsed_content.datasources[0], giconfig=parsed_content.general)
 
-    assert len(data[0].xarray.time) == SIM_TIME_DIM_LENGTH
+    assert len(data[0].xarray.time) == SIM_TIME_DIM_LENGTH  # type: ignore[misc]
 
 
 def test_get_timeseries_obs_happy() -> None:
     """Check that the imported pixml gives an xarray with the expected content."""
     with TESTS_CONFIGURATION_FILE.open() as cf:
-        testconf = yaml.safe_load(cf)
-        testconf["general"]["verificationperiod"]["start"]["value"] = "2024-06-01T00:00:00Z"
-        testconf["general"]["verificationperiod"]["end"]["value"] = "2024-06-03T00:00:00Z"
-        testconf["datasources"][0]["simobstype"] = "obs"
-        testconf["datasources"][0]["datasourcetype"] = "fewswebservice"
-        testconf["datasources"][0]["url"] = (
+        testconf = yaml.safe_load(cf)  # type: ignore[misc]
+        testconf["general"]["verificationperiod"]["start"]["value"] = "2024-06-01T00:00:00Z"  # type: ignore[misc]
+        testconf["general"]["verificationperiod"]["end"]["value"] = "2024-06-03T00:00:00Z"  # type: ignore[misc]
+        testconf["datasources"][0]["simobstype"] = "obs"  # type: ignore[misc]
+        testconf["datasources"][0]["datasourcetype"] = "fewswebservice"  # type: ignore[misc]
+        testconf["datasources"][0]["url"] = (  # type: ignore[misc]
             "http://localhost:8080/FewsWebServices/rest/fewspiservice/v1"
         )
-        testconf["datasources"][0]["location_ids"] = ["H-RN-0001"]
-        testconf["datasources"][0]["parameter_ids"] = ["Q.m"]
-        testconf["datasources"][0]["module_instance_ids"] = ["Import_LMW"]
-        testconf["datasources"][0]["qualifier_ids"] = []
-        testconf["datasources"][0]["document_format"] = "PI_XML"
-        testconf["datasources"][0]["document_version"] = "1.32"
+        testconf["datasources"][0]["location_ids"] = ["H-RN-0001"]  # type: ignore[misc]
+        testconf["datasources"][0]["parameter_ids"] = ["Q.m"]  # type: ignore[misc]
+        testconf["datasources"][0]["module_instance_ids"] = ["Import_LMW"]  # type: ignore[misc]
+        testconf["datasources"][0]["qualifier_ids"] = []  # type: ignore[misc]
+        testconf["datasources"][0]["document_format"] = "PI_XML"  # type: ignore[misc]
+        testconf["datasources"][0]["document_version"] = "1.32"  # type: ignore[misc]
 
-    parsed_content = ConfigSchema(**testconf)
+    parsed_content = ConfigSchema(**testconf)  # type: ignore[misc]
 
     data = FewsWebService.get_data(parsed_content.datasources[0], giconfig=parsed_content.general)
 
-    assert len(data[0].xarray.time) == OBS_TIME_DIM_LENGTH
+    assert len(data[0].xarray.time) == OBS_TIME_DIM_LENGTH  # type: ignore[misc]

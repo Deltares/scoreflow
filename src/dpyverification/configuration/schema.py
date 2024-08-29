@@ -52,7 +52,7 @@ class LeadTimes(BaseModel):
         """As datetime timedelta."""
 
         def convert_to_timedelta(value: int) -> timedelta:
-            return np.timedelta64(value, self.unit).astype(timedelta)
+            return np.timedelta64(value, self.unit).astype(timedelta)  # type: ignore[no-any-return, misc]
 
         return [convert_to_timedelta(v) for v in self.values]
 
@@ -81,7 +81,7 @@ class FewsWebserviceInput(FewsWebservice):
     @classmethod
     def check_field_leadtimes(cls, v: LeadTimes | None, info: ValidationInfo) -> LeadTimes | None:
         """Check if leadtimes defined, when simobstype is sim."""
-        if info.data["simobstype"] == SimObsType.sim and v is None:
+        if info.data["simobstype"] == SimObsType.sim and v is None:  # type: ignore[misc]
             msg = "Lead times are required when simobstype is SimObsType.sim."
             raise ValueError(msg)
         return v
