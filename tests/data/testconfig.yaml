@@ -31,3 +31,10 @@ calculations: [
     ]
   },
 ]
+output: [
+  {
+    datasourcetype: "fewsnetcdf",
+    directory: "somewhere",
+    filename: "something",
+  }
+]

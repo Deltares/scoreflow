@@ -5,7 +5,7 @@ from enum import Enum
 
 import yaml
 
-from .schema import Calculation, ConfigSchema, DataSource
+from .schema import Calculation, ConfigSchema, DataSource, Output
 
 
 class ConfigTypes(Enum):
@@ -41,3 +41,4 @@ class Config:
         self.general = parsed_content.general
         self.datasources: list[DataSource] = parsed_content.datasources
         self.calculations: list[Calculation] = parsed_content.calculations
+        self.output: list[Output] = parsed_content.output

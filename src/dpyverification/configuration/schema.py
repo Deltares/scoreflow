@@ -22,20 +22,40 @@ from dpyverification.constants import CalculationTypeEnum, DataSourceTypeEnum, S
 
 class FewsWebservice(BaseModel):
     datasourcetype: Literal[DataSourceTypeEnum.fewswebservice]
-    simobstype: SimObsType
     url: str
 
 
-class LocalFile(BaseModel):
-    datasourcetype: Literal[DataSourceTypeEnum.pixml, DataSourceTypeEnum.fewsnetcdf]
+class FewsWebserviceInput(FewsWebservice):
     simobstype: SimObsType
+
+
+class FewsWebserviceOutput(FewsWebservice):
+    pass
+
+
+class LocalFile(BaseModel):
     directory: str
     filename: str
 
 
+class FileInput(LocalFile):
+    datasourcetype: Literal[DataSourceTypeEnum.pixml, DataSourceTypeEnum.fewsnetcdf]
+    simobstype: SimObsType
+
+
+class FewsNetcdfOutput(LocalFile):
+    datasourcetype: Literal[DataSourceTypeEnum.fewsnetcdf]
+    title: str | None = None  # A title will be generated if not provided
+    institution: str = "Deltares"
+
+
 DataSource: TypeAlias = (
-    FewsWebservice | LocalFile
+    FewsWebserviceInput | FileInput
 )  # A Type Alias for the combination of data source schema classes
+
+Output: TypeAlias = (
+    FewsWebserviceOutput | FewsNetcdfOutput
+)  # A Type Alias for the combination of output schema classes
 
 
 class SimObsPair(BaseModel):
@@ -51,7 +71,9 @@ class SimObsPairs(BaseModel):
     calculationtype: Literal[CalculationTypeEnum.simobspairs]
     # One combination of list-of-leadtimes and list-of-variablepairs, use multiple SimObsPairs
     # to define more combinations
-    leadtimes: list[int] | None = None  # Use GeneralInfo leadtimes when empty
+    leadtimes: list[int] | None = (
+        None  # Use GeneralInfo leadtimes when None, AND, only ok as subset of GeneralInfo leadtimes
+    )
     leadtimesunit: Literal[TimeUnits.day, TimeUnits.hour, TimeUnits.minute, TimeUnits.second] = (
         TimeUnits.minute
     )
@@ -72,6 +94,7 @@ class GeneralInfo(BaseModel):
 
 
 class ConfigSchema(BaseModel):
+    output: Annotated[list[Output], Field(min_length=1)]
     calculations: Annotated[list[Calculation], Field(min_length=1)]
     datasources: Annotated[list[DataSource], Field(min_length=1)]
     general: GeneralInfo
