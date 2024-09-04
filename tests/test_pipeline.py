@@ -1,5 +1,6 @@
 """Test the functions in the pipeline module."""
 
+import copy
 from pathlib import Path
 
 import pytest
@@ -18,6 +19,10 @@ from tests import (
 def test_execute_pipeline_happy_yaml(tmp_path: Path) -> None:
     """Test at least one valid conf file for each conf type."""
     tmpfile = tmp_path / "tempconf.yaml"
+    tmpout = tmp_path / "out.netcdf"
+
+    assert not tmpout.exists()
+
     with TESTS_CONFIGURATION_FILE.open() as cf:
         testconf: dict[str, list[dict[str, str]]] = yaml.safe_load(cf)
         testconf["datasources"][0]["directory"] = str(TESTS_OBSERVATIONS_FILE.parent)
@@ -26,9 +31,13 @@ def test_execute_pipeline_happy_yaml(tmp_path: Path) -> None:
         testconf["datasources"][1]["filename"] = TESTS_FORECASTS_FILE.name
         testconf["datasources"].append(copy.deepcopy(testconf["datasources"][1]))
         testconf["datasources"][2]["filename"] = TESTS_FORECASTS_2_FILE.name
+        testconf["output"][0]["directory"] = str(tmpout.parent)
+        testconf["output"][0]["filename"] = tmpout.name
     with tmpfile.open(mode="w") as tf:
         yaml.dump(testconf, tf)
     pipeline.execute_pipeline(tmpfile, conf_type="yaml")
+
+    assert tmpout.exists()
 
 
 def test_execute_pipeline_happy_runinfo() -> None:
