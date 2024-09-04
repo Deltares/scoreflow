@@ -1,11 +1,10 @@
 """Module with the base class that all datasources should inherit from."""
 
-import pathlib
 from typing import Self
 
 import xarray
 
-from dpyverification.configuration import DataSource
+from dpyverification.configuration import DataSource, Output
 from dpyverification.constants import SimObsType
 
 
@@ -43,18 +42,15 @@ class GenericDatasource:
         return [cls(dsconfig)]
 
     @classmethod
-    def write_to_file(cls, path: pathlib.Path, dataset: xarray.Dataset) -> None:
-        """Write the data in the xarray Dataset to the file at path.
+    def write_data(cls, dsconfig: Output, dataset: xarray.Dataset) -> None:
+        """Write the data in the xarray Dataset to the datasource.
 
         Details of how to write will need to be implemented in subclass.
         """
-        if path.exists():
-            msg = "File already exists"
-            raise FileExistsError(msg)
-
         msg = (
-            "Writing Dataset to file is dependent on the file type to write to,"
+            "Writing Dataset to file / webservice is dependent on the file type to write to,"
             " no generic implementation."
         )
+        _ = dsconfig
         _ = dataset
         raise NotImplementedError(msg)

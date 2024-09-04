@@ -1,15 +1,24 @@
 """Read and write netcdf files in a fews compatible format."""
 
 from pathlib import Path
-from typing import Self
+from typing import TYPE_CHECKING, Self
 
 import xarray as xr
 
-from dpyverification.configuration import DataSource
-from dpyverification.constants import DataSourceTypeEnum, SimObsType
+from dpyverification.configuration import DataSource, FewsNetcdfOutput, Output
+from dpyverification.constants import (
+    DataModelAttributes,
+    DataModelCoords,
+    DataModelDims,
+    DataSourceTypeEnum,
+    SimObsType,
+)
 from dpyverification.datasources.genericdatasource import GenericDatasource
 
 from .schema import FewsNetcdfSchema
+
+if TYPE_CHECKING:
+    from collections.abc import Hashable
 
 
 class FewsNetcdfFile(GenericDatasource):
@@ -76,15 +85,36 @@ class FewsNetcdfFile(GenericDatasource):
         return [fnf]
 
     @classmethod
-    def write_to_file(cls, path: Path, dataset: xr.Dataset) -> None:
-        """Write the data in the xarray Dataset to the file at path.
+    def write_data(cls, dsconfig: Output, dataset: xr.Dataset) -> None:
+        """Write the data in the xarray Dataset to the file as specified in the output config.
 
-        Details of how to write will need to be implemented in subclass.
+        The input dataset is assumed to be the DataModel output.
         """
-        if path.exists():
+        if not isinstance(dsconfig, FewsNetcdfOutput):
+            msg = "Input dsconfig does not have datasourcetype fewsnetcdf"
+            raise TypeError(msg)
+        filepath = Path(dsconfig.directory) / dsconfig.filename
+        if filepath.exists():
             # To consider: add a forcing flag, to force an overwrite of the file
-            msg = "File already exists: " + str(path)
+            msg = "File already exists: " + str(filepath)
             raise FileExistsError(msg)
+
+        # Make a copy of the dataset, so we do not modify datamodel output:
+        #   Do not do explicitly, the rename_dims will already return a new object
+
+        # Renames from DPyVerification datamodel to FewsNetcdf compliance
+        renames = {DataModelDims.simstart: "analysis_time"}
+        dataset = dataset.rename_dims(renames)
+        renames = {DataModelCoords.simstart: "analysis_time"}
+        dataset = dataset.rename_vars(renames)
+
+        # Remove attributes not usable / desired in the netcdf
+        dataset.attrs.pop(DataModelAttributes.timestep)  # type: ignore[misc] # attrs is a dict[Any,Any]
+
+        # Add any missing information required for CF compliance
+        cls.add_global_attrs(dataset, dsconfig)
+        cls.add_coord_attrs(dataset)
+        cls.add_var_attrs(dataset)
 
         # Check the dataset against the required schema
         # For now, assume the schema used for fewsnetcdf input, also holds for fewsnetcdf output
@@ -93,4 +123,47 @@ class FewsNetcdfFile(GenericDatasource):
         schema_like = dataset.to_dict()  # type: ignore[misc] # Yes, the dict could have any content, it will be checked against the FewsNetcdfSchema
         _ = FewsNetcdfSchema(**schema_like)  # type: ignore[misc] # See previous line
 
-        dataset.to_netcdf(path)
+        dataset.to_netcdf(filepath)
+
+    @staticmethod
+    def add_global_attrs(dataset: xr.Dataset, dsconfig: FewsNetcdfOutput) -> None:
+        """Add required global attributes if missing."""
+        global_attrs = {
+            "Conventions": "CF-1.6",
+        }
+        if "title" not in dataset.attrs:  # type: ignore[misc] # attrs is a dict[Any,Any]
+            # Create title at datamodel init, to include obs source info?
+            global_attrs["title"] = "Verification results from DPyVerification"
+        if "institution" not in dataset.attrs:  # type: ignore[misc] # attrs is a dict[Any,Any]
+            if dsconfig.institution:
+                global_attrs["institution"] = dsconfig.institution
+            else:
+                global_attrs["institution"] = "Unknown"
+        if "source" not in dataset.attrs:  # type: ignore[misc] # attrs is a dict[Any,Any]
+            msg = "No source attribute should be impossible, programmer error?"
+            raise RuntimeError(msg)
+        dataset.attrs.update(global_attrs)  # type: ignore[misc] # attrs is a dict[Any,Any]
+
+    @staticmethod
+    def add_coord_attrs(dataset: xr.Dataset) -> None:
+        """Add required coordinate attributes if missing."""
+        # Where to get the default mappings for coordinate names?
+        for coord in dataset.coords:
+            coord_attrs: dict[str, Hashable] = {}
+            if coord == "time":
+                coord_attrs["standard_name"] = "time"
+                coord_attrs["long_name"] = "time"
+            elif "standard_name" not in dataset.coords[coord].attrs:  # type: ignore[misc] # attrs is a dict[Any,Any]
+                coord_attrs["standard_name"] = coord
+            elif "long_name" not in dataset.coords[coord].attrs:  # type: ignore[misc] # attrs is a dict[Any,Any]
+                coord_attrs["long_name"] = coord
+            dataset.coords[coord].attrs.update(coord_attrs)  # type: ignore[misc] # attrs is a dict[Any,Any]
+
+    @staticmethod
+    def add_var_attrs(dataset: xr.Dataset) -> None:
+        """Add required variable attributes if missing."""
+        for var in dataset.variables:
+            var_attrs = {}
+            if "long_name" not in dataset.variables[var].attrs:  # type: ignore[misc] # attrs is a dict[Any,Any]
+                var_attrs["long_name"] = var
+            dataset.variables[var].attrs.update(var_attrs)  # type: ignore[misc] # attrs is a dict[Any,Any]

@@ -6,6 +6,7 @@ import pytest
 import xarray as xr
 import yaml
 from dpyverification.configuration import ConfigSchema
+from dpyverification.constants import DataModelAttributes, DataModelCoords, DataModelDims
 from dpyverification.datasources.fewsnetcdf import (
     FewsNetcdfFile,
     FewsNetcdfSchema,
@@ -47,10 +48,26 @@ def test_write_happy(tmp_path: Path) -> None:
     """Test writing a netcdf succeeds."""
     ds = xr.open_dataset(TESTS_FEWS_COMPLIANT_FILE)
 
+    # A fewscompliant nc file uses different names than our internal datamodel
+    # Adapt the ds to look like our internal datamodel
+    # When get_data has been implemented for fewsnetcdf, use that instead
+    ds_datamodel = ds.rename_dims({"analysis_time": DataModelDims.simstart})  # type: ignore[misc] # attrs is a dict[Any,Any]
+    ds_datamodel = ds_datamodel.rename_vars({"analysis_time": DataModelCoords.simstart})  # type: ignore[misc] # attrs is a dict[Any,Any]
+    ds_datamodel.attrs[DataModelAttributes.timestep] = 1  # type: ignore[misc] # attrs is a dict[Any,Any]
+
     tmpfile = tmp_path / "test.nc"
     assert not tmpfile.exists()
 
-    FewsNetcdfFile.write_to_file(tmpfile, ds)
+    with TESTS_CONFIGURATION_FILE.open() as cf:
+        testconf = yaml.safe_load(cf)  # type: ignore[misc]
+        testconf["output"][0]["directory"] = str(tmpfile.parent)  # type: ignore[misc]
+        testconf["output"][0]["filename"] = tmpfile.name  # type: ignore[misc]
+    parsed_content = ConfigSchema(**testconf)  # type: ignore[misc]
+
+    # rename_dims
+    # rename_vars
+
+    FewsNetcdfFile.write_data(parsed_content.output[0], ds_datamodel)
 
     assert tmpfile.exists()
 
@@ -62,7 +79,20 @@ def test_read_write_equal(tmp_path: Path) -> None:
     tmpfile = tmp_path / "test.nc"
     assert not tmpfile.exists()
 
-    FewsNetcdfFile.write_to_file(tmpfile, ds)
+    with TESTS_CONFIGURATION_FILE.open() as cf:
+        testconf = yaml.safe_load(cf)  # type: ignore[misc]
+        testconf["output"][0]["directory"] = str(tmpfile.parent)  # type: ignore[misc]
+        testconf["output"][0]["filename"] = tmpfile.name  # type: ignore[misc]
+    parsed_content = ConfigSchema(**testconf)  # type: ignore[misc]
+
+    # A fewscompliant nc file uses different names than our internal datamodel
+    # Adapt the ds to look like our internal datamodel
+    # When get_data has been implemented for fewsnetcdf, use that instead
+    ds_datamodel = ds.rename_dims({"analysis_time": DataModelDims.simstart})  # type: ignore[misc] # attrs is a dict[Any,Any]
+    ds_datamodel = ds_datamodel.rename_vars({"analysis_time": DataModelCoords.simstart})  # type: ignore[misc] # attrs is a dict[Any,Any]
+    ds_datamodel.attrs[DataModelAttributes.timestep] = 1  # type: ignore[misc] # attrs is a dict[Any,Any]
+
+    FewsNetcdfFile.write_data(parsed_content.output[0], ds_datamodel)
 
     assert tmpfile.exists()
 
