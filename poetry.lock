@@ -80,21 +80,17 @@ files = [
 
 [[package]]
 name = "fews-io"
-version = "0.0.2+4.g3e7849d"
+version = "0.0.3"
 description = "Library for communicating with Delft-FEWS"
 optional = false
 python-versions = ">=3.7"
-files = []
-develop = true
+files = [
+    {file = "fews-io-0.0.3.tar.gz", hash = "sha256:f024062b501a094befe06466872c496adb199995824aa0816771aa5e7cc14200"},
+    {file = "fews_io-0.0.3-py3-none-any.whl", hash = "sha256:6b91b71078e06fab97fd5e9b9dea6eac97115d0d8a997a01874b2148e775ad4e"},
+]
 
 [package.dependencies]
 numpy = ">=1.16.0"
-
-[package.source]
-type = "git"
-url = "https://gitlab.com/deltares/fews-io.git"
-reference = "dpyverification"
-resolved_reference = "3e7849db6e4c6e24350fa53234d0928eda9bcefc"
 
 [[package]]
 name = "importlib-metadata"
@@ -753,4 +749,4 @@ test = ["big-O", "importlib-resources", "jaraco.functools", "jaraco.itertools", 
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "133ee90883ca68e3e5fdcab0b2ee561012299061e9496375b2a153f6fb0d1822"
+content-hash = "53031f1b2acc81c402ed47cc3b5b0c5455445bee30862e9cc9e06ae7634c2ff0"

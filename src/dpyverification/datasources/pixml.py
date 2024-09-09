@@ -1,5 +1,6 @@
 """PI-XML support module."""
 
+import math
 from pathlib import Path
 from typing import TYPE_CHECKING, Self
 
@@ -11,7 +12,12 @@ from fewsio.pi import (  # type: ignore[import-untyped] # See comment below impo
 )
 
 from dpyverification.configuration import DataSource
-from dpyverification.constants import DataModelCoords, DataModelDims, DataSourceTypeEnum, SimObsType
+from dpyverification.constants import (
+    DataModelCoords,
+    DataModelDims,
+    DataSourceTypeEnum,
+    SimObsType,
+)
 from dpyverification.datasources.genericdatasource import GenericDatasource
 
 if TYPE_CHECKING:
@@ -52,18 +58,35 @@ class PiXmlFile(GenericDatasource):
         variable_name = variables.pop()
         data_arrays = []
 
+        def get_location_info(
+            pi_series: Timeseries,
+            timeseries_id: TimeseriesId,
+        ) -> tuple[str, float, float]:
+            location_info = pi_series.get_location(timeseries_id.location_id)  # type: ignore[misc] # location_info is Any
+            lat = float(location_info.lat)  # type: ignore[misc] # lat is Any, we are assuming float convertable
+            lon = float(location_info.lon)  # type: ignore[misc] # lat is Any, we are assuming float convertable
+            if not math.isfinite(lat) or not math.isfinite(lon):
+                msg = (
+                    f"Lat ({lat}) and lon ({lon}) must be finite, from file {pi_series.path.name}."  # type: ignore[misc] # pi_series is Any
+                )
+                raise ValueError(msg)
+            return str(timeseries_id.location_id), lat, lon  # type: ignore[misc] # timeseries_id is Any
+
         if simobstype == SimObsType.sim:
             simulation_starttime: datetime.datetime = pi_series.forecast_datetime  # type: ignore[misc]  # pi_series is Any
             ensemble_member: int
             for ensemble_member in range(pi_series.ensemble_size):  # type: ignore[misc]  # pi_series is Any
                 timeseries_id: TimeseriesId
-                for timeseries_id, data in pi_series.items(ensemble_member=ensemble_member):  # type: ignore[misc] # pi_series and data are Any
+                for timeseries_id, data in pi_series.items(  # type: ignore[misc] # pi_series and data are Any
+                    ensemble_member=ensemble_member,
+                ):
+                    location_id, lat, lon = get_location_info(pi_series, timeseries_id)  # type: ignore[misc]  # pi_series is Any
                     coords = {  # separate variable for readability and type hinting
                         DataModelCoords.time: times,
-                        DataModelCoords.location: [timeseries_id.location_id],  # type: ignore[misc] # location_id is Any, we are assuming str
+                        DataModelCoords.location: [location_id],
                         DataModelCoords.ensemble: [ensemble_member],
-                        DataModelCoords.lat: ([DataModelDims.location], [float(timeseries_id.y)]),  # type: ignore[misc] # y is Any, we are assuming float convertable
-                        DataModelCoords.lon: ([DataModelDims.location], [float(timeseries_id.x)]),  # type: ignore[misc] # x is Any, we are assuming float convertable
+                        DataModelCoords.lat: ([DataModelDims.location], [lat]),
+                        DataModelCoords.lon: ([DataModelDims.location], [lon]),
                         DataModelCoords.simstart: [simulation_starttime],
                     }
                     da = xr.DataArray(
@@ -74,18 +97,19 @@ class PiXmlFile(GenericDatasource):
                             DataModelDims.ensemble,
                             DataModelDims.simstart,
                         ],
-                        coords=coords,  # type: ignore[misc] # coords is a dict[str, Any]
+                        coords=coords,
                     )
                     da.name = variable_name
                     data_arrays.append(da)
 
         elif simobstype == SimObsType.obs:
             for timeseries_id, data in pi_series.items():  # type: ignore[misc] # pi_series and data are Any
+                location_id, lat, lon = get_location_info(pi_series, timeseries_id)  # type: ignore[misc]  # pi_series is Any
                 coords = {
                     DataModelCoords.time: times,
-                    DataModelCoords.location: [timeseries_id.location_id],  # type: ignore[misc] # location_id is Any, we are assuming str
-                    DataModelCoords.lat: ([DataModelDims.location], [float(timeseries_id.y)]),  # type: ignore[misc] # y is Any, we are assuming float convertable
-                    DataModelCoords.lon: ([DataModelDims.location], [float(timeseries_id.x)]),  # type: ignore[misc] # x is Any, we are assuming float convertable
+                    DataModelCoords.location: [location_id],
+                    DataModelCoords.lat: ([DataModelDims.location], [lat]),
+                    DataModelCoords.lon: ([DataModelDims.location], [lon]),
                 }
                 da = xr.DataArray(
                     data=np.expand_dims(data, axis=(1)),  # type: ignore[misc] # data and ndarray are Any
@@ -93,7 +117,7 @@ class PiXmlFile(GenericDatasource):
                         DataModelDims.time,
                         DataModelDims.location,
                     ],
-                    coords=coords,  # type: ignore[misc] # coords is a dict[str, Any]
+                    coords=coords,
                 )
                 da.name = variable_name
                 data_arrays.append(da)
