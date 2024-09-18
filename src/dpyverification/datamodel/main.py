@@ -124,6 +124,8 @@ class DataModel:
         #   Could alternatively have a calculation-specific leadtime dimension, and only when the
         #   calculation uses different leadtimes than the general leadtimes?
         #   Update: calc specific leadtimes need to be a subset of the general leadtimes
+        # Set units attribute on leadtime, and/or use timedelta64 for the leadtime coordinate?
+        #   Depending on answer, also need to update simobspairs use of leadtime.
 
         self._output = xarray.Dataset(coords=coords)
         # Register the timestep as an attribute, for easy access
@@ -131,6 +133,24 @@ class DataModel:
         # Register how this output was created
         source_str = NAME + " version " + VERSION_FULL
         self._output.attrs.update({DataModelAttributes.source: source_str})  # type: ignore[misc]  # Yes, attrs is een any-any dict, however here we only add to it.
+        self._output.attrs.update({DataModelAttributes.featuretype: "timeSeries"})  # type: ignore[misc]  # Yes, attrs is een any-any dict, however here we only add to it.
+        # Make sure the location_id variable (a string array in python) is encoded as NC_CHAR in
+        #   netcdf export, to be CF compliant
+        to_char = {"dtype": "S1"}
+        self._output[DataModelCoords.location.name].encoding.update(to_char)  # type: ignore[misc]  # Yes, encoding is een any-any dict, however here we only add to it.
+        # Update all coordinates with (CF compliancy) attributes
+        self._output[DataModelCoords.time.name].attrs.update(DataModelCoords.time.attributes)  # type: ignore[misc]  # Yes, attrs is een any-any dict, however here we only add to it.
+        self._output[DataModelCoords.location.name].attrs.update(  # type: ignore[misc]  # Yes, attrs is een any-any dict, however here we only add to it.
+            DataModelCoords.location.attributes,
+        )
+        self._output[DataModelCoords.lat.name].attrs.update(DataModelCoords.lat.attributes)  # type: ignore[misc]  # Yes, attrs is een any-any dict, however here we only add to it.
+        self._output[DataModelCoords.lon.name].attrs.update(DataModelCoords.lon.attributes)  # type: ignore[misc]  # Yes, attrs is een any-any dict, however here we only add to it.
+        self._output[DataModelCoords.ensemble.name].attrs.update(  # type: ignore[misc]  # Yes, attrs is een any-any dict, however here we only add to it.
+            DataModelCoords.ensemble.attributes,
+        )
+        self._output[DataModelCoords.simstart.name].attrs.update(  # type: ignore[misc]  # Yes, attrs is een any-any dict, however here we only add to it.
+            DataModelCoords.simstart.attributes,
+        )
 
     @staticmethod
     def _check_source_dims_and_coords(ds: GenericDatasource) -> None:
