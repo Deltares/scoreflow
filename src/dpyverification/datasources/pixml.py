@@ -48,6 +48,8 @@ class PiXmlFile(GenericDatasource):
         xr.Dataset
             :py:class:`~xarray.Dataset` representation of the pi-xml file.
         """
+        attrs: dict[str, str]
+
         # Load  pi-xml file
         pi_series: Timeseries = Timeseries(path, binary=False)  # type: ignore[misc] # Timeseries has no type hinting, so pi_series is Any
         times: list[datetime.datetime] = pi_series.times  # type: ignore[misc] # pi_series is Any
@@ -89,6 +91,7 @@ class PiXmlFile(GenericDatasource):
                         DataModelCoords.lon.name: ([DataModelDims.location], [lon]),
                         DataModelCoords.simstart.name: [simulation_starttime],
                     }
+                    attrs = {"units": pi_series.get_unit(timeseries_id)}  # type: ignore[misc]  # pi_series is Any
                     da = xr.DataArray(
                         data=np.expand_dims(data, axis=(1, 2, 3)),  # type: ignore[misc] # data and ndarray are Any
                         dims=[
@@ -98,6 +101,7 @@ class PiXmlFile(GenericDatasource):
                             DataModelDims.simstart,
                         ],
                         coords=coords,
+                        attrs=attrs,
                     )
                     da.name = variable_name
                     data_arrays.append(da)
@@ -111,6 +115,7 @@ class PiXmlFile(GenericDatasource):
                     DataModelCoords.lat.name: ([DataModelDims.location], [lat]),
                     DataModelCoords.lon.name: ([DataModelDims.location], [lon]),
                 }
+                attrs = {"units": pi_series.get_unit(timeseries_id)}  # type: ignore[misc]  # pi_series is Any
                 da = xr.DataArray(
                     data=np.expand_dims(data, axis=(1)),  # type: ignore[misc] # data and ndarray are Any
                     dims=[
@@ -118,6 +123,7 @@ class PiXmlFile(GenericDatasource):
                         DataModelDims.location,
                     ],
                     coords=coords,
+                    attrs=attrs,
                 )
                 da.name = variable_name
                 data_arrays.append(da)
