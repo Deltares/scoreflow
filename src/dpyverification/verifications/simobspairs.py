@@ -17,6 +17,8 @@ def simobspairs(
     if calcconfig.calculationtype != CalculationTypeEnum.simobspairs:
         msg = "Input calcconfig does not have datasourcetype simobspairs"
         raise TypeError(msg)
+    # This should be done in config object creation, so can use calcconfig.leadtimes
+    # unconditionally here.
     if calcconfig.leadtimes:
         # Check that only subset of general leadtimes used
         leadtimes = calcconfig.leadtimes

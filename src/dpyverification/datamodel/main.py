@@ -39,30 +39,38 @@ class DataModel:
         raise AttributeError(msg)
 
     def _xarrays_from_inputs(self, datalist: Sequence[GenericDatasource]) -> None:
+        """
+        Parse the list of datasources.
+
+        Check whether the datasources form a compatible combination.
+        Create an xarray with the combined input information.
+        Initialize the output xarray.
+        """
         # Determine sizes and values of combined dimensions.
-        time_starts: list[np.datetime64] = []
-        time_ends: list[np.datetime64] = []
-        time_steps: list[np.timedelta64] = []
         obs_list: list[GenericDatasource] = []
         sim_list: list[GenericDatasource] = []
+        time_steps: list[np.timedelta64] = []
+        time_starts: list[np.datetime64] = []
+        time_ends: list[np.datetime64] = []
         locations_list: list[xarray.Coordinates] = []
         ensemble_list: list[int] = []
         simstart_list: list[np.datetime64] = []
-        coords = xarray.Coordinates()
         for ds in datalist:
             obs_list.append(ds) if ds.simobstype == SimObsType.obs else sim_list.append(ds)
 
             self._check_source_dims_and_coords(
                 ds,
             )  # Method will raise an error when there is a problem
-            step, start, end, location, ens, simstart = self._parse_source(ds)
+            step, start, end, location, ensemble_numbers, simstart_values = self._parse_source(ds)
 
             time_steps.append(step)
             time_starts.append(start)
             time_ends.append(end)
             locations_list.append(location)
-            ensemble_list += ens
-            simstart_list += simstart
+            ensemble_list += ensemble_numbers
+            simstart_list += simstart_values
+
+        coords = xarray.Coordinates()
 
         # Add location coordinates to coords
         try:
