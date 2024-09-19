@@ -28,10 +28,13 @@ def simobspairs(
         leadtimes = [timedelta64(0)]
 
     leadsets = []
-    # FROM HERE: make this a function? Have data.input as argument, instead of full data?
+    # TODO(AU): Allow input datasets with leadtime already taken into account # noqa: FIX002
+    #   https://github.com/Deltares-research/DPyVerification/issues/11
+    #   See issue for full description.
+    #   Here, adapt to use intermediate dataset as source.
     for leadtime in leadtimes:
+        # FROM HERE: make this a function? Have data.input as argument, instead of full data?
         leadset = data.input.coords.to_dataset()
-        # need to document that leadtime is expected to be in minutes
         newtime: list[datetime64] = list(
             data.input[DataModelCoords.simstart.name].data + leadtime,  # type: ignore[misc] # Quite certain that data.input[DataModelCoords.time.name].data will be a 1D array of datetime64
         )

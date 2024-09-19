@@ -26,7 +26,9 @@ class Config:
             # parse the runinfo into a yaml
             yamlcontent = {
                 "fileversion": "0.0.1",
-            }  # NOT IMPLEMENTED YET, function to convert runinfo xml
+            }
+            # TODO(AU): Implement parsing of a runinfo xml file to valid config dict # noqa: FIX002
+            #   https://github.com/Deltares-research/DPyVerification/issues/8
         elif configtype is ConfigTypes.YAML:
             with configfile.open() as cf:
                 yamlcontent = yaml.safe_load(cf)

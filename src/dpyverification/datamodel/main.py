@@ -71,6 +71,15 @@ class DataModel:
             simstart_list += simstart_values
 
         coords = xarray.Coordinates()
+        # TODO(AU): Allow additional dimensions and coordinates, beyond the fixed set # noqa: FIX002
+        #   https://github.com/Deltares-research/DPyVerification/issues/10
+        #   See also the note related to this in _check_source_dims_and_coords().
+        #   The xarray.merge() has certain input flags that can be set, can we use those to trigger
+        #   errors on merging empty datasets with a subselection of the dimensions / coordinates, to
+        #   then provide as-specific-as-possible error messages to the user? Can do something, e.g.
+        #   merge will indeed give error when e.g. loc1 and loc2 have switched lat/lon values, but
+        #   it will be cryptic for the end user what the problem is. Therefore e.g. the locations
+        #   merge here has a try-except to provide additional error information.
 
         # Add location coordinates to coords
         try:
@@ -90,20 +99,10 @@ class DataModel:
         )
         coords = coords.assign(time_coord)
 
-        # SHOULD HERE CHECK If leadtimes defined, check that they are multiples of time_step
-
-        # What if dimensions without a coordinate are used, how to know that two datasets mean
-        # the same thing with the dimension, if there are no coordinates at all that use the
-        # dimension?
-        # The xarray.merge() has certain input flags that can be set, can we use those to trigger
-        # errors on merging empty datasets with a subselection of the dimensions / coordinates, to
-        # then provide as-specific-as-possible error messages to the user? -> Can do something, e.g.
-        # merge will indeed give error when e.g. loc1 and loc2 have switched lat/lon values, but it
-        # will be cryptic for the end user what the problem is.
-
-        # When we allow datasets with leadtime already taken into account, cannot mix with simstart
-        #  based datasets? In that case, need to parse the simstart datasets approximately HERE
-        #  into leadtime datasets.
+        # TODO(AU): Allow input datasets with leadtime already taken into account # noqa: FIX002
+        #   https://github.com/Deltares-research/DPyVerification/issues/11
+        #   See issue for full description.
+        #   Here, the leadtime coordinate needs to be added to the coords.
 
         # Add the other coordinates to get the full set
         ensemble_list = list(set(ensemble_list))
@@ -126,6 +125,7 @@ class DataModel:
 
         # Add extra output dimensions / coordinates here, e.g. leadtime
         # Do make sure to check that that does not affect the self.input
+        # Check that if leadtimes defined, they are multiples of time_step
         # On leadtime: do we even want to allow different leadtimes for different calculations?
         #   Because, that would make the leadtime dimension very irregular, and introduce a lot of
         #   missing values, when parameters use different lead times, but the same leadtime coord.
@@ -134,6 +134,11 @@ class DataModel:
         #   Update: calc specific leadtimes need to be a subset of the general leadtimes
         # Set units attribute on leadtime, and/or use timedelta64 for the leadtime coordinate?
         #   Depending on answer, also need to update simobspairs use of leadtime.
+
+        # TODO(AU): Allow input datasets with leadtime already taken into account # noqa: FIX002
+        #   https://github.com/Deltares-research/DPyVerification/issues/11
+        #   See issue for full description.
+        #   Here, create the 'intermediate' Dataset
 
         self._output = xarray.Dataset(coords=coords)
         # Register the timestep as an attribute, for easy access
@@ -178,10 +183,24 @@ class DataModel:
             ],
         )
         # sim ds are allowed to have these dimensions
-        # DO THEY need to have simstart, or can do without? Will depend on whether leadtime already
-        #   taken into account in the ds? So need either simstart or leadtime?
+        # TODO(AU): Allow input datasets with leadtime already taken into account # noqa: FIX002
+        #   https://github.com/Deltares-research/DPyVerification/issues/11
+        #   See issue for full description.
+        #   Here, need to have simstart, or can do without? Will depend on whether leadtime already
+        #   taken into account in the ds? So need either simstart or leadtime? Can have both?
         sim_dims = [DataModelDims.ensemble, DataModelDims.simstart, *obs_dims]
         sim_coords = [DataModelCoords.ensemble.name, DataModelCoords.simstart.name, *obs_coords]
+
+        # TODO(AU): Allow additional dimensions and coordinates, beyond the fixed set # noqa: FIX002
+        #   https://github.com/Deltares-research/DPyVerification/issues/10
+        #   In addition to the known dimensions and coordinates, data might be provided that has
+        #   for instance a temperature profile over a set of heights/depths. Should every possible
+        #   dimension/coordinate become a hardcoded option, or can we allow generic extras? What
+        #   should then be the demands on those extra dimensions/coordinates. And, what if
+        #   dimensions without a coordinate are used, how to know that two datasets mean the same
+        #   thing with the dimension, if there are no coordinates at all that use the dimension?
+        #   Will require adaptation both here, and additional checks on the combination of the
+        #   datasets.
 
         if ds.simobstype == SimObsType.obs:
             if frozenset(ds.xarray.sizes) != obs_dims:
