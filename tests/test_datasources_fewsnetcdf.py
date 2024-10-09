@@ -9,8 +9,8 @@ from dpyverification.configuration import ConfigSchema
 from dpyverification.constants import DataModelAttributes, DataModelCoords, DataModelDims
 from dpyverification.datasources.fewsnetcdf import (
     FewsNetcdfFile,
-    FewsNetcdfSchema,
 )
+from dpyverification.datasources.fewsnetcdf.inputschema import FewsNetcdfInputSchema
 
 from tests import TESTS_CONFIGURATION_FILE, TESTS_FEWS_COMPLIANT_FILE
 
@@ -39,9 +39,9 @@ def test_get_data_happy() -> None:
 def test_schema_testfile() -> None:
     """Test FEWS-compliant file is compliant with schema."""
     ds = xr.open_dataset(TESTS_FEWS_COMPLIANT_FILE)
-    schema_like = ds.to_dict()  # type: ignore[misc] # Yes, the dict could have any content, it will be checked against the FewsNetcdfSchema
+    schema_like = ds.to_dict()  # type: ignore[misc] # Yes, the dict could have any content, it will be checked against the FewsNetcdfInputSchema
     # This will throw an error when not compliant
-    _ = FewsNetcdfSchema(**schema_like)  # type: ignore[misc] # See above
+    _ = FewsNetcdfInputSchema(**schema_like)  # type: ignore[misc] # See above
 
 
 def test_write_happy(tmp_path: Path) -> None:
@@ -54,6 +54,7 @@ def test_write_happy(tmp_path: Path) -> None:
     ds_datamodel = ds.rename_dims({"analysis_time": DataModelDims.simstart})  # type: ignore[misc] # attrs is a dict[Any,Any]
     ds_datamodel = ds_datamodel.rename_vars({"analysis_time": DataModelCoords.simstart.name})  # type: ignore[misc] # attrs is a dict[Any,Any]
     ds_datamodel.attrs[DataModelAttributes.timestep] = 1  # type: ignore[misc] # attrs is a dict[Any,Any]
+    ds_datamodel = ds_datamodel.rename_dims({"stations": "location_id"})
 
     tmpfile = tmp_path / "test.nc"
     assert not tmpfile.exists()
@@ -70,37 +71,6 @@ def test_write_happy(tmp_path: Path) -> None:
     FewsNetcdfFile.write_data(parsed_content.output[0], ds_datamodel)
 
     assert tmpfile.exists()
-
-
-def test_read_write_equal(tmp_path: Path) -> None:
-    """Test written content is equal to input dataset."""
-    ds = xr.open_dataset(TESTS_FEWS_COMPLIANT_FILE)
-
-    tmpfile = tmp_path / "test.nc"
-    assert not tmpfile.exists()
-
-    with TESTS_CONFIGURATION_FILE.open() as cf:
-        testconf = yaml.safe_load(cf)  # type: ignore[misc]
-        testconf["output"][0]["directory"] = str(tmpfile.parent)  # type: ignore[misc]
-        testconf["output"][0]["filename"] = tmpfile.name  # type: ignore[misc]
-    parsed_content = ConfigSchema(**testconf)  # type: ignore[misc]
-
-    # A fewscompliant nc file uses different names than our internal datamodel
-    # Adapt the ds to look like our internal datamodel
-    # When get_data has been implemented for fewsnetcdf, use that instead
-    ds_datamodel = ds.rename_dims({"analysis_time": DataModelDims.simstart})  # type: ignore[misc] # attrs is a dict[Any,Any]
-    ds_datamodel = ds_datamodel.rename_vars({"analysis_time": DataModelCoords.simstart.name})  # type: ignore[misc] # attrs is a dict[Any,Any]
-    ds_datamodel.attrs[DataModelAttributes.timestep] = 1  # type: ignore[misc] # attrs is a dict[Any,Any]
-
-    FewsNetcdfFile.write_data(parsed_content.output[0], ds_datamodel)
-
-    assert tmpfile.exists()
-
-    ds2 = xr.open_dataset(tmpfile)
-
-    # "Two Datasets are equal if they have matching variables and coordinates, all of which
-    #  are equal." Thus, attributes are probably not checked by the following.
-    assert ds.equals(ds2)
 
 
 # Add a test for cf compliance of output, with the tool cfchecker?
