@@ -317,6 +317,7 @@ class DataModel:
                 #   Use smallest timestep and fill in intermediate missing steps?
                 #   Or use largest timestep, and resample the others?
                 #   Or require user to specify timestep, and how to handle?
+                # Note that this method is used twice, check that both uses have same requirements
                 msg = (
                     "Time dimensions of the input data sources do not all have"
                     " the same timestep."
@@ -346,10 +347,17 @@ class DataModel:
 
     def add_to_output(self, new_output: xarray.Dataset) -> None:
         """Add the Dataset, with the result of a specific verification, to the datamodel output."""
-        # check that the to-be-added output does not overwrite any existing variables
-        # OR, allow appending to a certain dimension?
-        # OR, allow overwriting if only NaNs are overwritten (i.e. the var was created with only
-        #  partial data)?
+        # Perform various checks on the combination
+        # Merge together if the checks pass
+
+        # Check that the to-be-added output does not overwrite any existing variables
+        #
+        # TODO(AU): Output data content requirements are not complete # noqa: FIX002
+        #   https://github.com/Deltares-research/DPyVerification/issues/26
+        #   Here, check that the to-be-added output does not overwrite any existing variables
+        #   OR, allow appending to a certain dimension?
+        #   OR, allow overwriting if only NaNs are overwritten (i.e. the var was created with only
+        #   partial data)?
         a = [str(x) for x in new_output.data_vars]
         b = [str(x) for x in self.output.data_vars]
         match = any(var in b for var in a)
@@ -360,12 +368,24 @@ class DataModel:
             )
             raise RuntimeError(msg)
 
-        # check that dimensions and coordinates match
-        # OR, allow extending of dimensions
+        # Check that dimensions and coordinates match (except time dimension)
+        #
+        # TODO(AU): Check dims and coords match when combining calculation outputs # noqa: FIX002
+        #   https://github.com/Deltares-research/DPyVerification/issues/27
+        #   First, implement strictest check, entirely the same. Follow up with next TODO item.
+        #
+        # TODO(AU): Output data content requirements are not complete # noqa: FIX002
+        #   https://github.com/Deltares-research/DPyVerification/issues/26
+        #   Here, check that dimensions and coordinates match
+        #   OR, allow extending of dimensions
 
-        # register the start, end and timestep of the time dimension
+        # Check time dimension and coordinate
+        #
+        # TODO(AU): Output data content requirements are not complete # noqa: FIX002
+        #   https://github.com/Deltares-research/DPyVerification/issues/26
+        #   Here, register the start, end and timestep of the time dimension
         #   xarray.merge will not complain about adding intermediate times, but we want to have
-        #   a fixed timestep
+        #   a fixed timestep. OR, allow non-monotonic timeseries?
         try:
             self._output[DataModelCoords.time.name].sel(
                 {DataModelCoords.time.name: new_output[DataModelCoords.time.name].data},  # type: ignore[misc] # data is Any, we assume np.datetime64 array
@@ -406,7 +426,10 @@ class DataModel:
             )
             self._output = self._output.merge(time_coord)
 
-        # Ok to add
-        # No conflicts between the to-be-added output and earlier created outputs
-        # Do we indeed want to use merge here?
+        # Final merge
+        #   No conflicts between the to-be-added output and earlier created outputs
+        #
+        # TODO(AU): Output data content requirements are not complete # noqa: FIX002
+        #   https://github.com/Deltares-research/DPyVerification/issues/26
+        #   Do we indeed want to use xarray.merge, without any qualifiers?
         self._output = self._output.merge(new_output)
