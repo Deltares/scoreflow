@@ -18,7 +18,7 @@ from typing import Annotated, Literal, TypeAlias
 
 import numpy as np
 import pandas as pd
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationInfo, field_validator
 
 from dpyverification.constants import CalculationTypeEnum, DataSourceTypeEnum, SimObsType, TimeUnits
 
@@ -68,7 +68,23 @@ class FewsWebservice(BaseModel):
 
 
 class FewsWebserviceInput(FewsWebservice):
-    simobstype: SimObsType
+    simobstype: Literal[SimObsType.obs, SimObsType.sim]
+    location_ids: list[str]
+    parameter_ids: list[str]
+    module_instance_ids: list[str]
+    qualifier_ids: list[str]
+    document_format: Literal["PI_XML"]
+    document_version: Literal["1.32"]  # What version we support
+    leadtimes: LeadTimes | None = Field(None, description="Required for simulations.")
+
+    @field_validator("leadtimes")
+    @classmethod
+    def check_field_leadtimes(cls, v: LeadTimes | None, info: ValidationInfo) -> LeadTimes | None:
+        """Check if leadtimes defined, when simobstype is sim."""
+        if info.data["simobstype"] == SimObsType.sim and v is None:  # type: ignore[misc]
+            msg = "Lead times are required when simobstype is SimObsType.sim."
+            raise ValueError(msg)
+        return v
 
 
 class FewsWebserviceOutput(FewsWebservice):
