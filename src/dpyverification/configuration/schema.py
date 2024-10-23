@@ -13,11 +13,53 @@ pydantic / python, and might need some modifications.
 
 # ruff: noqa: D101 Do not require class docstrings for the classes in this file
 
+from datetime import datetime, timedelta
 from typing import Annotated, Literal, TypeAlias
 
+import numpy as np
+import pandas as pd
 from pydantic import BaseModel, Field
 
 from dpyverification.constants import CalculationTypeEnum, DataSourceTypeEnum, SimObsType, TimeUnits
+
+
+class DateTime(BaseModel):
+    format: str | None = "%Y-%m-%dT%H:%M:%S%z"
+    value: str
+
+    @property
+    def datetime64(self) -> np.datetime64:
+        """As numpy datetime64."""
+        return pd.to_datetime(self.value, format=self.format).to_numpy()
+
+    @property
+    def datetime(self) -> datetime:
+        """As datetime datetime."""
+        return pd.to_datetime(self.value, format=self.format)
+
+
+class LeadTimes(BaseModel):
+    unit: TimeUnits
+    values: list[int]
+
+    @property
+    def timedelta64(self) -> list[np.timedelta64]:
+        """As numpy timedelta64."""
+        return [np.timedelta64(v, self.unit) for v in self.values]
+
+    @property
+    def timedelta(self) -> list[timedelta]:
+        """As datetime timedelta."""
+
+        def convert_to_timedelta(value: int) -> timedelta:
+            return np.timedelta64(value, self.unit).astype(timedelta)  # type: ignore[no-any-return, misc]
+
+        return [convert_to_timedelta(v) for v in self.values]
+
+
+class TimePeriod(BaseModel):
+    start: DateTime
+    end: DateTime
 
 
 class FewsWebservice(BaseModel):
@@ -82,12 +124,7 @@ class SimObsPairs(BaseModel):
     calculationtype: Literal[CalculationTypeEnum.simobspairs]
     # One combination of list-of-leadtimes and list-of-variablepairs, use multiple SimObsPairs
     # to define more combinations
-    leadtimes: list[int] | None = (
-        None  # Use GeneralInfo leadtimes when None, AND, only ok as subset of GeneralInfo leadtimes
-    )
-    leadtimesunit: Literal[TimeUnits.day, TimeUnits.hour, TimeUnits.minute, TimeUnits.second] = (
-        TimeUnits.minute
-    )
+    leadtimes: LeadTimes | None = None  # Default from GeneralInfo
     variablepairs: list[SimObsPair]
 
 
@@ -98,10 +135,8 @@ Calculation: TypeAlias = (
 
 class GeneralInfo(BaseModel):
     # Is this general info, or might it be different for different calculations?
-    leadtimes: list[int] | None = None  # Do we need a default value, if it is optional? Yes
-    leadtimesunit: Literal[TimeUnits.day, TimeUnits.hour, TimeUnits.minute, TimeUnits.second] = (
-        TimeUnits.minute
-    )
+    verificationperiod: TimePeriod
+    leadtimes: LeadTimes | None = None
 
 
 class ConfigSchema(BaseModel):
