@@ -134,7 +134,7 @@ Output: TypeAlias = (
 )  # A Type Alias for the combination of output schema classes
 
 
-class SimObsPair(BaseModel):
+class SimObsVariables(BaseModel):
     sim: str
     obs: str
 
@@ -148,7 +148,7 @@ class SimObsPairs(BaseModel):
     # One combination of list-of-leadtimes and list-of-variablepairs, use multiple SimObsPairs
     # to define more combinations
     leadtimes: LeadTimes | None = None  # Default from GeneralInfo
-    variablepairs: list[SimObsPair]
+    variablepairs: list[SimObsVariables]
 
 
 Calculation: TypeAlias = (
