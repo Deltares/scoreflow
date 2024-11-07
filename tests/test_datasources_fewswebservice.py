@@ -13,7 +13,7 @@ from dpyverification.datasources.fewswebservice import FewsWebService
 
 from tests import TESTS_CONFIGURATION_FILE
 
-SIM_TIME_DIM_LENGTH = 49
+SIM_TIME_DIM_LENGTH = 169
 OBS_TIME_DIM_LENGTH = 49
 VALID_RESPONSE_CODE = 200
 TASK_START_SUCCESS_TEXT = '{"started":true,"message":"Task started"}'
@@ -91,12 +91,13 @@ def test_webservice_live() -> None:
 
 
 @pytest.mark.skipif(IN_GITHUB_ACTIONS, reason="Cannot yet test webservice in GitHub CI")
-def test_get_timeseries_sim_happy(tmp_path: Path) -> None:
+@pytest.mark.parametrize("forecastcount", [0, 1, 5])
+def test_get_timeseries_sim_happy(forecastcount: int, tmp_path: Path) -> None:
     """Check that the imported pixml gives an xarray with the expected content."""
     leadtimes = {"unit": "h", "values": [3, 6]}
     verificationperiod = {
-        "start": {"value": "2024-06-01T00:00:00Z"},
-        "end": {"value": "2024-06-03T00:00:00Z"},
+        "start": {"value": "2024-08-01T00:00:00Z"},
+        "end": {"value": "2024-09-10T00:00:00Z"},
     }
 
     # Create an adapted testconfig, based on default testconfig
@@ -116,27 +117,58 @@ def test_get_timeseries_sim_happy(tmp_path: Path) -> None:
     testconf["datasources"][0]["location_ids"] = ["H-RN-0001"]  # type: ignore[assignment] # Indeed this assignment does not match with our faked type def of testconf
     testconf["datasources"][0]["parameter_ids"] = ["Q.fs"]  # type: ignore[assignment] # Indeed this assignment does not match with our faked type def of testconf
     testconf["datasources"][0]["module_instance_ids"] = ["SBK3_MaxRTK_ECMWF_ENS"]  # type: ignore[assignment] # Indeed this assignment does not match with our faked type def of testconf
-    testconf["datasources"][0]["qualifier_ids"] = []  # type: ignore[assignment] # Indeed this assignment does not match with our faked type def of testconf
-    testconf["datasources"][0]["document_format"] = "PI_XML"
-    testconf["datasources"][0]["document_version"] = "1.32"
     testconf["datasources"][0]["leadtimes"] = leadtimes  # type: ignore[assignment] # Indeed this assignment does not match with our faked type def of testconf
+    testconf["datasources"][0]["forecastcount"] = forecastcount  # type: ignore[assignment] # Indeed this assignment does not match with our faked type def of testconf
     # Create:
     tmp_conf_file = tmp_path / "tempconf.yaml"
     with tmp_conf_file.open(mode="w") as tf:
         yaml.dump(testconf, tf)
     conf = Config(tmp_conf_file, "yaml")
 
-    data = FewsWebService.get_data(conf.content.datasources[0])
+    match forecastcount:
+        case 0:
+            # TODO(AU): Retrieve all # noqa: FIX002
+            #   https://github.com/Deltares-research/DPyVerification/issues/45
+            with pytest.raises(
+                NotImplementedError,
+                # match is a regex pattern, so do escape brackets for literal match
+                match=(
+                    r"Retrieving ALL forecasts within a period not yet implemented,"
+                    r" specify a \(very large\) forecastcount value for now."
+                ),
+            ):
+                data = FewsWebService.get_data(conf.content.datasources[0])
+            # return early while not implemented yet, i.e. skip further checks
+            return
+        case 1:
+            data = FewsWebService.get_data(conf.content.datasources[0])
+        case _:
+            # TODO(AU): Retrieve more than one # noqa: FIX002
+            #   https://github.com/Deltares-research/DPyVerification/issues/44
+            with pytest.raises(
+                NotImplementedError,
+                match=(
+                    r"Retrieving more than one forecast within a period not yet implemented,"
+                    r" due to fews-io package limitation in converting pixml files."
+                ),
+            ):
+                data = FewsWebService.get_data(conf.content.datasources[0])
+            # return early while not implemented yet, i.e. skip further checks
+            return
 
+    # Time dimension expected to be the same
     assert len(data[0].xarray.time) == SIM_TIME_DIM_LENGTH  # type: ignore[misc]
+    # TODO(AU): Improve webservice tests result checking # noqa: FIX002
+    #   See issue for details:
+    #   https://github.com/Deltares-research/DPyVerification/issues/46
 
 
 @pytest.mark.skipif(IN_GITHUB_ACTIONS, reason="Cannot yet test webservice in GitHub CI")
 def test_get_timeseries_obs_happy(tmp_path: Path) -> None:
     """Check that the imported pixml gives an xarray with the expected content."""
     verificationperiod = {
-        "start": {"value": "2024-06-01T00:00:00Z"},
-        "end": {"value": "2024-06-03T00:00:00Z"},
+        "start": {"value": "2024-08-01T00:00:00Z"},
+        "end": {"value": "2024-08-03T00:00:00Z"},
     }
 
     # Create an adapted testconfig, based on default testconfig
@@ -155,10 +187,7 @@ def test_get_timeseries_obs_happy(tmp_path: Path) -> None:
     )
     testconf["datasources"][0]["location_ids"] = ["H-RN-0001"]  # type: ignore[assignment] # Indeed this assignment does not match with our faked type def of testconf
     testconf["datasources"][0]["parameter_ids"] = ["Q.m"]  # type: ignore[assignment] # Indeed this assignment does not match with our faked type def of testconf
-    testconf["datasources"][0]["module_instance_ids"] = ["Import_LMW"]  # type: ignore[assignment] # Indeed this assignment does not match with our faked type def of testconf
-    testconf["datasources"][0]["qualifier_ids"] = []  # type: ignore[assignment] # Indeed this assignment does not match with our faked type def of testconf
-    testconf["datasources"][0]["document_format"] = "PI_XML"
-    testconf["datasources"][0]["document_version"] = "1.32"
+    testconf["datasources"][0]["module_instance_ids"] = ["Hydro_Prep"]  # type: ignore[assignment] # Indeed this assignment does not match with our faked type def of testconf
     # Create:
     tmp_conf_file = tmp_path / "tempconf.yaml"
     with tmp_conf_file.open(mode="w") as tf:
@@ -168,3 +197,6 @@ def test_get_timeseries_obs_happy(tmp_path: Path) -> None:
     data = FewsWebService.get_data(conf.content.datasources[0])
 
     assert len(data[0].xarray.time) == OBS_TIME_DIM_LENGTH  # type: ignore[misc]
+    # TODO(AU): Improve webservice tests result checking # noqa: FIX002
+    #   See issue for details:
+    #   https://github.com/Deltares-research/DPyVerification/issues/46
