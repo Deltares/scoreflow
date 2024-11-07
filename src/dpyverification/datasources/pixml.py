@@ -11,11 +11,10 @@ from fewsio.pi import (  # type: ignore[import-untyped] # See comment below impo
     TimeseriesId,
 )
 
-from dpyverification.configuration import DataSource
+from dpyverification.configuration import DataSource, FileInputPixml
 from dpyverification.constants import (
     DataModelCoords,
     DataModelDims,
-    DataSourceType,
     SimObsType,
 )
 from dpyverification.datasources.genericdatasource import GenericDatasource
@@ -135,8 +134,8 @@ class PiXmlFile(GenericDatasource):
     @classmethod
     def get_data(cls, dsconfig: DataSource) -> list[Self]:
         """Retrieve pixml content as an xarray DataArray."""
-        if dsconfig.datasourcetype != DataSourceType.PIXML:
-            msg = "Input dsconfig does not have datasourcetype pixml"
+        if not isinstance(dsconfig, FileInputPixml):
+            msg = "Input dsconfig does not have datasourcetype FileInputPixml"
             raise TypeError(msg)
         if dsconfig.simobstype == SimObsType.COMBINED:
             msg = "Cannot yet handle combined simobs data"

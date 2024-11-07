@@ -111,8 +111,15 @@ class LocalFile(BaseModel):
 
 
 class FileInput(LocalFile):
-    datasourcetype: Literal[DataSourceType.PIXML, DataSourceType.FEWSNETCDF]
     simobstype: SimObsType
+
+
+class FileInputPixml(FileInput):
+    datasourcetype: Literal[DataSourceType.PIXML]
+
+
+class FileInputFewsnetcdf(FileInput):
+    datasourcetype: Literal[DataSourceType.FEWSNETCDF]
 
 
 class FewsNetcdfOutput(LocalFile):
@@ -133,7 +140,7 @@ class FewsNetcdfOutput(LocalFile):
 
 
 DataSource: TypeAlias = (
-    FewsWebserviceInput | FileInput
+    FewsWebserviceInput | FileInputPixml | FileInputFewsnetcdf
 )  # A Type Alias for the combination of data source schema classes
 
 Output: TypeAlias = (

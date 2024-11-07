@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 import xarray
 
-from dpyverification.configuration import Calculation
+from dpyverification.configuration import Calculation, SimObsPairs
 from dpyverification.constants import CalculationType, DataModelCoords, DataModelDims
 from dpyverification.datamodel import DataModel
 
@@ -17,8 +17,8 @@ def simobspairs(
     data: DataModel,
 ) -> xarray.Dataset:
     """Create pairs of obs and sim values, for the given leadtimes (default leadtime 0)."""
-    if calcconfig.calculationtype != CalculationType.SIMOBSPAIRS:
-        msg = "Input calcconfig does not have datasourcetype simobspairs"
+    if not isinstance(calcconfig, SimObsPairs):
+        msg = "Input calcconfig does not have calculationtype SimObsPairs"
         raise TypeError(msg)
     if not calcconfig.leadtimes:
         # When called from pipeline, this should not be possible. However, do need to check in case

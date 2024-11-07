@@ -80,8 +80,8 @@ class FewsWebService(GenericDatasource):
     @classmethod
     def get_data(cls, dsconfig: DataSource) -> list[Self]:
         """Retrieve :py::class`~xarray.Dataset` from Delft-FEWS Webservice."""
-        if dsconfig.datasourcetype != DataSourceType.FEWSWEBSERVICE:
-            msg = "Input dsconfig does not have datasourcetype fewswebservice"
+        if not isinstance(dsconfig, FewsWebserviceInput):
+            msg = "Input dsconfig does not have datasourcetype FewsWebserviceInput"
             raise TypeError(msg)
         fws = cls(dsconfig)
         response = cls.get_timeseries(dsconfig=dsconfig)
