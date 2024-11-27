@@ -82,7 +82,14 @@ class FewsWebserviceInput(FewsWebservice):
     qualifier_ids: list[str]
     document_format: Literal["PI_XML"]
     document_version: Literal["1.32"]  # What version we support
-    leadtimes: LeadTimes | None = Field(None, description="Required for simulations.")
+    leadtimes: LeadTimes | None = Field(
+        None,
+        description="Value from General leadtimes used if not set.",
+    )
+    verificationperiod: TimePeriod | None = Field(
+        None,
+        description="Value from General verificationperiod used if not set.",
+    )
 
     @field_validator("leadtimes")
     @classmethod
@@ -134,7 +141,7 @@ Output: TypeAlias = (
 )  # A Type Alias for the combination of output schema classes
 
 
-class SimObsPair(BaseModel):
+class SimObsVariables(BaseModel):
     sim: str
     obs: str
 
@@ -148,7 +155,7 @@ class SimObsPairs(BaseModel):
     # One combination of list-of-leadtimes and list-of-variablepairs, use multiple SimObsPairs
     # to define more combinations
     leadtimes: LeadTimes | None = None  # Default from GeneralInfo
-    variablepairs: list[SimObsPair]
+    variablepairs: list[SimObsVariables]
 
 
 Calculation: TypeAlias = (
