@@ -13,7 +13,7 @@ from dpyverification.constants import CalculationType, DataSourceType
 from dpyverification.datamodel import DataModel
 from dpyverification.datasources.fewsnetcdf import FewsNetcdfFile
 from dpyverification.datasources.pixml import PiXmlFile
-from dpyverification.verifications import simobspairs
+from dpyverification.verifications import rankhistogram, simobspairs
 
 
 def execute_pipeline(configfile: pathlib.Path, configtype: str = "yaml") -> None:
@@ -38,7 +38,19 @@ def execute_pipeline(configfile: pathlib.Path, configtype: str = "yaml") -> None
 
     for calculation in config.content.calculations:
         if calculation.calculationtype == CalculationType.SIMOBSPAIRS:
-            datamodel.add_to_output(simobspairs.simobspairs(calculation, datamodel))
+            datamodel.add_to_output(
+                simobspairs.simobspairs(calculation, datamodel),
+            )
+        elif calculation.calculationtype == CalculationType.RANKHISTOGRAM:
+            """
+            datamodel.add_to_output(
+                rankhistogram.rankhistogram(calculation, datamodel),
+            )
+            """
+            _ = rankhistogram
+            msg = "Writing rankhistogram to output is not yet supported."
+            raise NotImplementedError(msg)
+
         else:
             # If an unknown calculation is used, error
             raise NotImplementedError
