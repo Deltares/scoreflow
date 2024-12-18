@@ -16,6 +16,7 @@ importlib-metadata = ">7, <9"
 fews-io = "^0.0.3"
 requests = "^2.32.3"
 xskillscore = "^0.0.26"
+scores = "^2.0.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2.2"
