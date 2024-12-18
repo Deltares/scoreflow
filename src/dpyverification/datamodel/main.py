@@ -29,12 +29,13 @@ class DataModel:
         datalist: Sequence[GenericDatasource],
         generalconfig: GeneralInfo,
     ) -> None:
-        coords, time_step = self._construct_input_dataset(datalist)
-        # TODO(AU): Allow input datasets with leadtime already taken into account # noqa: FIX002
-        #   https://github.com/Deltares-research/DPyVerification/issues/11
-        #   See issue for full description.
-        #   Here, create the 'intermediate' Dataset
-        self._create_intermediate_dataset(coords, time_step, generalconfig)
+        if not generalconfig.leadtimes:
+            # When called from pipeline, this should not be possible. However, do need to check in
+            # case this function is called from a custom implementation.
+            msg = "No leadtimes specified in General configuration"
+            raise ValueError(msg)
+        coords, time_step = self._construct_input_dataset(datalist, generalconfig)
+        self._create_intermediate_dataset(coords, time_step)
         self._initialize_output_dataset(coords, time_step)
 
     @property
@@ -53,6 +54,7 @@ class DataModel:
     def _construct_input_dataset(
         self,
         datalist: Sequence[GenericDatasource],
+        generalconfig: GeneralInfo,
     ) -> tuple[xarray.Coordinates, np.timedelta64]:
         """
         Parse the list of datasources.
@@ -118,13 +120,17 @@ class DataModel:
         # TODO(AU): Allow input datasets with leadtime already taken into account # noqa: FIX002
         #   https://github.com/Deltares-research/DPyVerification/issues/11
         #   See issue for full description.
-        #   Here, the leadtime coordinate needs to be added to the coords.
-        #   And, the simstart coordinate needs to be completed
+        #   Here, check that leadtime values in input datasets are subset of generalconfig.leadtimes
+        #   And, the simstart coordinate needs to be completed with simstarts derived from
+        #   the time + leadtime dimensions -> Actually, the simstart_values of  _parse_source()
+        #   should be ok for that, just need to be calculated inside that method.
 
         # Add the other coordinates to get the full set
+        leadtimes = generalconfig.leadtimes.timedelta64
         ensemble_list = list(set(ensemble_list))
         simstart_list = list(set(simstart_list))
         additional_coords = {
+            DataModelCoords.leadtime.name: leadtimes,
             DataModelCoords.ensemble.name: ensemble_list,
             DataModelCoords.simstart.name: simstart_list,
         }
@@ -148,19 +154,12 @@ class DataModel:
         self,
         coords: xarray.Coordinates,
         time_step: np.timedelta64,
-        generalconfig: GeneralInfo,
     ) -> None:
-        if not generalconfig.leadtimes:
-            # When called from pipeline, this should not be possible. However, do need to check in
-            # case this function is called from a custom implementation.
-            msg = "No leadtimes specified in General configuration"
-            raise ValueError(msg)
-        leadtimes = generalconfig.leadtimes.timedelta64
-
         # Construct time coordinate for intermediate dataset based on simstart and leadtime values
+        leadtimes = coords[DataModelCoords.leadtime.name].data  # type: ignore[misc]  # Yes, data is a Any array, we assume it is compatible with np.min and np.max
         simstarts = coords[DataModelCoords.simstart.name].data  # type: ignore[misc]  # Yes, data is a Any array, we assume it is compatible with np.min and np.max
-        time_start: np.datetime64 = np.min(simstarts) + np.min(leadtimes)  # type: ignore[misc] # Yes, simstarts is a Any array, we assume it is compatible with np.min and np.max
-        time_end: np.datetime64 = np.max(simstarts) + np.max(leadtimes)  # type: ignore[misc] # Yes, simstarts is a Any array, we assume it is compatible with np.min and np.max
+        time_start: np.datetime64 = np.min(simstarts) + np.min(leadtimes)  # type: ignore[misc] # Yes, simstarts and leadtimes are a Any array, we assume it is compatible with np.min and np.max
+        time_end: np.datetime64 = np.max(simstarts) + np.max(leadtimes)  # type: ignore[misc] # Yes, simstarts and leadtimes are a Any array, we assume it is compatible with np.min and np.max
         time_values = np.arange(
             time_start,
             time_end + time_step,
@@ -183,88 +182,68 @@ class DataModel:
                 raise NotImplementedError(msg)
 
         update_coords = {
-            DataModelCoords.leadtime.name: leadtimes,
             DataModelCoords.time.name: time_values,
         }
         coords = coords.assign(update_coords)
         self.intermediate = xarray.Dataset(coords=coords)
 
         # For data variables with a simstart dimension, extract only specific values
-        # For data variables with neither a simstart nor a leadtime dimension, extract values at intermediate dataset time locations
-        # For data variables with a leadtime dimension, extract values at intermediate dataset time locations (?)
+        # For data variables with neither a simstart nor a leadtime dimension, extract values at
+        #   intermediate dataset time locations
+        # For data variables with a leadtime dimension, extract values at intermediate dataset time
+        #   locations (?)
         # TODO(AU): Allow input datasets with leadtime already taken into account # noqa: FIX002
         #   https://github.com/Deltares-research/DPyVerification/issues/11
         #   See issue for full description.
-        #   Here, for variables with a leadtime dimension, extract values at intermediate dataset time locations (?)
-        for variable in self.input.data_vars:
-            pass  # TODO
-
-        """
-        leadsets = []
-        for leadtime in leadtimes:
-            # TODO(AU): Add unit test on simobspair creation # noqa: FIX002
-            #   https://github.com/Deltares-research/DPyVerification/issues/33
-            #   Here, make this a function? Have data.input as argument, instead of full data?
-            leadset = data.input.coords.to_dataset()
-            newtime: list[datetime64] = list(
-                data.input[DataModelCoords.simstart.name].data + leadtime,  # type: ignore[misc]
-            )
-            new_coords = {DataModelCoords.time.name: newtime}
-            leadset = leadset.assign_coords(new_coords)
-            for pair in calcconfig.variablepairs:
-                # Construct variable names:
-                #   varnamegeneral_calctypename_varname
-                # Where
-                # - varnamegeneral is assumed equal to obsvar name
-                # - calctypename is taken to be equal to enum string value
-                outnamesim = f"{pair.obs}_{CalculationTypeEnum.simobspairs}_{pair.sim}"
-                outnameobs = f"{pair.obs}_{CalculationTypeEnum.simobspairs}_{pair.obs}"
-
-                # TODO(AU): Add unit test on simobspair creation # noqa: FIX002
-                #   https://github.com/Deltares-research/DPyVerification/issues/33
-                #   Have a unit test with leadtimes that are incompatible with the available data.
-                #   Additional thoughts on that, from earlier:
-                #   Wait for adaptation of example input files, when smaller, can use large leadtime
-        #   to be beyond end. To test what if any newtime values are not part of the input time
-        #   dimension? -> Will give KeyError. What do we want to do in that case? Skip leadtime
-        #   entirely? Or do create, but fully empty? Truncate newtime at min and max of time can
-        #   be a first step, to only get valid time values. But what if newtime is then empty?
-
-                # Parse the obs values
+        #   Here, for variables with a leadtime dimension, extract values at intermediate dataset
+        #     time locations (?)
+        for varname in self.input.data_vars:
+            datavar = self.input.data_vars[varname]
+            if DataModelDims.simstart in datavar.dims:
+                leadtime: np.timedelta64
+                for index, leadtime in enumerate(leadtimes):  # type: ignore[misc]  # Yes, leadtimes is a Any array, we assume it is a compatible with np.min and np.max
+                    # Select all values at specific simstart - time combinations
+                    #   For each simstart, since inside loop for specific leadtime, want only values
+                    #   for one specific time.
+                    #   Based on http://xarray.pydata.org/en/stable/indexing.html#more-advanced-indexing,
+                    #   pointwise indexing can be done by creating DataArrays for indexing,
+                    #   including what resulting dimension / coordinates the values map to.
+                    select_at = {
+                        DataModelCoords.time.name: list(
+                            self.input[DataModelCoords.simstart.name].data + leadtime,  # type: ignore[misc]
+                        ),
+                        DataModelCoords.simstart.name: xarray.DataArray(
+                            self.input[DataModelCoords.simstart.name].data,  # type: ignore[misc]
+                            dims=DataModelDims.time,
+                        ),
+                    }
+                    if not index:
+                        self.intermediate[varname] = datavar.sel(select_at).expand_dims(
+                            dim={"leadtime": [leadtime]},
+                            axis=len(datavar.dims) - 1,
+                        )
+                    else:
+                        self.intermediate[varname] = self.intermediate[varname].combine_first(
+                            datavar.sel(select_at).expand_dims(
+                                dim={"leadtime": [leadtime]},
+                                axis=len(datavar.dims) - 1,
+                            ),
+                        )
+            elif DataModelDims.leadtime in datavar.dims:
+                msg = f"Data variables with {DataModelDims.leadtime} dimension not supported yet."
+                raise NotImplementedError(msg)
+            elif DataModelDims.simstart in datavar.dims and DataModelDims.leadtime in datavar.dims:
+                msg = (
+                    f"Data variables are expected to have at maximum one of the"
+                    f" {DataModelDims.leadtime} and {DataModelDims.simstart} dimensions. Use of"
+                    f" variables that have both of these dimensions is not supported."
+                )
+                raise ValueError(msg)
+            else:
                 select_at = {
-                    DataModelCoords.time.name: leadset[DataModelCoords.time.name],
+                    DataModelCoords.time.name: time_values,
                 }
-                vals = data.input[pair.obs].sel(select_at)
-                leadset[outnameobs] = vals.expand_dims(
-                    dim={"leadtime": [leadtime]},
-                    axis=len(vals.dims),
-                )
-                if "units" in data.input[pair.obs].attrs:  # type: ignore[misc] # attrs is a dict[Any,Any]
-                    leadset[outnameobs].attrs.update({"units": data.input[pair.obs].attrs["units"]})  # type: ignore[misc] # attrs is a dict[Any,Any]
-
-                # Parse the sim values
-                #
-                # Select all sim values at specific simstart - time combinations
-                #   For each simstart, since inside loop for specific leadtime, want only values for one
-                #   specific time.
-                #   Based on http://xarray.pydata.org/en/stable/indexing.html#more-advanced-indexing,
-                #   pointwise indexing can be done by creating DataArrays for indexing, including what
-                #   resulting dimension / coordinates the values map to.
-                select_at[DataModelCoords.simstart.name] = xarray.DataArray(
-                    data.input[DataModelCoords.simstart.name].data,  # type: ignore[misc]
-                    dims=DataModelDims.time,
-                )
-                vals = data.input[pair.sim].sel(select_at)
-                leadset[outnamesim] = vals.expand_dims(
-                    dim={"leadtime": [leadtime]},
-                    axis=len(vals.dims),
-                )
-                if "units" in data.input[pair.sim].attrs:  # type: ignore[misc] # attrs is a dict[Any,Any]
-                    leadset[outnamesim].attrs.update({"units": data.input[pair.sim].attrs["units"]})  # type: ignore[misc] # attrs is a dict[Any,Any]
-            leadsets.append(leadset)
-        # merge will expand time to cover all leadtimes
-        self.intermediate = self.intermediate.merge(leadsets)
-        """
+                self.intermediate[varname] = datavar.sel(select_at)
 
     def _initialize_output_dataset(
         self,
