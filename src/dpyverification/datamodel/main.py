@@ -21,6 +21,7 @@ class DataModel:
     """The dpyverification internal DataModel."""
 
     input: xarray.Dataset
+    intermediate: xarray.Dataset
     # output is a @property with an explicit setter
 
     def __init__(
@@ -34,6 +35,7 @@ class DataModel:
             msg = "No leadtimes specified in General configuration"
             raise ValueError(msg)
         coords, time_step = self._construct_input_dataset(datalist, generalconfig)
+        self._create_intermediate_dataset(coords, time_step)
         self._initialize_output_dataset(coords, time_step)
 
     @property
@@ -147,6 +149,101 @@ class DataModel:
         # Return the constructed coords, without any changes that the xarray.merge() might have
         #  caused to the self.input coordinates
         return coords, time_step
+
+    def _create_intermediate_dataset(
+        self,
+        coords: xarray.Coordinates,
+        time_step: np.timedelta64,
+    ) -> None:
+        # Construct time coordinate for intermediate dataset based on simstart and leadtime values
+        leadtimes = coords[DataModelCoords.leadtime.name].data  # type: ignore[misc]  # Yes, data is a Any array, we assume it is compatible with np.min and np.max
+        simstarts = coords[DataModelCoords.simstart.name].data  # type: ignore[misc]  # Yes, data is a Any array, we assume it is compatible with np.min and np.max
+        time_start: np.datetime64 = np.min(simstarts) + np.min(leadtimes)  # type: ignore[misc] # Yes, simstarts and leadtimes are a Any array, we assume it is compatible with np.min and np.max
+        time_end: np.datetime64 = np.max(simstarts) + np.max(leadtimes)  # type: ignore[misc] # Yes, simstarts and leadtimes are a Any array, we assume it is compatible with np.min and np.max
+        time_values = np.arange(
+            time_start,
+            time_end + time_step,
+            time_step,
+            dtype=np.datetime64,
+        )
+
+        # Check there are no additional coordinate variables that use the time dimension, and would
+        #   need to be adapted, e.g. additional coordinates inherited from the datasources
+        for coordname in coords:
+            if (
+                DataModelCoords.time.name != coordname  # Except for time coordinate itself
+                and DataModelDims.time
+                in coords[coordname].dims  # No other coordinate should have the time dimension
+            ):
+                msg = (
+                    f"Coordinate {coordname} uses the {DataModelDims.time} dimension, creating"
+                    " an intermediate dataset in this situation is not implemented yet."
+                )
+                raise NotImplementedError(msg)
+
+        update_coords = {
+            DataModelCoords.time.name: time_values,
+        }
+        coords = coords.assign(update_coords)
+        self.intermediate = xarray.Dataset(coords=coords)
+
+        # For data variables with a simstart dimension, extract only specific values
+        # For data variables with neither a simstart nor a leadtime dimension, extract values at
+        #   intermediate dataset time locations
+        # For data variables with a leadtime dimension, extract values at intermediate dataset time
+        #   locations (?)
+        # TODO(AU): Allow input datasets with leadtime already taken into account # noqa: FIX002
+        #   https://github.com/Deltares-research/DPyVerification/issues/11
+        #   See issue for full description.
+        #   Here, for variables with a leadtime dimension, extract values at intermediate dataset
+        #     time locations (?)
+        for varname in self.input.data_vars:
+            datavar = self.input.data_vars[varname]
+            if DataModelDims.simstart in datavar.dims:
+                leadtime: np.timedelta64
+                for index, leadtime in enumerate(leadtimes):  # type: ignore[misc]  # Yes, leadtimes is a Any array, we assume it is a compatible with np.min and np.max
+                    # Select all values at specific simstart - time combinations
+                    #   For each simstart, since inside loop for specific leadtime, want only values
+                    #   for one specific time.
+                    #   Based on http://xarray.pydata.org/en/stable/indexing.html#more-advanced-indexing,
+                    #   pointwise indexing can be done by creating DataArrays for indexing,
+                    #   including what resulting dimension / coordinates the values map to.
+                    select_at = {
+                        DataModelCoords.time.name: list(
+                            self.input[DataModelCoords.simstart.name].data + leadtime,  # type: ignore[misc]
+                        ),
+                        DataModelCoords.simstart.name: xarray.DataArray(
+                            self.input[DataModelCoords.simstart.name].data,  # type: ignore[misc]
+                            dims=DataModelDims.time,
+                        ),
+                    }
+                    if not index:
+                        self.intermediate[varname] = datavar.sel(select_at).expand_dims(
+                            dim={"leadtime": [leadtime]},
+                            axis=len(datavar.dims) - 1,
+                        )
+                    else:
+                        self.intermediate[varname] = self.intermediate[varname].combine_first(
+                            datavar.sel(select_at).expand_dims(
+                                dim={"leadtime": [leadtime]},
+                                axis=len(datavar.dims) - 1,
+                            ),
+                        )
+            elif DataModelDims.leadtime in datavar.dims:
+                msg = f"Data variables with {DataModelDims.leadtime} dimension not supported yet."
+                raise NotImplementedError(msg)
+            elif DataModelDims.simstart in datavar.dims and DataModelDims.leadtime in datavar.dims:
+                msg = (
+                    f"Data variables are expected to have at maximum one of the"
+                    f" {DataModelDims.leadtime} and {DataModelDims.simstart} dimensions. Use of"
+                    f" variables that have both of these dimensions is not supported."
+                )
+                raise ValueError(msg)
+            else:
+                select_at = {
+                    DataModelCoords.time.name: time_values,
+                }
+                self.intermediate[varname] = datavar.sel(select_at)
 
     def _initialize_output_dataset(
         self,
