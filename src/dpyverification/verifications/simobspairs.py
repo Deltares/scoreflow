@@ -3,8 +3,10 @@
 from typing import TYPE_CHECKING
 
 import xarray
+from numpy import timedelta64
 
 from dpyverification.configuration import Calculation, SimObsPairs
+from dpyverification.configuration.schema import SimObsVariables
 from dpyverification.constants import CalculationType, DataModelCoords, DataModelDims
 from dpyverification.datamodel import DataModel
 
@@ -26,7 +28,19 @@ def simobspairs(
         msg = "No leadtimes specified in SimObsPairs configuration"
         raise ValueError(msg)
     leadtimes = calcconfig.leadtimes.timedelta64
+    variablepairs = calcconfig.variablepairs
+    inputdataset = data.input
 
+    # add checks on inputdataset here?
+
+    return _simobs(inputdataset, leadtimes, variablepairs)
+
+
+def _simobs(
+    inputdataset: xarray.Dataset,
+    leadtimes: list[timedelta64],
+    variablepairs: list[SimObsVariables],
+) -> xarray.Dataset:
     leadsets = []
     # TODO(AU): Allow input datasets with leadtime already taken into account # noqa: FIX002
     #   https://github.com/Deltares-research/DPyVerification/issues/11
@@ -36,13 +50,13 @@ def simobspairs(
         # TODO(AU): Add unit test on simobspair creation # noqa: FIX002
         #   https://github.com/Deltares-research/DPyVerification/issues/33
         #   Here, make this a function? Have data.input as argument, instead of full data?
-        leadset = data.input.coords.to_dataset()
+        leadset = inputdataset.coords.to_dataset()
         newtime: list[datetime64] = list(
-            data.input[DataModelCoords.simstart.name].data + leadtime,  # type: ignore[misc] # Quite certain that data.input[DataModelCoords.time.name].data will be a 1D array of datetime64
+            inputdataset[DataModelCoords.simstart.name].data + leadtime,  # type: ignore[misc] # Quite certain that data.input[DataModelCoords.time.name].data will be a 1D array of datetime64
         )
         new_coords = {DataModelCoords.time.name: newtime}
         leadset = leadset.assign_coords(new_coords)
-        for pair in calcconfig.variablepairs:
+        for pair in variablepairs:
             # Construct variable names:
             #   varnamegeneral_calctypename_varname
             # Where
@@ -65,13 +79,13 @@ def simobspairs(
             select_at = {
                 DataModelCoords.time.name: leadset[DataModelCoords.time.name],
             }
-            vals = data.input[pair.obs].sel(select_at)
+            vals = inputdataset[pair.obs].sel(select_at)
             leadset[outnameobs] = vals.expand_dims(
                 dim={"leadtime": [leadtime]},
                 axis=len(vals.dims),
             )
-            if "units" in data.input[pair.obs].attrs:  # type: ignore[misc] # attrs is a dict[Any,Any]
-                leadset[outnameobs].attrs.update({"units": data.input[pair.obs].attrs["units"]})  # type: ignore[misc] # attrs is a dict[Any,Any]
+            if "units" in inputdataset[pair.obs].attrs:  # type: ignore[misc] # attrs is a dict[Any,Any]
+                leadset[outnameobs].attrs.update({"units": inputdataset[pair.obs].attrs["units"]})  # type: ignore[misc] # attrs is a dict[Any,Any]
 
             # Parse the sim values
             #
@@ -82,16 +96,16 @@ def simobspairs(
             #   pointwise indexing can be done by creating DataArrays for indexing, including what
             #   resulting dimension / coordinates the values map to.
             select_at[DataModelCoords.simstart.name] = xarray.DataArray(
-                data.input[DataModelCoords.simstart.name].data,  # type: ignore[misc] # Quite certain that data.input[DataModelCoords.simstart.name].data will be a 1D array of datetime64
+                inputdataset[DataModelCoords.simstart.name].data,  # type: ignore[misc] # Quite certain that data.input[DataModelCoords.simstart.name].data will be a 1D array of datetime64
                 dims=DataModelDims.time,
             )
-            vals = data.input[pair.sim].sel(select_at)
+            vals = inputdataset[pair.sim].sel(select_at)
             leadset[outnamesim] = vals.expand_dims(
                 dim={"leadtime": [leadtime]},
                 axis=len(vals.dims),
             )
-            if "units" in data.input[pair.sim].attrs:  # type: ignore[misc] # attrs is a dict[Any,Any]
-                leadset[outnamesim].attrs.update({"units": data.input[pair.sim].attrs["units"]})  # type: ignore[misc] # attrs is a dict[Any,Any]
+            if "units" in inputdataset[pair.sim].attrs:  # type: ignore[misc] # attrs is a dict[Any,Any]
+                leadset[outnamesim].attrs.update({"units": inputdataset[pair.sim].attrs["units"]})  # type: ignore[misc] # attrs is a dict[Any,Any]
         leadsets.append(leadset)
     # merge will expand time to cover all leadtimes
     return xarray.merge(leadsets)
