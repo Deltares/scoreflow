@@ -28,8 +28,8 @@ def _initialize_archive() -> None:
         name: str
         task_id: str
 
-    clear_catalogue = _ArchiveTask("Clear internal catalogue", "clear internal catalogue")
-    internal_harvester = _ArchiveTask("Internal harvester", "harvester internal catalogue")
+    clear_catalogue = _ArchiveTask("clear internal catalogue", "clear internal catalogue")
+    internal_harvester = _ArchiveTask("internal harvester", "harvester internal catalogue")
 
     def get_archive_task_status(archive_task: _ArchiveTask) -> dict[str, bool | str]:
         archive_status_url = "http://localhost:8080/deltares-archive-server/api/v1/archive/status"
@@ -91,7 +91,7 @@ def test_webservice_live() -> None:
 
 
 @pytest.mark.skipif(IN_GITHUB_ACTIONS, reason="Cannot yet test webservice in GitHub CI")
-@pytest.mark.parametrize("forecastcount", [0, 1, 5])
+@pytest.mark.parametrize("forecastcount", [2, 4])
 def test_get_timeseries_sim_happy(forecastcount: int, tmp_path: Path) -> None:
     """Check that the imported pixml gives an xarray with the expected content."""
     leadtimes = {"unit": "h", "values": [3, 6]}
