@@ -4,6 +4,7 @@ import copy
 from pathlib import Path
 
 import pytest
+import xarray as xr
 import yaml
 from dpyverification import pipeline
 from pydantic import ValidationError
@@ -71,6 +72,14 @@ def test_execute_pipeline_happy_yaml_rank_histogram(tmp_path: Path) -> None:
     pipeline.execute_pipeline(tmp_conf_file, configtype="yaml")
     assert tmpout.exists()
 
+    # Check the dataset contains the expected output variables
+    ds = xr.open_dataset(tmpout)
+    assert "rank_histogram_leadtime_10800s" in ds.data_vars
+    assert "rank_histogram_leadtime_21600s" in ds.data_vars
+
+    # Check the dataset global attribute calculationtype
+    assert ds.attrs["calculationtype"] == "rankhistogram"  # type: ignore[misc]
+
 
 def test_execute_pipeline_happy_yaml_crps_for_ensemble(tmp_path: Path) -> None:
     """Test at least one valid conf file for each conf type."""
@@ -98,8 +107,11 @@ def test_execute_pipeline_happy_yaml_crps_for_ensemble(tmp_path: Path) -> None:
         yaml.dump(testconf, tf)
 
     pipeline.execute_pipeline(tmp_conf_file, configtype="yaml")
-
     assert tmpout.exists()
+
+    # Check the output dataset contains the expected variable
+    ds = xr.open_dataset(tmpout)
+    assert "crps_for_ensemble" in ds.data_vars
 
 
 def test_execute_pipeline_happy_runinfo() -> None:
