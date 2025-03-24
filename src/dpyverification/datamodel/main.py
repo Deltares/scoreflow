@@ -482,7 +482,7 @@ class DataModel:
         #   OR, allow overwriting if only NaNs are overwritten (i.e. the var was created with only
         #   partial data)?
         if not isinstance(new_output, xarray.Dataset | xarray.DataArray):  # type: ignore[misc]
-            msg = "Expected type xr.DataArray or xr.Dataset, got type(new_output)"  # type: ignore[unreachable] # mypy assumes the right type is always provided, but additional check is needed.
+            msg = f"Expected type xr.DataArray or xr.Dataset, got {type(new_output)}"  # type: ignore[unreachable] # mypy assumes the right type is always provided, but additional check is needed.
             raise TypeError(msg)
 
         # Check that the to-be-added output does not overwrite any existing variables
