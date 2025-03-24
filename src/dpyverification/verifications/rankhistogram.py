@@ -43,7 +43,7 @@ def rankhistogram(
             raise TypeError(msg)
 
         # Set the variable name with specific lead time
-        leadtime_seconds = int(leadtime.values / np.timedelta64(1, "s"))  # type: ignore[misc]
+        leadtime_seconds = int(leadtime.to_numpy() / np.timedelta64(1, "s"))  # type: ignore[misc]
         name = f"rank_histogram_leadtime_{leadtime_seconds}s"
         _rank.name = name
 
