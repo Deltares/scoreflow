@@ -215,7 +215,8 @@ class DataModel:
                             dims=DataModelDims.time,
                         ),
                     }
-                    if not index:
+                    is_first_iteration = not index
+                    if is_first_iteration:
                         intermediatedataset[varname] = datavar.sel(select_at).expand_dims(
                             dim={"leadtime": [leadtime]},
                             axis=len(datavar.dims) - 1,
