@@ -34,7 +34,7 @@ def rankhistogram(
         sim_subset = sim.sel(leadtime=leadtime)  # type: ignore[misc]
 
         # Compute the rank for
-        _rank: xr.DataArray | xr.Dataset = _rank_histogram(
+        rank_for_leadtime: xr.DataArray | xr.Dataset = _rank_histogram(
             observations=obs,
             forecasts=sim_subset,
             dim=calcconfig.reduce_dims,
@@ -42,21 +42,21 @@ def rankhistogram(
         )
 
         # Check a DataArray is returned
-        if not isinstance(_rank, xr.DataArray):  # type: ignore[misc]
-            msg = f"Expected xr.DataArray, got {type(_rank)}"
+        if not isinstance(rank_for_leadtime, xr.DataArray):  # type: ignore[misc]
+            msg = f"Expected xr.DataArray, got {type(rank_for_leadtime)}"
             raise TypeError(msg)
 
         # Set the variable name with specific lead time
         leadtime_seconds = int(leadtime.to_numpy() / np.timedelta64(1, "s"))  # type: ignore[misc]
         name = f"rank_histogram_leadtime_{leadtime_seconds}s"
-        _rank.name = name
+        rank_for_leadtime.name = name
 
         # Set the long_name attribute on the variable
         # Set units to 1 (CF-compliant indication for dimensionless variable)
-        _rank.attrs = {"long_name": name, "units": 1}
+        rank_for_leadtime.attrs = {"long_name": name, "units": 1}
 
         # Append to the list
-        rankhistograms_per_leadtime.append(_rank)
+        rankhistograms_per_leadtime.append(rank_for_leadtime)
 
     # Compute
     data_vars = {k.name: k for k in rankhistograms_per_leadtime}
