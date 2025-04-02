@@ -1,4 +1,8 @@
-"""Compute the CRPS for an ensemble of forecasts over specified dimensions."""
+"""Compute the Continuous Ranked Propability Score (CRPS) for an ensemble of forecasts.
+
+For documentation, see below:
+https://scores.readthedocs.io/en/1.0.0/tutorials/CRPS_for_Ensembles.html
+"""
 
 import xarray as xr
 from scores.probability import (  # type: ignore[import-untyped]

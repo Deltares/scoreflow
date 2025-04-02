@@ -1,4 +1,8 @@
-"""Compute the histogram of ranks over the specified dimensions."""
+"""Compute the rank histogram (Talagrand diagram) over the specified dimensions.
+
+For external documentation, see below:
+https://xskillscore.readthedocs.io/en/stable/api/xskillscore.rank_histogram.html?highlight=rank%20histogram#xskillscore.rank_histogram
+"""
 
 import numpy as np
 import xarray as xr
