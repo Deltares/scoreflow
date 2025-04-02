@@ -470,20 +470,30 @@ class DataModel:
             time_coord = xarray.Coordinates(coord_dict)
         return time_coord, time_step
 
-    def add_to_output(self, new_output: xarray.Dataset) -> None:
-        """Add the Dataset, with the result of a specific verification, to the datamodel output."""
+    def add_to_output(self, new_output: xarray.Dataset | xarray.DataArray) -> None:
+        """Add the result of a specific verification to the datamodel output."""
         # Perform various checks on the combination
         # Merge together if the checks pass
 
-        # Check that the to-be-added output does not overwrite any existing variables
-        #
         # TODO(AU): Output data content requirements are not complete # noqa: FIX002
         #   https://github.com/Deltares-research/DPyVerification/issues/26
         #   Here, check that the to-be-added output does not overwrite any existing variables
         #   OR, allow appending to a certain dimension?
         #   OR, allow overwriting if only NaNs are overwritten (i.e. the var was created with only
         #   partial data)?
-        a = [str(x) for x in new_output.data_vars]
+        if not isinstance(new_output, xarray.Dataset | xarray.DataArray):  # type: ignore[misc]
+            msg = f"Expected type xr.DataArray or xr.Dataset, got {type(new_output)}"  # type: ignore[unreachable] # mypy assumes the right type is always provided, but additional check is needed.
+            raise TypeError(msg)
+
+        # Check that the to-be-added output does not overwrite any existing variables
+        if isinstance(new_output, xarray.DataArray):  # type: ignore[misc]
+            # Check if DataArray has a name
+            if new_output.name is None:
+                msg = "DataArray has no name"
+                raise ValueError(msg)
+            a = [str(new_output.name)]
+        else:
+            a = [str(x) for x in new_output.data_vars]
         b = [str(x) for x in self.output.data_vars]
         match = any(var in b for var in a)
         if match:
@@ -511,45 +521,48 @@ class DataModel:
         #   Here, register the start, end and timestep of the time dimension
         #   xarray.merge will not complain about adding intermediate times, but we want to have
         #   a fixed timestep. OR, allow non-monotonic timeseries?
-        try:
-            self._output[DataModelCoords.time.name].sel(
-                {DataModelCoords.time.name: new_output[DataModelCoords.time.name].data},  # type: ignore[misc] # data is Any, we assume np.datetime64 array
-            )
-        except KeyError as mismatch:
-            # new times are not a subset of existing times, what to do?
-            timestep: np.timedelta64 = self.output.attrs[DataModelAttributes.timestep]  # type: ignore[misc] # Due to the Any attrs
-            timestart: np.datetime64 = min(self.output[DataModelCoords.time.name].data)  # type: ignore[misc] # Due to the numpy array .data
-            new_time = new_output[DataModelCoords.time.name]
-            new_start: np.datetime64 = min(new_time.data)  # type: ignore[misc] # Due to the numpy array .data
-            new_diffs = np.unique(np.diff(new_time.data))  # type: ignore[misc] # Due to the time_coord numpy array
-            # All timediffs should be larger and integer divisible with timestep of _output
-            is_compatible = all(new_diffs % timestep == 0)  # type: ignore[misc] # Due to the numpy array new_diffs
-            if is_compatible:
-                # Even though moduli within new_time are ok, might still be at an offset
-                # Since moduli ok, if offset of one new time ok, all new times ok
-                is_compatible = not ((timestart - new_start) % timestep)
-            if not is_compatible:
-                msg = (
-                    f"Timecoordinate values of new output are not compatible: not all values are"
-                    f" at a position start_time {min(self.output[DataModelCoords.time.name].data)}"  # type: ignore[misc] # Due to the numpy arrays
-                    f" +/- integer multiple of timestep {timestep}"
-                )
-                raise ValueError from mismatch
-            # The times are compatible, however just doing an xarray merge does not guarantee a full
-            #  monotonic time. Therefore, explicitly create new time coord values
-            time_starts = [timestart, new_start]
-            time_ends: list[np.datetime64] = [
-                max(self.output[DataModelCoords.time.name].data),  # type: ignore[misc] # Due to the numpy arrays
-                max(new_time.data),  # type: ignore[misc] # Due to the numpy arrays
-            ]
 
-            time_coord, time_step = self._create_time_coord(
-                time_starts,
-                time_ends,
-                [timestep],
-                self.output[DataModelCoords.time.name].coords,  # type: ignore[misc] # coords is a DataArrayCoordinates[Any]
-            )
-            self._output = self._output.merge(time_coord)
+        # Validate time coordinates, but only if dim is present.
+        if DataModelDims.time in new_output.dims:
+            try:
+                self._output[DataModelCoords.time.name].sel(
+                    {DataModelCoords.time.name: new_output[DataModelCoords.time.name].data},  # type: ignore[misc] # data is Any, we assume np.datetime64 array
+                )
+            except KeyError as mismatch:
+                # new times are not a subset of existing times, what to do?
+                timestep: np.timedelta64 = self.output.attrs[DataModelAttributes.timestep]  # type: ignore[misc] # Due to the Any attrs
+                timestart: np.datetime64 = min(self.output[DataModelCoords.time.name].data)  # type: ignore[misc] # Due to the numpy array .data
+                new_time = new_output[DataModelCoords.time.name]
+                new_start: np.datetime64 = min(new_time.data)  # type: ignore[misc] # Due to the numpy array .data
+                new_diffs = np.unique(np.diff(new_time.data))  # type: ignore[misc] # Due to the time_coord numpy array
+                # All timediffs should be larger and integer divisible with timestep of _output
+                is_compatible = all(new_diffs % timestep == 0)  # type: ignore[misc] # Due to the numpy array new_diffs
+                if is_compatible:
+                    # Even though moduli within new_time are ok, might still be at an offset
+                    # Since moduli ok, if offset of one new time ok, all new times ok
+                    is_compatible = not ((timestart - new_start) % timestep)
+                if not is_compatible:
+                    msg = (
+                        f"Timecoordinate values of new output are not compatible: not all values are"  # noqa: E501
+                        f" at a position start_time {min(self.output[DataModelCoords.time.name].data)}"  # type: ignore[misc] # Due to the numpy arrays  # noqa: E501
+                        f" +/- integer multiple of timestep {timestep}"
+                    )
+                    raise ValueError from mismatch
+                # The times are compatible, however just doing an xarray merge does not guarantee a full  # noqa: E501
+                #  monotonic time. Therefore, explicitly create new time coord values
+                time_starts = [timestart, new_start]
+                time_ends: list[np.datetime64] = [
+                    max(self.output[DataModelCoords.time.name].data),  # type: ignore[misc] # Due to the numpy arrays
+                    max(new_time.data),  # type: ignore[misc] # Due to the numpy arrays
+                ]
+
+                time_coord, time_step = self._create_time_coord(
+                    time_starts,
+                    time_ends,
+                    [timestep],
+                    self.output[DataModelCoords.time.name].coords,  # type: ignore[misc] # coords is a DataArrayCoordinates[Any]
+                )
+                self._output = self._output.merge(time_coord)
 
         # Final merge
         #   No conflicts between the to-be-added output and earlier created outputs

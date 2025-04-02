@@ -33,9 +33,15 @@ from typing import Annotated, Literal, TypeAlias
 
 import numpy as np
 import pandas as pd
-from pydantic import BaseModel, Field
+from pydantic import AfterValidator, BaseModel, Field
 
-from dpyverification.constants import CalculationType, DataSourceType, SimObsType, TimeUnits
+from dpyverification.constants import (
+    CalculationType,
+    DataModelDims,
+    DataSourceType,
+    SimObsType,
+    TimeUnits,
+)
 
 
 class DateTime(BaseModel):
@@ -212,8 +218,66 @@ class SimObsPairs(BaseModel):
     variablepairs: list[SimObsVariables]
 
 
+class RankHistogram(BaseModel):
+    calculationtype: Literal[CalculationType.RANKHISTOGRAM]
+    variablepair: Annotated[
+        SimObsVariables,
+        Field(
+            description="Variable pair to use for the computation.",
+        ),
+    ]
+    reduce_dims: Annotated[
+        list[DataModelDims] | None,
+        Field(
+            description=(
+                "Dimension(s) over which to compute the histogram"
+                "of ranks. Defaults to all dimensions."
+            ),
+        ),
+    ] = None
+
+
+class CRPSForEnsemble(BaseModel):
+    @staticmethod
+    def dim_is_not_ensemble(value: DataModelDims) -> DataModelDims:
+        """Check dim is not ensemble dim."""
+        if value == DataModelDims.ensemble:
+            msg = "Cannot preserve ensemble dimension."
+            raise ValueError(msg)
+        return value
+
+    calculationtype: Literal[CalculationType.CRPSFORENSEMBLE]
+    variablepair: Annotated[
+        SimObsVariables,
+        Field(
+            description="Variable pair to use for the computation.",
+        ),
+    ]
+    method: Annotated[
+        Literal["ecdf", "fair"],
+        Field(
+            description=(
+                "Defaults to ecdf."
+                "See: https://scores.readthedocs.io/en/stable/api.html#scores.probability.crps_for_ensemble"
+            ),
+            default="ecdf",
+        ),
+    ]
+    preserve_dims: Annotated[
+        list[DataModelDims] | None,
+        AfterValidator(dim_is_not_ensemble),
+        Field(
+            description="List of dimension(s) to preserve in the output. Defaults to None.",
+            default=None,
+        ),
+    ] = None
+
+
 Calculation: TypeAlias = (
-    SimObsPairs | PinScore  # A Type Alias for the combination of calculation schema classes
+    SimObsPairs
+    | PinScore
+    | RankHistogram
+    | CRPSForEnsemble  # A Type Alias for the combination of calculation schema classes
 )
 
 
