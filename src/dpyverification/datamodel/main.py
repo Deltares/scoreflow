@@ -5,16 +5,16 @@ from collections.abc import Sequence
 import numpy as np
 import xarray
 
-from dpyverification.configuration import GeneralInfo
+from dpyverification.configuration import GeneralInfoConfig
 from dpyverification.constants import (
     NAME,
     VERSION_FULL,
     DataModelAttributes,
     DataModelCoords,
     DataModelDims,
-    SimObsType,
+    SimObsKind,
 )
-from dpyverification.datasources.genericdatasource import GenericDatasource
+from dpyverification.datasources.base import BaseDatasource
 
 
 class DataModel:
@@ -26,8 +26,8 @@ class DataModel:
 
     def __init__(
         self,
-        datalist: Sequence[GenericDatasource],
-        generalconfig: GeneralInfo,
+        datalist: Sequence[BaseDatasource],
+        generalconfig: GeneralInfoConfig,
     ) -> None:
         self.input, coords, time_step = self._construct_input_dataset(datalist, generalconfig)
         self.intermediate = self._create_intermediate_dataset(self.input, coords, time_step)
@@ -48,8 +48,8 @@ class DataModel:
 
     @staticmethod
     def _construct_input_dataset(
-        datalist: Sequence[GenericDatasource],
-        generalconfig: GeneralInfo,
+        datalist: Sequence[BaseDatasource],
+        generalconfig: GeneralInfoConfig,
     ) -> tuple[xarray.Dataset, xarray.Coordinates, np.timedelta64]:
         """
         Parse the list of datasources.
@@ -59,8 +59,8 @@ class DataModel:
         Assign the xarray dataset to self.input.
         """
         # Determine sizes and values of combined dimensions.
-        obs_list: list[GenericDatasource] = []
-        sim_list: list[GenericDatasource] = []
+        obs_list: list[BaseDatasource] = []
+        sim_list: list[BaseDatasource] = []
         time_steps: list[np.timedelta64] = []
         time_starts: list[np.datetime64] = []
         time_ends: list[np.datetime64] = []
@@ -68,7 +68,7 @@ class DataModel:
         ensemble_list: list[int] = []
         simstart_list: list[np.datetime64] = []
         for ds in datalist:
-            obs_list.append(ds) if ds.simobstype == SimObsType.OBS else sim_list.append(ds)
+            obs_list.append(ds) if ds.simobstype == SimObsKind.OBS else sim_list.append(ds)
 
             DataModel._check_source_dims_and_coords(
                 ds,
@@ -295,7 +295,7 @@ class DataModel:
         return output_dataset
 
     @staticmethod
-    def _check_source_dims_and_coords(ds: GenericDatasource) -> None:
+    def _check_source_dims_and_coords(ds: BaseDatasource) -> None:
         # all ds should have these dimensions
         obs_dims = frozenset(
             [
@@ -335,7 +335,7 @@ class DataModel:
         #   Will require adaptation both here, and additional checks on the combination of the
         #   datasets.
 
-        if ds.simobstype == SimObsType.OBS:
+        if ds.simobstype == SimObsKind.OBS:
             if frozenset(ds.xarray.sizes) != obs_dims:
                 msg = "For Observations data, the exact required dimensions are: " + str(
                     obs_dims,
@@ -368,7 +368,7 @@ class DataModel:
 
     @staticmethod
     def _parse_source(
-        ds: GenericDatasource,
+        ds: BaseDatasource,
     ) -> tuple[
         np.timedelta64,
         np.datetime64,
@@ -505,7 +505,7 @@ class DataModel:
 
         # Check that dimensions and coordinates match (except time dimension)
         #
-        # TODO(AU): Check dims and coords match when combining calculation outputs # noqa: FIX002
+        # TODO(AU): Check dims and coords match when combining score outputs # noqa: FIX002
         #   https://github.com/Deltares-research/DPyVerification/issues/27
         #   First, implement strictest check, entirely the same. Follow up with next TODO item.
         #

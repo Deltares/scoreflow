@@ -58,10 +58,10 @@ def test_execute_pipeline_happy_yaml_rank_histogram(tmp_path: Path) -> None:
     testconf["datasources"].append(copy.deepcopy(testconf["datasources"][1]))
     testconf["datasources"][2]["filename"] = TESTS_FORECASTS_2_FILE.name
 
-    testconf["calculations"][0].pop("variablepairs")
-    testconf["calculations"][0]["variablepair"] = {"sim": "Q.fs", "obs": "Q.m"}  # type: ignore[assignment]
-    testconf["calculations"][0]["calculationtype"] = "rankhistogram"
-    testconf["calculations"][0]["reduce_dims"] = ["location_id"]  # type: ignore[assignment]
+    testconf["scores"][0].pop("variablepairs")
+    testconf["scores"][0]["variablepair"] = {"sim": "Q.fs", "obs": "Q.m"}  # type: ignore[assignment]
+    testconf["scores"][0]["kind"] = "rankhistogram"
+    testconf["scores"][0]["reduce_dims"] = ["location_id"]  # type: ignore[assignment]
 
     testconf["datasinks"][0]["directory"] = str(tmpout.parent)
     testconf["datasinks"][0]["filename"] = tmpout.name
@@ -77,8 +77,8 @@ def test_execute_pipeline_happy_yaml_rank_histogram(tmp_path: Path) -> None:
     assert "rank_histogram_leadtime_10800s" in ds.data_vars
     assert "rank_histogram_leadtime_21600s" in ds.data_vars
 
-    # Check the dataset global attribute calculationtype
-    assert ds["rank_histogram_leadtime_10800s"].attrs["calculationtype"] == "rankhistogram"  # type: ignore[misc]
+    # Check the dataset global attribute kind
+    assert ds["rank_histogram_leadtime_10800s"].attrs["kind"] == "rankhistogram"  # type: ignore[misc]
 
 
 def test_execute_pipeline_happy_yaml_crps_for_ensemble(tmp_path: Path) -> None:
@@ -96,10 +96,10 @@ def test_execute_pipeline_happy_yaml_crps_for_ensemble(tmp_path: Path) -> None:
     testconf["datasources"][1]["filename"] = TESTS_FORECASTS_FILE.name
     testconf["datasources"].append(copy.deepcopy(testconf["datasources"][1]))
     testconf["datasources"][2]["filename"] = TESTS_FORECASTS_2_FILE.name
-    testconf["calculations"][0].pop("variablepairs")
-    testconf["calculations"][0]["variablepair"] = {"sim": "Q.fs", "obs": "Q.m"}  # type: ignore[assignment]
-    testconf["calculations"][0]["calculationtype"] = "crps_for_ensemble"
-    testconf["calculations"][0]["preserve_dims"] = ["time", "leadtime"]  # type: ignore[assignment]
+    testconf["scores"][0].pop("variablepairs")
+    testconf["scores"][0]["variablepair"] = {"sim": "Q.fs", "obs": "Q.m"}  # type: ignore[assignment]
+    testconf["scores"][0]["kind"] = "crps_for_ensemble"
+    testconf["scores"][0]["preserve_dims"] = ["time", "leadtime"]  # type: ignore[assignment]
     testconf["datasinks"][0]["directory"] = str(tmpout.parent)
     testconf["datasinks"][0]["filename"] = tmpout.name
     tmp_conf_file = tmp_path / "tempconf.yaml"

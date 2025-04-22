@@ -3,15 +3,15 @@
 import numpy as np
 import pandas as pd
 import xarray as xr
-from dpyverification.configuration.schema import SimObsVariables
+from dpyverification.configuration.base import SimObsVariables
 from dpyverification.constants import DataModelCoords
-from dpyverification.verifications.simobspairs import _simobs
+from dpyverification.scores.simobspairs import SimObsPairs
 
 # mypy: disable-error-code="misc"
 
 
 def test_simobs_output() -> None:
-    """Check the output of the simobs calculation.
+    """Check the output of the simobs score.
 
     Are the values from the correct datetimes filtered, and placed at the correct output datetimes?
     """
@@ -62,7 +62,7 @@ def test_simobs_output() -> None:
         },
     )
 
-    output = _simobs(input_dataset, leadtimes, variablepairs)
+    output = SimObsPairs._simobs(input_dataset, leadtimes, variablepairs)
 
     # The time dimension of the output is expected to be equal to the input time
     assert np.array_equal(
@@ -71,23 +71,23 @@ def test_simobs_output() -> None:
     )
     # Check the dims of the output variables are in the 'expected' order
     #   The order also determines how the values should be compared
-    assert output["obsvar1_simobspair_obsvar1"].dims == ("time", "leadtime")
-    assert output["obsvar1_simobspair_simvar1"].dims == ("leadtime", "time")
-    assert output["obsvar2_simobspair_obsvar2"].dims == ("extradim", "time", "leadtime")
-    assert output["obsvar2_simobspair_simvar2"].dims == ("extradim", "leadtime", "time")
+    assert output["obsvar1_simobspairs_obsvar1"].dims == ("time", "leadtime")
+    assert output["obsvar1_simobspairs_simvar1"].dims == ("leadtime", "time")
+    assert output["obsvar2_simobspairs_obsvar2"].dims == ("extradim", "time", "leadtime")
+    assert output["obsvar2_simobspairs_simvar2"].dims == ("extradim", "leadtime", "time")
     # Check the values of the output variables
     assert np.array_equal(
-        output["obsvar1_simobspair_obsvar1"].data,
+        output["obsvar1_simobspairs_obsvar1"].data,
         [[2.0, np.nan], [3.0, 3.0], [np.nan, 4.0]],
         equal_nan=True,
     )
     assert np.array_equal(
-        output["obsvar1_simobspair_simvar1"].data,
+        output["obsvar1_simobspairs_simvar1"].data,
         [[4.0, 6.0, np.nan], [np.nan, 14.0, 16.0]],
         equal_nan=True,
     )
     assert np.array_equal(
-        output["obsvar2_simobspair_obsvar2"].data,
+        output["obsvar2_simobspairs_obsvar2"].data,
         [
             [[6.0, np.nan], [9.0, 9.0], [np.nan, 12.0]],
             [[8.0, np.nan], [12.0, 12.0], [np.nan, 16.0]],
@@ -95,7 +95,7 @@ def test_simobs_output() -> None:
         equal_nan=True,
     )
     assert np.array_equal(
-        output["obsvar2_simobspair_simvar2"].data,
+        output["obsvar2_simobspairs_simvar2"].data,
         [
             [[10.0, 15.0, np.nan], [np.nan, 42.0, 48.0]],
             [[14.0, 21.0, np.nan], [np.nan, 56.0, 64.0]],

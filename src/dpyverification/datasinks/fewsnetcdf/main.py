@@ -6,15 +6,14 @@ from typing import TYPE_CHECKING
 import xarray as xr
 
 from dpyverification.configuration import (
-    DataSink,
-    FewsNetcdfOutput,
+    FewsNetcdfOutputConfig,
 )
 from dpyverification.constants import (
     DataModelAttributes,
     DataModelCoords,
     DataModelDims,
 )
-from dpyverification.datasinks.genericdatasink import GenericDatasink
+from dpyverification.datasinks.base import BaseDatasink
 
 from .schema import FewsNetcdfOutputSchema
 
@@ -22,19 +21,21 @@ if TYPE_CHECKING:
     from collections.abc import Hashable
 
 
-class FewsNetcdfFileSink(GenericDatasink):
+class FewsNetcdfFileSink(BaseDatasink):
     """For writing data to a fews netcdf file."""
 
-    @classmethod
-    def write_data(cls, dsconfig: DataSink, dataset: xr.Dataset) -> None:
+    kind = "fewsnetcdf"
+    config_class = FewsNetcdfOutputConfig
+
+    def __init__(self, config: FewsNetcdfOutputConfig) -> None:
+        self.config: FewsNetcdfOutputConfig = config
+
+    def write_data(self, dataset: xr.Dataset) -> None:
         """Write the data in the xarray Dataset to the file as specified in the output config.
 
         The input dataset is assumed to be the DataModel output.
         """
-        if not isinstance(dsconfig, FewsNetcdfOutput):
-            msg = "Input dsconfig does not have datasourcetype fewsnetcdf"
-            raise TypeError(msg)
-        filepath = Path(dsconfig.directory) / dsconfig.filename
+        filepath = Path(self.config.directory) / self.config.filename
         if filepath.exists():
             # To consider: add a forcing flag, to force an overwrite of the file
             msg = "File already exists: " + str(filepath)
@@ -55,9 +56,9 @@ class FewsNetcdfFileSink(GenericDatasink):
         # Add any missing information required for CF compliance
         #   Note that most CF compliance will already be done in the creation of the xarray as
         #   part of the datamodel
-        cls.add_global_attrs(dataset, dsconfig)
-        cls.add_coord_attrs(dataset)
-        cls.add_var_attrs(dataset)
+        self.add_global_attrs(dataset, self.config)
+        self.add_coord_attrs(dataset)
+        self.add_var_attrs(dataset)
 
         # Rename variable to only have letters, digits and underscores?
 
@@ -71,7 +72,7 @@ class FewsNetcdfFileSink(GenericDatasink):
         dataset.to_netcdf(filepath)
 
     @staticmethod
-    def add_global_attrs(dataset: xr.Dataset, dsconfig: FewsNetcdfOutput) -> None:
+    def add_global_attrs(dataset: xr.Dataset, dsconfig: FewsNetcdfOutputConfig) -> None:
         """Add required global attributes if missing."""
         global_attrs = {
             "Conventions": "CF-1.6",

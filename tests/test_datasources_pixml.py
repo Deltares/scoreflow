@@ -4,7 +4,7 @@ from pathlib import Path
 
 import numpy as np
 import yaml
-from dpyverification.configuration import Config
+from dpyverification.configuration import ConfigFile
 from dpyverification.datasources.pixml import PiXmlFile
 
 from tests import TESTS_CONFIGURATION_FILE, TESTS_FORECASTS_FILE, TESTS_OBSERVATIONS_FILE
@@ -27,13 +27,12 @@ def test_sim_happy(tmp_path: Path) -> None:
     tmp_conf_file = tmp_path / "tempconf.yaml"
     with tmp_conf_file.open(mode="w") as tf:
         yaml.dump(testconf, tf)
-    conf = Config(tmp_conf_file, "yaml")
+    conf = ConfigFile(tmp_conf_file, "yaml")
 
-    data = PiXmlFile.get_data(conf.content.datasources[0])
+    data = PiXmlFile.from_config(conf.content.datasources[0].model_dump()).get_data()  # type: ignore[misc] # Yes, allow any
 
     assert (
-        data[0]
-        .xarray["Q.fs"]
+        data.xarray["Q.fs"]
         .loc[  # type: ignore[misc]
             np.datetime64("2024-07-03T05:00"),
             "LOC2",
@@ -62,11 +61,10 @@ def test_obs_happy(tmp_path: Path) -> None:
     tmp_conf_file = tmp_path / "tempconf.yaml"
     with tmp_conf_file.open(mode="w") as tf:
         yaml.dump(testconf, tf)
-    conf = Config(tmp_conf_file, "yaml")
+    conf = ConfigFile(tmp_conf_file, "yaml")
 
-    data = PiXmlFile.get_data(conf.content.datasources[0])
-
-    assert data[0].xarray["Q.m"].loc[np.datetime64("2024-07-03T05:00"), :].data.tolist() == [  # type: ignore[misc]
+    data = PiXmlFile.from_config(conf.content.datasources[0].model_dump()).get_data()  # type: ignore[misc] # Yes, allow any
+    assert data.xarray["Q.m"].loc[np.datetime64("2024-07-03T05:00"), :].data.tolist() == [  # type: ignore[misc]
         3128.42,
         483.28,
     ]

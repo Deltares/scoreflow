@@ -7,13 +7,12 @@ from typing import Self
 
 import requests
 
-from dpyverification.configuration import DataSource
-from dpyverification.configuration.schema import FewsWebserviceInput, FewsWebserviceInputSim
-from dpyverification.datasources.genericdatasource import GenericDatasource
+from dpyverification.configuration import FewsWebserviceInputConfig, FewsWebserviceInputSimConfig
+from dpyverification.datasources.base import BaseDatasource
 from dpyverification.datasources.pixml import PiXmlFile
 
 
-class FewsWebService(GenericDatasource):
+class FewsWebService(BaseDatasource):
     """For downloading data using a Delft-FEWS webservice."""
 
     # TODO(AU): Fix and document timezone information in fewswebservice requests # noqa: FIX002
@@ -24,34 +23,37 @@ class FewsWebService(GenericDatasource):
     datetime_format = "%Y-%m-%dT%H:%M:%SZ"
     timeout = 30
 
-    @staticmethod
-    def get_timeseries_xml_string(dsconfig: FewsWebserviceInput) -> requests.Response:
+    def get_timeseries_xml_string(self) -> requests.Response:
         """Perform a REST GET to retrieve timeseries data as a pi-xml string."""
+        if not isinstance(self.config, FewsWebserviceInputConfig):
+            msg = "Provided config is not valid. Expected FewsWebserviceInput."
+            raise TypeError(msg)
+
         ########## DOING: update de comments, per de PR comment
         endpoint = "timeseries"
-        url = dsconfig.url + "/" + endpoint
-        if dsconfig.verificationperiod is None:
+        url = self.config.url + "/" + endpoint
+        if self.config.verificationperiod is None:
             msg = "No verificationperiod specified."
             raise ValueError(msg)
-        start = dsconfig.verificationperiod.start.datetime
-        end = dsconfig.verificationperiod.end.datetime
+        start = self.config.verificationperiod.start.datetime
+        end = self.config.verificationperiod.end.datetime
 
         params = {
-            "locationIds": dsconfig.location_ids,
-            "parameterIds": dsconfig.parameter_ids,
-            "moduleInstanceIds": dsconfig.module_instance_ids,
-            "qualifierIds": dsconfig.qualifier_ids,
+            "locationIds": self.config.location_ids,
+            "parameterIds": self.config.parameter_ids,
+            "moduleInstanceIds": self.config.module_instance_ids,
+            "qualifierIds": self.config.qualifier_ids,
             "startTime": datetime.strftime(start, FewsWebService.datetime_format),
             "endTime": datetime.strftime(end, FewsWebService.datetime_format),
-            "documentFormat": dsconfig._document_format,  # noqa: SLF001 # This config private member is meant to be used directly
-            "documentVersion": dsconfig._document_version,  # noqa: SLF001 # This config private member is meant to be used directly
+            "documentFormat": self.config._document_format,  # noqa: SLF001 # This config private member is meant to be used directly
+            "documentVersion": self.config._document_version,  # noqa: SLF001 # This config private member is meant to be used directly
         }
 
-        if isinstance(dsconfig, FewsWebserviceInputSim):
-            if dsconfig.leadtimes is None:
+        if isinstance(self.config, FewsWebserviceInputSimConfig):
+            if self.config.leadtimes is None:
                 msg = "No lead times specified for simulation."
                 raise ValueError(msg)
-            if dsconfig.forecastcount != 1:
+            if self.config.forecastcount != 1:
                 # TODO(AU): Issues 44 and 45 # noqa: FIX002
                 #   See the more detailed split up in the get_data() for more info, and
                 #   https://github.com/Deltares-research/DPyVerification/issues/44
@@ -65,7 +67,7 @@ class FewsWebService(GenericDatasource):
             # Work out the correct forecastStartTime and forecastEndTime
             # so that all forecasts overlapping with the verification period
             # defined by start_time and end_time will be requested from the web service.
-            start_forecast_time = start - max(dsconfig.leadtimes.timedelta)
+            start_forecast_time = start - max(self.config.leadtimes.timedelta)
             end_forecast_time = end
 
             params.update(
@@ -78,7 +80,7 @@ class FewsWebService(GenericDatasource):
                         end_forecast_time,
                         FewsWebService.datetime_format,
                     ),
-                    "forecastCount": str(dsconfig.forecastcount),
+                    "forecastCount": str(self.config.forecastcount),
                 },
             )
 
@@ -86,14 +88,13 @@ class FewsWebService(GenericDatasource):
         response.raise_for_status()
         return response
 
-    @classmethod
-    def get_data(cls, dsconfig: DataSource) -> list[Self]:
+    def get_data(self) -> Self:
         """Retrieve :py::class`~xarray.Dataset` from Delft-FEWS Webservice."""
-        if not isinstance(dsconfig, FewsWebserviceInput):
-            msg = "Input dsconfig does not have datasourcetype FewsWebserviceInput"
+        if not isinstance(self.config, FewsWebserviceInputConfig):
+            msg = "Input dsconfig does not have kind FewsWebserviceInput"
             raise TypeError(msg)
-        if isinstance(dsconfig, FewsWebserviceInputSim) and dsconfig.forecastcount != 1:
-            if dsconfig.forecastcount == 0:
+        if isinstance(self.config, FewsWebserviceInputSimConfig) and self.config.forecastcount != 1:
+            if self.config.forecastcount == 0:
                 # TODO(AU): Implement ability to retrieve all forecastruns in period # noqa: FIX002
                 #   First, issue 44 should be fixed. Then, see this issue for details and solution
                 #   direction
@@ -111,11 +112,11 @@ class FewsWebService(GenericDatasource):
                     " due to fews-io package limitation in converting pixml files."
                 )
             raise NotImplementedError(msg)
-        fws = cls(dsconfig)
-        response = cls.get_timeseries_xml_string(dsconfig=dsconfig)
+
+        response = self.get_timeseries_xml_string()
         with tempfile.NamedTemporaryFile(delete=False, suffix=".tmp") as temp_file:
             temp_file_path = temp_file.name
             temp_file.write(response.content)
-        fws.xarray = PiXmlFile.pi_xml_to_xarray(Path(temp_file_path), dsconfig.simobstype)
+        self.xarray = PiXmlFile.pi_xml_to_xarray(Path(temp_file_path), self.config.simobstype)
 
-        return [fws]
+        return self

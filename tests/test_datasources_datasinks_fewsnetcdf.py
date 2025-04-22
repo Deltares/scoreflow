@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 import xarray as xr
 import yaml
-from dpyverification.configuration import Config
+from dpyverification.configuration import ConfigFile
 from dpyverification.constants import DataModelAttributes, DataModelCoords, DataModelDims
 from dpyverification.datasinks.fewsnetcdf import FewsNetcdfFileSink, FewsNetcdfOutputSchema
 from dpyverification.datasources.fewsnetcdf import FewsNetcdfFileSource
@@ -24,7 +24,7 @@ def test_get_data_happy(tmp_path: Path) -> None:
     with TESTS_CONFIGURATION_FILE.open() as cf:
         testconf: dict[str, list[dict[str, str]]] = yaml.safe_load(cf)
     # Adapt:
-    testconf["datasources"][0]["datasourcetype"] = "fewsnetcdf"
+    testconf["datasources"][0]["kind"] = "fewsnetcdf"
     testconf["datasources"][0]["directory"] = str(TESTS_FEWS_COMPLIANT_FILE.parent)
     testconf["datasources"][0]["filename"] = TESTS_FEWS_COMPLIANT_FILE.name
     testconf["datasources"][0]["simobstype"] = "sim"
@@ -32,10 +32,10 @@ def test_get_data_happy(tmp_path: Path) -> None:
     tmp_conf_file = tmp_path / "tempconf.yaml"
     with tmp_conf_file.open(mode="w") as tf:
         yaml.dump(testconf, tf)
-    conf = Config(tmp_conf_file, "yaml")
+    conf = ConfigFile(tmp_conf_file, "yaml")
 
     with pytest.raises(NotImplementedError):
-        _ = FewsNetcdfFileSource.get_data(conf.content.datasources[0])
+        _ = FewsNetcdfFileSource.from_config(conf.content.datasources[0].model_dump()).get_data()  # type: ignore[misc] # Yes, allow any
 
     # When no longer not-implemented, assert the contents
     # Also, when implemented, add to TESTS_CONFIGURATION_FILE?
@@ -80,12 +80,12 @@ def test_write_happy(tmp_path: Path) -> None:
     tmp_conf_file = tmp_path / "tempconf.yaml"
     with tmp_conf_file.open(mode="w") as tf:
         yaml.dump(testconf, tf)
-    conf = Config(tmp_conf_file, "yaml")
+    conf = ConfigFile(tmp_conf_file, "yaml")
 
     # rename_dims
     # rename_vars
 
-    FewsNetcdfFileSink.write_data(conf.content.datasinks[0], ds_datamodel)
+    FewsNetcdfFileSink.from_config(conf.content.datasinks[0].model_dump()).write_data(ds_datamodel)  # type: ignore[misc] # Yes, allow any
 
     assert tmpfile.exists()
 
@@ -111,7 +111,7 @@ def test_read_write_equal(tmp_path: Path) -> None:
     tmp_conf_file = tmp_path / "tempconf.yaml"
     with tmp_conf_file.open(mode="w") as tf:
         yaml.dump(testconf, tf)
-    conf = Config(tmp_conf_file, "yaml")
+    conf = ConfigFile(tmp_conf_file, "yaml")
 
     # A fewscompliant nc file uses different names than our internal datamodel
     # Adapt the ds to look like our internal datamodel
@@ -120,7 +120,7 @@ def test_read_write_equal(tmp_path: Path) -> None:
     ds_datamodel = ds_datamodel.rename_vars({"analysis_time": DataModelCoords.simstart.name})  # type: ignore[misc] # attrs is a dict[Any,Any]
     ds_datamodel.attrs[DataModelAttributes.timestep] = 1  # type: ignore[misc] # attrs is a dict[Any,Any]
 
-    FewsNetcdfFileSink.write_data(conf.content.datasinks[0], ds_datamodel)
+    FewsNetcdfFileSink.from_config(conf.content.datasinks[0].model_dump()).write_data(ds_datamodel)  # type: ignore[misc] # Yes, allow any
 
     assert tmpfile.exists()
 

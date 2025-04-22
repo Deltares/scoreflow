@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 import requests
 import yaml
-from dpyverification.configuration import Config
+from dpyverification.configuration import ConfigFile
 from dpyverification.datasources.fewswebservice import FewsWebService
 
 from tests import TESTS_CONFIGURATION_FILE
@@ -114,7 +114,7 @@ def test_get_timeseries_sim_happy(forecastcount: int, tmp_path: Path) -> None:
     # Adapt:
     testconf["general"]["verificationperiod"] = verificationperiod  # type: ignore[call-overload] # Indeed this assignment does not match with our faked type def of testconf
     testconf["datasources"][0]["simobstype"] = "sim"
-    testconf["datasources"][0]["datasourcetype"] = "fewswebservice"
+    testconf["datasources"][0]["kind"] = "fewswebservice"
     testconf["datasources"][0]["url"] = (
         "http://localhost:8080/FewsWebServices/rest/fewspiservice/v1"
     )
@@ -127,7 +127,7 @@ def test_get_timeseries_sim_happy(forecastcount: int, tmp_path: Path) -> None:
     tmp_conf_file = tmp_path / "tempconf.yaml"
     with tmp_conf_file.open(mode="w") as tf:
         yaml.dump(testconf, tf)
-    conf = Config(tmp_conf_file, "yaml")
+    conf = ConfigFile(tmp_conf_file, "yaml")
 
     match forecastcount:
         case 0:
@@ -141,11 +141,11 @@ def test_get_timeseries_sim_happy(forecastcount: int, tmp_path: Path) -> None:
                     r" specify a \(very large\) forecastcount value for now."
                 ),
             ):
-                data = FewsWebService.get_data(conf.content.datasources[0])
+                data = FewsWebService(conf.content.datasources[0]).get_data()
             # return early while not implemented yet, i.e. skip further checks
             return
         case 1:
-            data = FewsWebService.get_data(conf.content.datasources[0])
+            data = FewsWebService(conf.content.datasources[0]).get_data()
         case _:
             # TODO(AU): Retrieve more than one # noqa: FIX002
             #   https://github.com/Deltares-research/DPyVerification/issues/44
@@ -156,12 +156,12 @@ def test_get_timeseries_sim_happy(forecastcount: int, tmp_path: Path) -> None:
                     r" due to fews-io package limitation in converting pixml files."
                 ),
             ):
-                data = FewsWebService.get_data(conf.content.datasources[0])
+                data = FewsWebService(conf.content.datasources[0]).get_data()
             # return early while not implemented yet, i.e. skip further checks
             return
 
     # Time dimension expected to be the same
-    assert len(data[0].xarray.time) == SIM_TIME_DIM_LENGTH  # type: ignore[misc]
+    assert len(data.xarray.time) == SIM_TIME_DIM_LENGTH  # type: ignore[misc]
     # TODO(AU): Improve webservice tests result checking # noqa: FIX002
     #   See issue for details:
     #   https://github.com/Deltares-research/DPyVerification/issues/46
@@ -185,7 +185,7 @@ def test_get_timeseries_obs_happy(tmp_path: Path) -> None:
     # Adapt:
     testconf["general"]["verificationperiod"] = verificationperiod  # type: ignore[call-overload] # Indeed this assignment does not match with our faked type def of testconf
     testconf["datasources"][0]["simobstype"] = "obs"
-    testconf["datasources"][0]["datasourcetype"] = "fewswebservice"
+    testconf["datasources"][0]["kind"] = "fewswebservice"
     testconf["datasources"][0]["url"] = (
         "http://localhost:8080/FewsWebServices/rest/fewspiservice/v1"
     )
@@ -196,11 +196,11 @@ def test_get_timeseries_obs_happy(tmp_path: Path) -> None:
     tmp_conf_file = tmp_path / "tempconf.yaml"
     with tmp_conf_file.open(mode="w") as tf:
         yaml.dump(testconf, tf)
-    conf = Config(tmp_conf_file, "yaml")
+    conf = ConfigFile(tmp_conf_file, "yaml")
 
-    data = FewsWebService.get_data(conf.content.datasources[0])
+    data = FewsWebService(conf.content.datasources[0]).get_data()
 
-    assert len(data[0].xarray.time) == OBS_TIME_DIM_LENGTH  # type: ignore[misc]
+    assert len(data.xarray.time) == OBS_TIME_DIM_LENGTH  # type: ignore[misc]
     # TODO(AU): Improve webservice tests result checking # noqa: FIX002
     #   See issue for details:
     #   https://github.com/Deltares-research/DPyVerification/issues/46
