@@ -5,12 +5,12 @@ from enum import StrEnum, unique
 
 import yaml
 
-from .schema import (
-    ConfigSchema,
-    FewsWebserviceInput,
-    FewsWebserviceInputSim,
-    GeneralInfo,
-    SimObsPairs,
+from dpyverification.configuration.base import BaseDatasourceConfig, BaseScoreConfig
+from dpyverification.constants import DataSourceKind, ScoreKind
+
+from .base import (
+    Config,
+    GeneralInfoConfig,
 )
 
 
@@ -25,10 +25,14 @@ class ConfigTypes(StrEnum):
     """ FEWS general adapter runinfo file """
 
 
-class Config:
+class ConfigFile:
     """The configuration definition of the dpyverification pipeline."""
 
-    def __init__(self, configfile: pathlib.Path, configtype: ConfigTypes | str) -> None:
+    def __init__(
+        self,
+        configfile: pathlib.Path,
+        configtype: ConfigTypes | str,
+    ) -> None:
         conftype = ConfigTypes(
             configtype,
         )
@@ -47,7 +51,7 @@ class Config:
 
         self.filename = configfile
         self.configtype = configtype
-        self.content = ConfigSchema(**yamlcontent)  # type: ignore[arg-type] # The derived type based on the hardcoded dict is not correct, but that is expected for now
+        self.content = Config(**yamlcontent)  # type: ignore[arg-type] # The derived type based on the hardcoded dict is not correct, but that is expected for now
         self.validate_and_propagate()
 
     def validate_and_propagate(self) -> None:
@@ -65,23 +69,22 @@ class Config:
         #  top-level attribute?
 
         for datasource in self.content.datasources:
-            if isinstance(datasource, FewsWebserviceInputSim):
+            if datasource.kind == DataSourceKind.FEWSWEBSERVICE:
                 self._propagate_leadtimes(datasource, self.content.general, "FewsWebserviceInput")
-            if isinstance(datasource, FewsWebserviceInput):
                 self._propagate_verificationperiod(
                     datasource,
                     self.content.general,
                     "FewsWebserviceInput",
                 )
 
-        for calculation in self.content.calculations:
-            if isinstance(calculation, SimObsPairs):
-                self._propagate_leadtimes(calculation, self.content.general, "SimObsPairs")
+        for score in self.content.scores:
+            if score.kind == ScoreKind.SIMOBSPAIRS:
+                self._propagate_leadtimes(score, self.content.general, "SimObsPairs")
 
     @staticmethod
     def _propagate_leadtimes(
-        specific: FewsWebserviceInputSim | SimObsPairs,
-        general: GeneralInfo,
+        specific: BaseDatasourceConfig | BaseScoreConfig,
+        general: GeneralInfoConfig,
         name: str,
     ) -> None:
         if specific.leadtimes and general.leadtimes:
@@ -107,8 +110,8 @@ class Config:
 
     @staticmethod
     def _propagate_verificationperiod(
-        specific: FewsWebserviceInput,
-        general: GeneralInfo,
+        specific: BaseDatasourceConfig,
+        general: GeneralInfoConfig,
         name: str,
     ) -> None:
         if specific.verificationperiod and general.verificationperiod:

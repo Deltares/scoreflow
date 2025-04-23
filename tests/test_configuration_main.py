@@ -3,20 +3,22 @@
 from pathlib import Path
 
 import yaml
-from dpyverification.configuration import Config, ConfigSchema, ConfigTypes
+from dpyverification.configuration import Config, ConfigFile, ConfigTypes
 
 from tests import TESTS_CONFIGURATION_FILE
 
 
 def test_main_yaml_happy() -> None:
     """Check the returned config object has the expected content."""
-    config = Config(TESTS_CONFIGURATION_FILE, configtype=ConfigTypes.YAML)
+    config = ConfigFile(TESTS_CONFIGURATION_FILE, configtype=ConfigTypes.YAML)
 
     assert config.filename == TESTS_CONFIGURATION_FILE
     assert config.configtype == ConfigTypes.YAML
     assert config.content.datasources[0].model_dump() == {  # type: ignore[misc] # model_dump can have Any
-        "datasourcetype": "pixml",
+        "kind": "pixml",
         "simobstype": "obs",
+        "verificationperiod": None,
+        "leadtimes": None,
         "directory": "iets",
         "filename": "anders",
     }
@@ -24,17 +26,16 @@ def test_main_yaml_happy() -> None:
         "start": {"format": "%Y-%m-%dT%H:%M:%S%z", "value": "2000-01-01T00:00:00Z"},
         "end": {"format": "%Y-%m-%dT%H:%M:%S%z", "value": "2001-01-01T00:00:00Z"},
     }
-    assert config.content.calculations[0].model_dump() == {  # type: ignore[misc] # model_dump can have Any
-        "calculationtype": "simobspair",
+    assert config.content.scores[0].model_dump() == {  # type: ignore[misc] # model_dump can have Any
+        "kind": "simobspairs",
         "leadtimes": {"unit": "h", "values": [3, 6]},
+        "variablepair": {"obs": "Q.m", "sim": "Q.fs"},
         "variablepairs": [{"obs": "Q.m", "sim": "Q.fs"}],
     }
-    assert config.content.output[0].model_dump() == {  # type: ignore[misc] # model_dump can have Any
-        "datasourcetype": "fewsnetcdf",
+    assert config.content.datasinks[0].model_dump() == {  # type: ignore[misc] # model_dump can have Any
+        "kind": "fewsnetcdf",
         "directory": "somewhere",
         "filename": "something",
-        "institution": "Deltares",
-        "title": None,
     }
 
 
@@ -43,11 +44,11 @@ def test_schema_jsonable(tmp_path: Path) -> None:
 
     This so we can be sure it will generate correctly for the documentation of our configuration.
     """
-    tmpfile = tmp_path / "configschema.json"
+    tmpfile = tmp_path / "config.json"
     assert not tmpfile.exists()
 
     with tmpfile.open(mode="w") as myfile:
-        yaml.dump(ConfigSchema.model_json_schema(), myfile)  # type: ignore[misc] # model_json_schema output has Any
+        yaml.dump(Config.model_json_schema(), myfile)  # type: ignore[misc] # model_json_schema output has Any
 
     assert tmpfile.exists()
 

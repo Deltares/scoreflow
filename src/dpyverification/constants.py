@@ -13,16 +13,22 @@ import importlib_metadata
 
 
 @unique
-class DataSourceType(StrEnum):
-    """Enumeration of the supported input and / or output datasource types."""
+class DataSourceKind(StrEnum):
+    """Enumeration of the supported datasource types."""
 
     PIXML = "pixml"
     FEWSNETCDF = "fewsnetcdf"
     FEWSWEBSERVICE = "fewswebservice"
 
 
+class DataSinkKind(StrEnum):
+    """Enumeration of the supported datasink types."""
+
+    FEWSNETCDF = "fewsnetcdf"
+
+
 @unique
-class SimObsType(StrEnum):
+class SimObsKind(StrEnum):
     """Enumeration of the supported types of input data."""
 
     SIM = "sim"
@@ -31,10 +37,10 @@ class SimObsType(StrEnum):
 
 
 @unique
-class CalculationType(StrEnum):
-    """Enumeration of the implemented verification calculations."""
+class ScoreKind(StrEnum):
+    """Enumeration of the implemented verification scores."""
 
-    SIMOBSPAIRS = "simobspair"
+    SIMOBSPAIRS = "simobspairs"
     PINSCORE = "pinscore"
     RANKHISTOGRAM = "rankhistogram"
     CRPSFORENSEMBLE = "crps_for_ensemble"

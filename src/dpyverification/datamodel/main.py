@@ -5,16 +5,16 @@ from collections.abc import Sequence
 import numpy as np
 import xarray
 
-from dpyverification.configuration import GeneralInfo
+from dpyverification.configuration import GeneralInfoConfig
 from dpyverification.constants import (
     NAME,
     VERSION_FULL,
     DataModelAttributes,
     DataModelCoords,
     DataModelDims,
-    SimObsType,
+    SimObsKind,
 )
-from dpyverification.datasources.genericdatasource import GenericDatasource
+from dpyverification.datasources.base import BaseDatasource
 
 
 class DataModel:
@@ -26,8 +26,8 @@ class DataModel:
 
     def __init__(
         self,
-        datalist: Sequence[GenericDatasource],
-        generalconfig: GeneralInfo,
+        datalist: Sequence[BaseDatasource],
+        generalconfig: GeneralInfoConfig,
     ) -> None:
         self.input, coords, time_step = self._construct_input_dataset(datalist, generalconfig)
         self.intermediate = self._create_intermediate_dataset(self.input, coords, time_step)
@@ -48,8 +48,8 @@ class DataModel:
 
     @staticmethod
     def _construct_input_dataset(
-        datalist: Sequence[GenericDatasource],
-        generalconfig: GeneralInfo,
+        datalist: Sequence[BaseDatasource],
+        generalconfig: GeneralInfoConfig,
     ) -> tuple[xarray.Dataset, xarray.Coordinates, np.timedelta64]:
         """
         Parse the list of datasources.
@@ -59,8 +59,8 @@ class DataModel:
         Assign the xarray dataset to self.input.
         """
         # Determine sizes and values of combined dimensions.
-        obs_list: list[GenericDatasource] = []
-        sim_list: list[GenericDatasource] = []
+        obs_list: list[BaseDatasource] = []
+        sim_list: list[BaseDatasource] = []
         time_steps: list[np.timedelta64] = []
         time_starts: list[np.datetime64] = []
         time_ends: list[np.datetime64] = []
@@ -68,7 +68,7 @@ class DataModel:
         ensemble_list: list[int] = []
         simstart_list: list[np.datetime64] = []
         for ds in datalist:
-            obs_list.append(ds) if ds.simobstype == SimObsType.OBS else sim_list.append(ds)
+            obs_list.append(ds) if ds.simobstype == SimObsKind.OBS else sim_list.append(ds)
 
             DataModel._check_source_dims_and_coords(
                 ds,
@@ -133,23 +133,23 @@ class DataModel:
         }
         coords = coords.assign(additional_coords)
 
-        inputdataset = xarray.Dataset(coords=coords)
+        input_dataset = xarray.Dataset(coords=coords)
         # TODO(AU): Add more checks on the combination before merge() # noqa: FIX002
         #   https://github.com/Deltares-research/DPyVerification/issues/14
         obs_sets = [obs.xarray for obs in obs_list]
         sim_sets = [sim.xarray for sim in sim_list]
-        merge_set = [inputdataset, *obs_sets, *sim_sets]
-        inputdataset = xarray.merge(merge_set)
+        merge_set = [input_dataset, *obs_sets, *sim_sets]
+        input_dataset = xarray.merge(merge_set)
         # Register the timestep as an attribute, for easy access
-        inputdataset.attrs.update({DataModelAttributes.timestep: time_step})  # type: ignore[misc]  # Yes, attrs is een any-any dict, however here we only add to it.
+        input_dataset.attrs.update({DataModelAttributes.timestep: time_step})  # type: ignore[misc]  # Yes, attrs is een any-any dict, however here we only add to it.
 
         # Return the constructed coords, without any changes that the xarray.merge() might have
         #  caused to the self.input coordinates
-        return inputdataset, coords, time_step
+        return input_dataset, coords, time_step
 
     @staticmethod
     def _create_intermediate_dataset(
-        inputdataset: xarray.Dataset,
+        input_dataset: xarray.Dataset,
         coords: xarray.Coordinates,
         time_step: np.timedelta64,
     ) -> xarray.Dataset:
@@ -183,7 +183,7 @@ class DataModel:
             DataModelCoords.time.name: time_values,
         }
         coords = coords.assign(update_coords)
-        intermediatedataset = xarray.Dataset(coords=coords)
+        intermediate_dataset = xarray.Dataset(coords=coords)
 
         # For data variables with a simstart dimension, extract only specific values
         # For data variables with neither a simstart nor a leadtime dimension, extract values at
@@ -225,21 +225,21 @@ class DataModel:
                 #   including what resulting dimension / coordinates the values map to.
                 select_at = {
                     DataModelCoords.time.name: list(  # type: ignore[dict-item]
-                        inputdataset[DataModelCoords.simstart.name].data + leadtime,  # type: ignore[misc]
+                        input_dataset[DataModelCoords.simstart.name].data + leadtime,  # type: ignore[misc]
                     ),
                     DataModelCoords.simstart.name: xarray.DataArray(  # type: ignore[dict-item]
-                        inputdataset[DataModelCoords.simstart.name].data,  # type: ignore[misc]
+                        input_dataset[DataModelCoords.simstart.name].data,  # type: ignore[misc]
                         dims=DataModelDims.time,
                     ),
                 }
                 is_first_iteration = not index
                 if is_first_iteration:
-                    intermediatedataset[datavar.name] = datavar.sel(select_at).expand_dims(
+                    intermediate_dataset[datavar.name] = datavar.sel(select_at).expand_dims(
                         dim={"leadtime": [leadtime]},
                         axis=len(datavar.dims) - 1,
                     )
                 else:
-                    intermediatedataset[datavar.name] = intermediatedataset[
+                    intermediate_dataset[datavar.name] = intermediate_dataset[
                         datavar.name
                     ].combine_first(
                         datavar.sel(select_at).expand_dims(
@@ -247,13 +247,13 @@ class DataModel:
                             axis=len(datavar.dims) - 1,
                         ),
                     )
-            return intermediatedataset[varname]
+            return intermediate_dataset[varname]
 
-        for varname in inputdataset.data_vars:
-            intermediatedataset[varname] = transform_to_intermediate_data_variable(
-                inputdataset.data_vars[varname],
+        for varname in input_dataset.data_vars:
+            intermediate_dataset[varname] = transform_to_intermediate_data_variable(
+                input_dataset.data_vars[varname],
             )
-        return intermediatedataset
+        return intermediate_dataset
 
     @staticmethod
     def _initialize_output_dataset(
@@ -264,38 +264,38 @@ class DataModel:
         # TODO(AU): Add leadtime dimension and coordinate during initialization # noqa: FIX002
         #   https://github.com/Deltares-research/DPyVerification/issues/15
 
-        outputdataset = xarray.Dataset(coords=coords)
+        output_dataset = xarray.Dataset(coords=coords)
         # TODO(AU): Refactor the _output.attrs update calls here # noqa: FIX002
         #   https://github.com/Deltares-research/DPyVerification/issues/17
 
         # Register the timestep as an attribute, for easy access
-        outputdataset.attrs.update({DataModelAttributes.timestep: time_step})  # type: ignore[misc]  # Yes, attrs is een any-any dict, however here we only add to it.
+        output_dataset.attrs.update({DataModelAttributes.timestep: time_step})  # type: ignore[misc]  # Yes, attrs is een any-any dict, however here we only add to it.
         # Register how this output was created
         source_str = NAME + " version " + VERSION_FULL
-        outputdataset.attrs.update({DataModelAttributes.source: source_str})  # type: ignore[misc]  # Yes, attrs is een any-any dict, however here we only add to it.
-        outputdataset.attrs.update({DataModelAttributes.featuretype: "timeSeries"})  # type: ignore[misc]  # Yes, attrs is een any-any dict, however here we only add to it.
+        output_dataset.attrs.update({DataModelAttributes.source: source_str})  # type: ignore[misc]  # Yes, attrs is een any-any dict, however here we only add to it.
+        output_dataset.attrs.update({DataModelAttributes.featuretype: "timeSeries"})  # type: ignore[misc]  # Yes, attrs is een any-any dict, however here we only add to it.
         # Make sure the location_id variable (a string array in python) is encoded as NC_CHAR in
         #   netcdf export, to be CF compliant
         to_char = {"dtype": "S1"}
-        outputdataset[DataModelCoords.location.name].encoding.update(to_char)  # type: ignore[misc]  # Yes, encoding is een any-any dict, however here we only add to it.
+        output_dataset[DataModelCoords.location.name].encoding.update(to_char)  # type: ignore[misc]  # Yes, encoding is een any-any dict, however here we only add to it.
         # Update all coordinates with (CF compliancy) attributes
-        outputdataset[DataModelCoords.time.name].attrs.update(DataModelCoords.time.attributes)  # type: ignore[misc]  # Yes, attrs is een any-any dict, however here we only add to it.
-        outputdataset[DataModelCoords.location.name].attrs.update(  # type: ignore[misc]  # Yes, attrs is een any-any dict, however here we only add to it.
+        output_dataset[DataModelCoords.time.name].attrs.update(DataModelCoords.time.attributes)  # type: ignore[misc]  # Yes, attrs is een any-any dict, however here we only add to it.
+        output_dataset[DataModelCoords.location.name].attrs.update(  # type: ignore[misc]  # Yes, attrs is een any-any dict, however here we only add to it.
             DataModelCoords.location.attributes,
         )
-        outputdataset[DataModelCoords.lat.name].attrs.update(DataModelCoords.lat.attributes)  # type: ignore[misc]  # Yes, attrs is een any-any dict, however here we only add to it.
-        outputdataset[DataModelCoords.lon.name].attrs.update(DataModelCoords.lon.attributes)  # type: ignore[misc]  # Yes, attrs is een any-any dict, however here we only add to it.
-        outputdataset[DataModelCoords.ensemble.name].attrs.update(  # type: ignore[misc]  # Yes, attrs is een any-any dict, however here we only add to it.
+        output_dataset[DataModelCoords.lat.name].attrs.update(DataModelCoords.lat.attributes)  # type: ignore[misc]  # Yes, attrs is een any-any dict, however here we only add to it.
+        output_dataset[DataModelCoords.lon.name].attrs.update(DataModelCoords.lon.attributes)  # type: ignore[misc]  # Yes, attrs is een any-any dict, however here we only add to it.
+        output_dataset[DataModelCoords.ensemble.name].attrs.update(  # type: ignore[misc]  # Yes, attrs is een any-any dict, however here we only add to it.
             DataModelCoords.ensemble.attributes,
         )
-        outputdataset[DataModelCoords.simstart.name].attrs.update(  # type: ignore[misc]  # Yes, attrs is een any-any dict, however here we only add to it.
+        output_dataset[DataModelCoords.simstart.name].attrs.update(  # type: ignore[misc]  # Yes, attrs is een any-any dict, however here we only add to it.
             DataModelCoords.simstart.attributes,
         )
 
-        return outputdataset
+        return output_dataset
 
     @staticmethod
-    def _check_source_dims_and_coords(ds: GenericDatasource) -> None:
+    def _check_source_dims_and_coords(ds: BaseDatasource) -> None:
         # all ds should have these dimensions
         obs_dims = frozenset(
             [
@@ -335,7 +335,7 @@ class DataModel:
         #   Will require adaptation both here, and additional checks on the combination of the
         #   datasets.
 
-        if ds.simobstype == SimObsType.OBS:
+        if ds.simobstype == SimObsKind.OBS:
             if frozenset(ds.xarray.sizes) != obs_dims:
                 msg = "For Observations data, the exact required dimensions are: " + str(
                     obs_dims,
@@ -368,7 +368,7 @@ class DataModel:
 
     @staticmethod
     def _parse_source(
-        ds: GenericDatasource,
+        ds: BaseDatasource,
     ) -> tuple[
         np.timedelta64,
         np.datetime64,
@@ -505,7 +505,7 @@ class DataModel:
 
         # Check that dimensions and coordinates match (except time dimension)
         #
-        # TODO(AU): Check dims and coords match when combining calculation outputs # noqa: FIX002
+        # TODO(AU): Check dims and coords match when combining score outputs # noqa: FIX002
         #   https://github.com/Deltares-research/DPyVerification/issues/27
         #   First, implement strictest check, entirely the same. Follow up with next TODO item.
         #

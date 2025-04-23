@@ -11,13 +11,13 @@ from fewsio.pi import (  # type: ignore[import-untyped] # See comment below impo
     TimeseriesId,
 )
 
-from dpyverification.configuration import DataSource, FileInputPixml
+from dpyverification.configuration import FileInputPixmlConfig
 from dpyverification.constants import (
     DataModelCoords,
     DataModelDims,
-    SimObsType,
+    SimObsKind,
 )
-from dpyverification.datasources.genericdatasource import GenericDatasource
+from dpyverification.datasources.base import BaseDatasource
 
 if TYPE_CHECKING:
     import datetime
@@ -28,11 +28,18 @@ if TYPE_CHECKING:
 #  because those types are seen as Any
 
 
-class PiXmlFile(GenericDatasource):
+class PiXmlFile(BaseDatasource):
     """For reading data from a pixml file."""
 
+    kind = "pixml"
+    config_class = FileInputPixmlConfig
+
+    def __init__(self, config: FileInputPixmlConfig) -> None:
+        self.config: FileInputPixmlConfig = config
+        self.simobstype = config.simobstype
+
     @staticmethod
-    def pi_xml_to_xarray(path: Path, simobstype: SimObsType) -> xr.Dataset:
+    def pi_xml_to_xarray(path: Path, simobstype: str) -> xr.Dataset:
         """Convert pi-xml to an :py:class:`~xarray.Dataset`.
 
         Parameters
@@ -73,7 +80,7 @@ class PiXmlFile(GenericDatasource):
                 raise ValueError(msg)
             return str(timeseries_id.location_id), lat, lon  # type: ignore[misc] # timeseries_id is Any
 
-        if simobstype == SimObsType.SIM:
+        if simobstype == SimObsKind.SIM:
             simulation_starttime: datetime.datetime = pi_series.forecast_datetime  # type: ignore[misc]  # pi_series is Any
             ensemble_member: int
             for ensemble_member in range(pi_series.ensemble_size):  # type: ignore[misc]  # pi_series is Any
@@ -105,7 +112,7 @@ class PiXmlFile(GenericDatasource):
                     da.name = variable_name
                     data_arrays.append(da)
 
-        elif simobstype == SimObsType.OBS:
+        elif simobstype == SimObsKind.OBS:
             for timeseries_id, data in pi_series.items():  # type: ignore[misc] # pi_series and data are Any
                 location_id, lat, lon = get_location_info(pi_series, timeseries_id)  # type: ignore[misc]  # pi_series is Any
                 coords = {
@@ -131,19 +138,12 @@ class PiXmlFile(GenericDatasource):
             raise NotImplementedError(msg)
         return xr.merge(data_arrays)
 
-    @classmethod
-    def get_data(cls, dsconfig: DataSource) -> list[Self]:
+    def get_data(self) -> Self:
         """Retrieve pixml content as an xarray DataArray."""
-        if not isinstance(dsconfig, FileInputPixml):
-            msg = "Input dsconfig does not have datasourcetype FileInputPixml"
-            raise TypeError(msg)
-        if dsconfig.simobstype == SimObsType.COMBINED:
+        if self.simobstype == SimObsKind.COMBINED:
             msg = "Cannot yet handle combined simobs data"
             raise NotImplementedError(msg)
 
-        filepath = Path(dsconfig.directory) / dsconfig.filename
-        pif = cls(dsconfig)
-        pif.xarray = cls.pi_xml_to_xarray(filepath, dsconfig.simobstype)
-        return [pif]
-
-    # classmethod write_to_file remains explicitly not implemented for pi xml
+        filepath = Path(self.config.directory) / self.config.filename
+        self.xarray = self.pi_xml_to_xarray(filepath, self.config.simobstype)
+        return self
