@@ -1,5 +1,6 @@
 """Module for reading from and writing to a fews webservice."""
 
+import io
 import tempfile
 import zipfile
 from pathlib import Path
@@ -60,26 +61,20 @@ class FewsWebservice(BaseDatasource):
             # Check response
             response.raise_for_status()
 
-            # Write zip reponse to tmpfile
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".zip") as temp_file:
-                temp_file_path = temp_file.name
-                temp_file.write(response.content)
-
-            # Unzip tmpfile
-            with tempfile.TemporaryDirectory() as tmpdir:
+            # Extract the zip file and open netcdf
+            with (
+                zipfile.ZipFile(io.BytesIO(response.content)) as zip_ref,
+                tempfile.TemporaryDirectory() as tmpdir,
+            ):
                 tmpdir_path = Path(tmpdir)
-                zip_ref = zipfile.ZipFile(temp_file_path, "r")
                 zip_ref.extractall(tmpdir)
                 file_list = list(tmpdir_path.rglob("*nc"))
 
-                # Check only one file is contained within the tmpfolder
                 if len(file_list) != 1:
-                    msg = "Unzipping obs file, yielde multiple .nc files. Expected exactly one."
+                    msg = "Expected exactly one .nc file."
                     raise ValueError(msg)
 
                 tmp_nc_file_path = file_list[0]
-
-                # Open xarray dataset and assign to self
                 self.xarray = FewsNetcdfFile.nc_to_xarray(
                     Path(tmp_nc_file_path),
                     self.config.simobstype,
