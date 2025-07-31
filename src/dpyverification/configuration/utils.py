@@ -1,10 +1,10 @@
 """A module for frequently used config elements in the context of verification."""
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
 import numpy as np
-from pydantic import AnyUrl, BaseModel, Field, SecretStr
+from pydantic import AnyUrl, BaseModel, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from dpyverification.constants import TimeUnits
@@ -52,6 +52,14 @@ class TimePeriod(BaseModel):
             ),
         ),
     ]
+
+    @field_validator("start", "end", mode="after")
+    @classmethod
+    def to_utc_naive(cls, v: datetime) -> datetime:
+        """Convert aware datetimes to naive UTC; leave naive untouched (assumed UTC)."""
+        if v.tzinfo is not None:
+            v = v.astimezone(timezone.utc).replace(tzinfo=None)
+        return v
 
 
 class SimObsVariables(BaseModel):

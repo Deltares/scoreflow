@@ -1,17 +1,58 @@
 """Test the dpyverification.datamodel package."""
 
+from datetime import datetime, timezone
+
 import numpy as np
 import pandas as pd
 import xarray as xr
+from dpyverification.configuration import GeneralInfoConfig
+from dpyverification.configuration.utils import LeadTimes, TimePeriod, TimeUnits
 from dpyverification.constants import DataModelCoords
-from dpyverification.datamodel.main import DataModel
+from dpyverification.datamodel.main import DataModel, NewDataModel
 
 # mypy: disable-error-code="misc"
 
-# TODO(AU): Add tests for the other methods of the datamodel.  # noqa: FIX002
-#   Currently, only _create_intermediate_dataset is being tested. At the very least, a
-#   dedicated issue with a list of what to test should be created as part of:
-#   https://github.com/Deltares-research/DPyVerification/issues/38
+
+def test_init_datamodel_input_sim_forecast_period(
+    xarray_dataset_observations: xr.Dataset,
+    xarray_dataset_simulations_forecast_period: xr.Dataset,
+) -> None:
+    """Test the datamodel initializes succefully."""
+    general_config = GeneralInfoConfig(
+        verificationperiod=TimePeriod(
+            start=datetime(2025, 1, 1, tzinfo=timezone.utc),
+            end=datetime(2025, 1, 3, tzinfo=timezone.utc),
+        ),
+        leadtimes=LeadTimes(unit=TimeUnits.HOUR, values=[3, 6, 12, 28]),
+    )
+
+    datamodel = NewDataModel(
+        data=[xarray_dataset_observations, xarray_dataset_simulations_forecast_period],
+        general_config=general_config,
+    )
+
+    _ = datamodel
+
+
+def test_init_datamodel_input_sim_forecast_ref_time(
+    xarray_dataset_observations: xr.Dataset,
+    xarray_dataset_simulations_forecast_reference_time: xr.Dataset,
+) -> None:
+    """Test the datamodel initializes succefully."""
+    general_config = GeneralInfoConfig(
+        verificationperiod=TimePeriod(
+            start=datetime(2025, 1, 1, tzinfo=timezone.utc),
+            end=datetime(2025, 1, 3, tzinfo=timezone.utc),
+        ),
+        leadtimes=LeadTimes(unit=TimeUnits.HOUR, values=[3, 6, 12, 28]),
+    )
+
+    datamodel = NewDataModel(
+        data=[xarray_dataset_observations, xarray_dataset_simulations_forecast_reference_time],
+        general_config=general_config,
+    )
+
+    _ = datamodel
 
 
 def test_create_intermediate_dataset() -> None:

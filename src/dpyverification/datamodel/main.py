@@ -1,11 +1,16 @@
 """Module with the dpyverification internal DataModel."""
 
 from collections.abc import Sequence
+from enum import Enum
+from typing import TypeVar
 
 import numpy as np
 import xarray
+import xarray as xr
+from pydantic import BaseModel, ValidationError
 
 from dpyverification.configuration import GeneralInfoConfig
+from dpyverification.configuration.utils import TimePeriod
 from dpyverification.constants import (
     NAME,
     VERSION_FULL,
@@ -15,6 +20,18 @@ from dpyverification.constants import (
     SimObsKind,
 )
 from dpyverification.datasources.base import BaseDatasource
+from dpyverification.datasources.inputschemas import (
+    XarrayDatasetObservations,
+    XarrayDatasetSimulationsByForecastPeriod,
+    XarrayDatasetSimulationsByForecastReferenceTime,
+)
+
+TDataModelSchema = TypeVar(
+    "TDataModelSchema",
+    bound=XarrayDatasetObservations
+    | XarrayDatasetSimulationsByForecastPeriod
+    | XarrayDatasetSimulationsByForecastReferenceTime,
+)
 
 
 class DataModel:
@@ -32,6 +49,9 @@ class DataModel:
         self.input, coords, time_step = self._construct_input_dataset(datalist, generalconfig)
         self.intermediate = self._create_intermediate_dataset(self.input, coords, time_step)
         self._output = self._initialize_output_dataset(coords, time_step)
+
+        # Loop over datasources
+        # Validate each source based on schema (or already validate as post in )
 
     @property
     def output(self) -> xarray.Dataset:
@@ -573,3 +593,112 @@ class DataModel:
         #   https://github.com/Deltares-research/DPyVerification/issues/26
         #   Do we indeed want to use xarray.merge, without any qualifiers?
         self._output = self._output.merge(new_output)
+
+
+class SimulationKind(Enum):
+    """Enumeration of the supported types of input data."""
+
+    SIM_BY_FORECAST_REFERENCE_TIME = 0
+    SIM_BY_FORECAST_PERIOD = 1
+
+
+def transform_dataset(
+    dataset: xr.Dataset,
+    kind: Enum,
+    general_config: GeneralInfoConfig,
+) -> xr.Dataset:
+    """Transform a datasource to be compatible with the internal DataModel."""
+    if kind != SimulationKind.SIM_BY_FORECAST_REFERENCE_TIME:
+        return dataset
+
+    # Transform datasource
+    _ = general_config.leadtimes
+
+    ds = dataset.copy()
+
+    # 1. Assume each forecast_reference_time is valid for a fixed set of time values
+    # 2. Compute the forecast period (timedelta) for each forecast_reference_time
+    periods = (
+        ds["time"].to_numpy()[:, None] - ds.forecast_reference_time.to_numpy()[None, :]
+    )  # shape: (time, frt)
+
+    # 3. Check if the result is constant along time for each forecast_reference_time
+    # We'll take the first time and compute the difference
+    forecast_periods_1d = ds["time"].to_numpy()[0] - ds.forecast_reference_time.to_numpy()
+
+    # 4. Assign and swap
+    ds = ds.assign_coords(forecast_period=("forecast_reference_time", forecast_periods_1d))
+    ds = ds.swap_dims({"forecast_reference_time": "forecast_period"})
+    ds = ds.drop_vars("forecast_reference_time")
+
+    return dataset
+
+
+def validate_dataset(dataset: xr.Dataset) -> tuple[xr.Dataset, Enum]:
+    """Validate a datasource by validating the xr.Dataset to a Pydantic schema."""
+    schemas = {
+        XarrayDatasetObservations: SimObsKind.OBS,
+        XarrayDatasetSimulationsByForecastPeriod: SimulationKind.SIM_BY_FORECAST_PERIOD,
+        XarrayDatasetSimulationsByForecastReferenceTime: SimulationKind.SIM_BY_FORECAST_REFERENCE_TIME,
+    }
+
+    def attempt_validation(schema: type[BaseModel], dataset: xr.Dataset) -> bool:
+        """Validate and return True when succesfull, else False."""
+        try:
+            schema.model_validate(dataset.to_dict(data=False))  # type:ignore[misc]
+            return True  # noqa: TRY300
+        except ValidationError:
+            return False
+
+    for schema, kind in schemas.items():
+        if attempt_validation(schema=schema, dataset=dataset):
+            return dataset, kind
+    msg = f"Invalid dataset {dataset}."
+    raise ValidationError(msg)
+
+
+def preprocess_dataset(dataset: xr.Dataset, general_config: GeneralInfoConfig) -> xr.Dataset:
+    """Preprocessing on the merged input dataset."""
+
+    def clip_time_to_verification_period(
+        dataset: xr.Dataset,
+        verification_period: TimePeriod,
+    ) -> xr.Dataset:
+        """Clip the dataset on time dimension to verification period."""
+        return dataset.sel(time=slice(verification_period.start, verification_period.end))  # type:ignore[misc]
+
+    return clip_time_to_verification_period(
+        dataset=dataset.copy(),
+        verification_period=general_config.verificationperiod,
+    )
+
+
+class NewDataModel:
+    """The internal datamodel."""
+
+    def __init__(
+        self,
+        data: Sequence[xr.Dataset],
+        general_config: GeneralInfoConfig,
+    ) -> None:
+        # Validate input data by generate expression
+        validated_datasets = (validate_dataset(dataset) for dataset in data)
+
+        # Transform datasource
+        transformed_datasets = (
+            transform_dataset(dataset, simulation_kind, general_config)
+            for dataset, simulation_kind in validated_datasets
+        )
+
+        # Merge input data
+        input_dataset = xr.merge(list(transformed_datasets))  # type:ignore[misc]
+
+        # Preprocess data
+        #   For now, clips the dataset along time dim to verification period
+        preprocessed_dataset = preprocess_dataset(
+            dataset=input_dataset,
+            general_config=general_config,
+        )
+
+        # Assign the final dataset to self
+        self.dataset = preprocessed_dataset
