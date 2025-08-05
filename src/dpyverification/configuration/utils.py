@@ -56,7 +56,7 @@ class TimePeriod(BaseModel):
     @field_validator("start", "end", mode="after")
     @classmethod
     def to_utc_naive(cls, v: datetime) -> datetime:
-        """Convert aware datetimes to naive UTC; leave naive untouched (assumed UTC)."""
+        """Convert timezone aware datetimes to naive UTC; leave naive untouched (assumed UTC)."""
         if v.tzinfo is not None:
             v = v.astimezone(timezone.utc).replace(tzinfo=None)
         return v
