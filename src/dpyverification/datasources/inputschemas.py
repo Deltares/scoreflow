@@ -108,7 +108,9 @@ class SharedCoords(BaseModel):
     time: TimeCoord
     station_id: StationsCoord
     station_names: StationsCoord | None = None  # Optional station name
-    x: XYZCoord | None
+    lat: XYZCoord  # Always required lat, lon
+    lon: XYZCoord
+    x: XYZCoord | None  # Optional x, y, z
     y: XYZCoord | None
     z: XYZCoord | None
 

@@ -28,6 +28,8 @@ station_ids = [f"station{n}" for n in range(n_stations)]
 x = rng.uniform(0, 100, size=n_stations)
 y = rng.uniform(0, 100, size=n_stations)
 z = rng.uniform(0, 10, size=n_stations)
+lat = y
+lon = x
 realization = np.arange(1, n_realization + 1)
 
 # One forecast every 6 hours
@@ -53,6 +55,8 @@ def xarray_dataset_observations() -> xr.Dataset:
         coords={
             "time": time,
             "station_id": ("stations", station_ids),
+            "lat": ("stations", lat),
+            "lon": ("stations", lon),
             "x": ("stations", x),
             "y": ("stations", y),
             "z": ("stations", z),
@@ -76,6 +80,8 @@ def xarray_dataset_simulations_forecast_reference_time() -> xr.Dataset:
             "forecast_reference_time": forecast_reference_time,
             "realization": realization,
             "station_id": ("stations", station_ids),
+            "lat": ("stations", lat),
+            "lon": ("stations", lon),
             "x": ("stations", x),
             "y": ("stations", y),
             "z": ("stations", z),
@@ -106,6 +112,8 @@ def xarray_dataset_simulations_forecast_period() -> xr.Dataset:
             "forecast_period": forecast_period,
             "realization": realization,
             "station_id": ("stations", station_ids),
+            "lat": ("stations", lat),
+            "lon": ("stations", lon),
             "x": ("stations", x),
             "y": ("stations", y),
             "z": ("stations", z),
