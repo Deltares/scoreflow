@@ -6,7 +6,7 @@ from typing import Self
 import xarray as xr
 
 from dpyverification.configuration import FileInputFewsnetcdfConfig
-from dpyverification.constants import SimObsKind
+from dpyverification.constants import SimObsKinds
 from dpyverification.datasources.base import BaseDatasource
 
 from .schema import FewsNetcdfFileInputObsSchema, FewsNetcdfFileInputSimSchema
@@ -92,19 +92,19 @@ class FewsNetcdfFile(BaseDatasource):
         # Get the dataset as dict, to validate against schema
         dataset_dict = ds.to_dict()  # type: ignore[misc]
 
-        if kind == SimObsKind.OBS:
+        if kind == SimObsKinds.OBS:
             FewsNetcdfFileInputObsSchema.model_validate(dataset_dict)  # type: ignore[misc]
             return FewsNetcdfFile.convert_obs_to_datamodel(ds)
-        if kind == SimObsKind.SIM:
+        if kind == SimObsKinds.SIM:
             FewsNetcdfFileInputSimSchema.model_validate(dataset_dict)  # type: ignore[misc]
             return FewsNetcdfFile.convert_sim_to_datamodel(ds)
 
-        msg = f"Kind is not valid: {kind}. Expected {SimObsKind.OBS} or {SimObsKind.SIM}"
+        msg = f"Kind is not valid: {kind}. Expected {SimObsKinds.OBS} or {SimObsKinds.SIM}"
         raise NotImplementedError(msg)
 
     def get_data(self) -> Self:
         """Retrieve fewsnetcdf content as an xarray DataArray."""
-        if self.config.simobstype == SimObsKind.COMBINED:
+        if self.config.simobstype == SimObsKinds.COMBINED:
             msg = "Cannot yet handle combined simobs data"
             raise NotImplementedError(msg)
 

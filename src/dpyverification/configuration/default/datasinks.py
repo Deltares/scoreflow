@@ -6,13 +6,13 @@ from pydantic import Field
 
 from dpyverification.configuration.base import BaseDatasinkConfig
 from dpyverification.configuration.utils import LocalFile
-from dpyverification.constants import DataSinkKind
+from dpyverification.constants import DataSinkKinds
 
 
 class FewsNetcdfOutputConfig(LocalFile, BaseDatasinkConfig):
     """A fews netcdf output config element."""
 
-    kind: Literal[DataSinkKind.FEWSNETCDF]
+    kind: Literal[DataSinkKinds.FEWSNETCDF]
     title: Annotated[
         str | None,
         Field(

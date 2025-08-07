@@ -12,7 +12,7 @@ from dpyverification.api.fewswebservice import FewsWebserviceClient
 from dpyverification.configuration import (
     FewsWebserviceInputConfig,
 )
-from dpyverification.constants import SimObsKind
+from dpyverification.constants import SimObsKinds
 from dpyverification.datasources.base import BaseDatasource
 from dpyverification.datasources.fewsnetcdf import FewsNetcdfFile
 
@@ -48,7 +48,7 @@ class FewsWebservice(BaseDatasource):
     def get_data(self) -> Self:
         """Retrieve :py::class`~xarray.Dataset` from Delft-FEWS Webservice."""
         # Get observations
-        if self.config.simobstype == SimObsKind.OBS:
+        if self.config.simobstype == SimObsKinds.OBS:
             response = self.client.get_timeseries(
                 location_ids=self.config.location_ids,
                 parameter_ids=self.config.parameter_ids,
@@ -81,7 +81,7 @@ class FewsWebservice(BaseDatasource):
                 )
 
         # Get simulations
-        elif self.config.simobstype == SimObsKind.SIM:
+        elif self.config.simobstype == SimObsKinds.SIM:
             with tempfile.TemporaryDirectory() as tmpdir:
                 # Implement forecast retrieval, once Delft-FEWS development is completed.
                 _ = tmpdir

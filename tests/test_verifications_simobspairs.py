@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 from dpyverification.configuration.base import SimObsVariables
-from dpyverification.constants import DataModelCoords
+from dpyverification.constants import StandardCoords
 from dpyverification.scores.simobspairs import SimObsPairs
 
 # mypy: disable-error-code="misc"
@@ -38,26 +38,26 @@ def test_simobs_output() -> None:
     input_dataset = xr.Dataset(
         data_vars={
             varnames[0]: (
-                DataModelCoords.time.name,
+                StandardCoords.time.name,
                 x,
             ),
             varnames[1]: (
-                [DataModelCoords.leadtime.name, DataModelCoords.time.name],
+                [StandardCoords.forecast_period.name, StandardCoords.time.name],
                 y,
             ),
             varnames[2]: (
-                [extradim, DataModelCoords.time.name],
+                [extradim, StandardCoords.time.name],
                 x1,
             ),
             varnames[3]: (
-                [extradim, DataModelCoords.leadtime.name, DataModelCoords.time.name],
+                [extradim, StandardCoords.forecast_period.name, StandardCoords.time.name],
                 y1,
             ),
         },
         coords={
-            DataModelCoords.simstart.name: simstarts,
-            DataModelCoords.leadtime.name: leadtimes,
-            DataModelCoords.time.name: time,
+            StandardCoords.forecast_reference_time.name: simstarts,
+            StandardCoords.forecast_period.name: leadtimes,
+            StandardCoords.time.name: time,
             extradim: [1, 2],
         },
     )
@@ -66,7 +66,7 @@ def test_simobs_output() -> None:
 
     # The time dimension of the output is expected to be equal to the input time
     assert np.array_equal(
-        output[DataModelCoords.time.name].data,
+        output[StandardCoords.time.name].data,
         time.values,
     )
     # Check the dims of the output variables are in the 'expected' order

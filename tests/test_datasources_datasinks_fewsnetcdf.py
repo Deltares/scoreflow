@@ -5,7 +5,7 @@ from pathlib import Path
 import xarray as xr
 import yaml
 from dpyverification.configuration import ConfigFile
-from dpyverification.constants import DataModelAttributes, DataModelCoords, DataModelDims
+from dpyverification.constants import StandardAttributes, StandardCoords, StandardDims
 from dpyverification.datamodel.main import SimObsDataset
 from dpyverification.datasinks.fewsnetcdf import FewsNetcdfFileSink, FewsNetcdfOutputSchema
 from dpyverification.datasources.fewsnetcdf import FewsNetcdfFile
@@ -100,9 +100,11 @@ def test_write_happy(tmp_path: Path) -> None:
     # A fewscompliant nc file uses different names than our internal datamodel
     # Adapt the ds to look like our internal datamodel
     # When get_data has been implemented for fewsnetcdf, use that instead
-    ds_datamodel = ds.rename_dims({"analysis_time": DataModelDims.simstart})  # type: ignore[misc] # attrs is a dict[Any,Any]
-    ds_datamodel = ds_datamodel.rename_vars({"analysis_time": DataModelCoords.simstart.name})  # type: ignore[misc] # attrs is a dict[Any,Any]
-    ds_datamodel.attrs[DataModelAttributes.timestep] = 1  # type: ignore[misc] # attrs is a dict[Any,Any]
+    ds_datamodel = ds.rename_dims({"analysis_time": StandardDims.forecast_reference_time})  # type: ignore[misc] # attrs is a dict[Any,Any]
+    ds_datamodel = ds_datamodel.rename_vars(
+        {"analysis_time": StandardCoords.forecast_reference_time.name},
+    )  # type: ignore[misc] # attrs is a dict[Any,Any]
+    ds_datamodel.attrs[StandardAttributes.timestep] = 1  # type: ignore[misc] # attrs is a dict[Any,Any]
 
     tmpfile = tmp_path / "test.nc"
     assert not tmpfile.exists()
@@ -157,9 +159,11 @@ def test_read_write_equal(tmp_path: Path) -> None:
     # A fewscompliant nc file uses different names than our internal datamodel
     # Adapt the ds to look like our internal datamodel
     # When get_data has been implemented for fewsnetcdf, use that instead
-    ds_datamodel = ds.rename_dims({"analysis_time": DataModelDims.simstart})  # type: ignore[misc] # attrs is a dict[Any,Any]
-    ds_datamodel = ds_datamodel.rename_vars({"analysis_time": DataModelCoords.simstart.name})  # type: ignore[misc] # attrs is a dict[Any,Any]
-    ds_datamodel.attrs[DataModelAttributes.timestep] = 1  # type: ignore[misc] # attrs is a dict[Any,Any]
+    ds_datamodel = ds.rename_dims({"analysis_time": StandardDims.forecast_reference_time})  # type: ignore[misc] # attrs is a dict[Any,Any]
+    ds_datamodel = ds_datamodel.rename_vars(
+        {"analysis_time": StandardCoords.forecast_reference_time.name},
+    )  # type: ignore[misc] # attrs is a dict[Any,Any]
+    ds_datamodel.attrs[StandardAttributes.timestep] = 1  # type: ignore[misc] # attrs is a dict[Any,Any]
 
     FewsNetcdfFileSink.from_config(conf.content.datasinks[0].model_dump()).write_data(ds_datamodel)  # type: ignore[misc] # Yes, allow any
 

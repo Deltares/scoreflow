@@ -7,7 +7,7 @@ import pytest
 import xarray as xr
 import yaml
 from dpyverification import pipeline
-from dpyverification.constants import ScoreKind
+from dpyverification.constants import ScoreKinds
 
 from tests import (
     TEST_DIR_FEWS_NETCDF_OBS,
@@ -23,11 +23,11 @@ def get_specific_score_config(scorekind: str) -> dict:
     """Get specific config added during test."""
     variablepairs = [{"sim": "Q_fs", "obs": "Q_m"}]
 
-    if scorekind == ScoreKind.CRPSFORENSEMBLE:
+    if scorekind == ScoreKinds.CRPSFORENSEMBLE:
         return {"variablepairs": variablepairs, "preserve_dims": ["time", "leadtime"]}  # type: ignore[misc]
-    if scorekind == ScoreKind.RANKHISTOGRAM:
+    if scorekind == ScoreKinds.RANKHISTOGRAM:
         return {"variablepairs": variablepairs}  # type: ignore[misc]
-    if scorekind == ScoreKind.SIMOBSPAIRS:
+    if scorekind == ScoreKinds.SIMOBSPAIRS:
         return {"variablepairs": variablepairs}  # type: ignore[misc]
     return {}  # type: ignore[misc]
 
@@ -65,7 +65,7 @@ def test_execute_pipeline_bad_conf_type() -> None:
 
 @pytest.mark.parametrize(
     "score_kind",
-    [ScoreKind.SIMOBSPAIRS, ScoreKind.CRPSFORENSEMBLE, ScoreKind.RANKHISTOGRAM],
+    [ScoreKinds.SIMOBSPAIRS, ScoreKinds.CRPSFORENSEMBLE, ScoreKinds.RANKHISTOGRAM],
 )
 def test_execute_pipeline_ext_storage(
     tmp_path: Path,

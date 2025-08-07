@@ -9,9 +9,9 @@ from dpyverification.configuration import (
     FewsNetcdfOutputConfig,
 )
 from dpyverification.constants import (
-    DataModelAttributes,
-    DataModelCoords,
-    DataModelDims,
+    StandardAttributes,
+    StandardCoords,
+    StandardDims,
 )
 from dpyverification.datasinks.base import BaseDatasink
 
@@ -45,13 +45,13 @@ class FewsNetcdfFileSink(BaseDatasink):
         #   Do not do explicitly, the rename_dims will already return a new object
 
         # Renames from DPyVerification datamodel to FewsNetcdf compliance
-        renames = {DataModelDims.simstart: "analysis_time"}
+        renames = {StandardDims.forecast_reference_time: "analysis_time"}
         dataset = dataset.rename_dims(renames)
-        renames = {DataModelCoords.simstart.name: "analysis_time"}  # type: ignore[dict-item]
+        renames = {StandardCoords.forecast_reference_time.name: "analysis_time"}  # type: ignore[dict-item]
         dataset = dataset.rename_vars(renames)
 
         # Remove attributes not usable / desired in the netcdf
-        dataset.attrs.pop(DataModelAttributes.timestep)  # type: ignore[misc] # attrs is a dict[Any,Any]
+        dataset.attrs.pop(StandardAttributes.timestep)  # type: ignore[misc] # attrs is a dict[Any,Any]
 
         # Add any missing information required for CF compliance
         #   Note that most CF compliance will already be done in the creation of the xarray as

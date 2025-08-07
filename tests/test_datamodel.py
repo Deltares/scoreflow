@@ -7,7 +7,7 @@ import pandas as pd
 import xarray as xr
 from dpyverification.configuration import GeneralInfoConfig
 from dpyverification.configuration.utils import LeadTimes, TimePeriod, TimeUnits
-from dpyverification.constants import DataModelCoords
+from dpyverification.constants import StandardCoords
 from dpyverification.datamodel.main import SimObsDataset
 
 # mypy: disable-error-code="misc"
@@ -91,26 +91,26 @@ def test_create_intermediate_dataset() -> None:
     input_dataset = xr.Dataset(
         data_vars={
             varnames[0]: (
-                DataModelCoords.time.name,
+                StandardCoords.time.name,
                 x,
             ),
             varnames[1]: (
-                [DataModelCoords.simstart.name, DataModelCoords.time.name],
+                [StandardCoords.forecast_reference_time.name, StandardCoords.time.name],
                 y,
             ),
             varnames[2]: (
-                [extradim, DataModelCoords.time.name],
+                [extradim, StandardCoords.time.name],
                 x1,
             ),
             varnames[3]: (
-                [extradim, DataModelCoords.simstart.name, DataModelCoords.time.name],
+                [extradim, StandardCoords.forecast_reference_time.name, StandardCoords.time.name],
                 y1,
             ),
         },
         coords={
-            DataModelCoords.simstart.name: simstarts,
-            DataModelCoords.time.name: time,
-            DataModelCoords.leadtime.name: [np.timedelta64(1, "h"), np.timedelta64(2, "h")],
+            StandardCoords.forecast_reference_time.name: simstarts,
+            StandardCoords.time.name: time,
+            StandardCoords.forecast_period.name: [np.timedelta64(1, "h"), np.timedelta64(2, "h")],
             extradim: [1, 2],
         },
     )
@@ -124,7 +124,7 @@ def test_create_intermediate_dataset() -> None:
     # The time dimension of the output is expected to only have 3 values, the first value from the
     #  input time should be gone
     assert np.array_equal(
-        output[DataModelCoords.time.name].data,
+        output[StandardCoords.time.name].data,
         pd.date_range(
             np.datetime64("2014-09-06") + np.timedelta64(1, "h"),
             periods=4 - 1,

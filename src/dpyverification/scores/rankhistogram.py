@@ -10,7 +10,7 @@ from xskillscore import rank_histogram as _rank_histogram  # type: ignore[import
 
 from dpyverification.configuration import RankHistogramConfig
 from dpyverification.constants import (
-    DataModelDims,
+    StandardDims,
 )
 from dpyverification.datamodel import SimObsDataset
 from dpyverification.scores.base import BaseScore
@@ -32,7 +32,7 @@ class RankHistogram(BaseScore):
         sim = data.intermediate[self.config.variablepairs[0].sim]
 
         rankhistograms_per_leadtime = []
-        for leadtime in sim[DataModelDims.leadtime]:  # type: ignore[misc]
+        for leadtime in sim[StandardDims.forecast_period]:  # type: ignore[misc]
             # Get a subset of the simulations dataset
             sim_subset = sim.sel(leadtime=leadtime)  # type: ignore[misc]
 
@@ -41,7 +41,7 @@ class RankHistogram(BaseScore):
                 observations=obs,
                 forecasts=sim_subset,
                 dim=self.config.reduce_dims,
-                member_dim=DataModelDims.ensemble,
+                member_dim=StandardDims.realization,
             )
 
             # Check a DataArray is returned

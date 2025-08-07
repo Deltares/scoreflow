@@ -6,13 +6,13 @@ from pydantic import Field
 
 from dpyverification.configuration.base import BaseDatasourceConfig
 from dpyverification.configuration.utils import FewsWebserviceAuthConfig, LocalFile
-from dpyverification.constants import DataSourceKind, SimObsKind
+from dpyverification.constants import DataSourceKinds, SimObsKinds
 
 
 class FewsWebserviceInputConfig(BaseDatasourceConfig):
     """A fews webservice input config element."""
 
-    kind: Literal[DataSourceKind.FEWSWEBSERVICE]
+    kind: Literal[DataSourceKinds.FEWSWEBSERVICE]
     auth_config: FewsWebserviceAuthConfig
     location_ids: Annotated[list[str], Field(min_length=1)]
     parameter_ids: Annotated[list[str], Field(min_length=1)]
@@ -23,13 +23,13 @@ class FewsWebserviceInputConfig(BaseDatasourceConfig):
 class FewsWebserviceInputObsConfig(FewsWebserviceInputConfig):
     """Fews webservice config for obs and sim."""
 
-    simobstype: Literal[SimObsKind.OBS]
+    simobstype: Literal[SimObsKinds.OBS]
 
 
 class FewsWebserviceInputSimConfig(FewsWebserviceInputConfig):
     """A fews webservice input sim config element."""
 
-    simobstype: Literal[SimObsKind.SIM]
+    simobstype: Literal[SimObsKinds.SIM]
     ensemble_id: Annotated[list[str], Field(default=None)]
     ensemble_member_id: Annotated[list[int], Field(default=None)]
 
@@ -41,10 +41,10 @@ class FewsWebserviceOutputConfig(FewsWebserviceInputConfig):
 class FileInputPixmlConfig(BaseDatasourceConfig, LocalFile):
     """A file input of type pixml config element."""
 
-    kind: Literal[DataSourceKind.PIXML]
+    kind: Literal[DataSourceKinds.PIXML]
 
 
 class FileInputFewsnetcdfConfig(BaseDatasourceConfig, LocalFile):
     """A file input fewsnetcdf config element."""
 
-    kind: Literal[DataSourceKind.FEWSNETCDF]
+    kind: Literal[DataSourceKinds.FEWSNETCDF]

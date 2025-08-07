@@ -7,7 +7,7 @@ import xarray
 
 from dpyverification.base import Base
 from dpyverification.configuration.base import BaseDatasourceConfig
-from dpyverification.constants import SimObsKind
+from dpyverification.constants import SimObsKinds
 
 
 class BaseDatasource(Base):
@@ -27,8 +27,8 @@ class BaseDatasource(Base):
         return self.config.simobstype
 
     @simobstype.setter
-    def simobstype(self, new_simobstype: SimObsKind) -> None:
-        if new_simobstype not in (SimObsKind.SIM, SimObsKind.OBS):
+    def simobstype(self, new_simobstype: SimObsKinds) -> None:
+        if new_simobstype not in (SimObsKinds.SIM, SimObsKinds.OBS):
             # Even if the underlying file or service can contain combined data, the creation of the
             #  datasource objects should split those. This assumption can then be used in the
             #  creation of the data model.

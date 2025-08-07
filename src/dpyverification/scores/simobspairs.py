@@ -7,7 +7,7 @@ from numpy import timedelta64
 
 from dpyverification.configuration import SimObsPairsConfig
 from dpyverification.configuration.base import SimObsVariables
-from dpyverification.constants import DataModelCoords, ScoreKind
+from dpyverification.constants import ScoreKinds, StandardCoords
 from dpyverification.datamodel import SimObsDataset
 from dpyverification.scores.base import BaseScore
 
@@ -53,7 +53,7 @@ class SimObsPairs(BaseScore):
         for leadtime in leadtimes:
             leadset = intermediate_dataset.coords.to_dataset()
             selecttime: list[datetime64] = list(
-                intermediate_dataset[DataModelCoords.simstart.name].data + leadtime,  # type: ignore[misc] # Quite certain that data.input[DataModelCoords.time.name].data will be a 1D array of datetime64
+                intermediate_dataset[StandardCoords.forecast_reference_time.name].data + leadtime,  # type: ignore[misc] # Quite certain that data.input[DataModelCoords.time.name].data will be a 1D array of datetime64
             )
             for pair in variablepairs:
                 # Construct variable names:
@@ -61,8 +61,8 @@ class SimObsPairs(BaseScore):
                 # Where
                 # - varnamegeneral is assumed equal to obsvar name
                 # - calctypename is taken to be equal to enum string value
-                outnamesim = f"{pair.obs}_{ScoreKind.SIMOBSPAIRS}_{pair.sim}"
-                outnameobs = f"{pair.obs}_{ScoreKind.SIMOBSPAIRS}_{pair.obs}"
+                outnamesim = f"{pair.obs}_{ScoreKinds.SIMOBSPAIRS}_{pair.sim}"
+                outnameobs = f"{pair.obs}_{ScoreKinds.SIMOBSPAIRS}_{pair.obs}"
 
                 # TODO(AU): Add unit test on simobspair creation # noqa: FIX002
                 #   https://github.com/Deltares-research/DPyVerification/issues/33
@@ -78,7 +78,7 @@ class SimObsPairs(BaseScore):
                 # Parse the obs values
                 select_at: dict[str, list[datetime64] | list[timedelta64]]
                 select_at = {
-                    DataModelCoords.time.name: selecttime,
+                    StandardCoords.time.name: selecttime,
                 }
                 vals = intermediate_dataset[pair.obs].sel(select_at)
                 leadset[outnameobs] = vals.expand_dims(
@@ -91,7 +91,7 @@ class SimObsPairs(BaseScore):
                     )
 
                 # Parse the sim values
-                select_at[DataModelCoords.leadtime.name] = [leadtime]
+                select_at[StandardCoords.forecast_period.name] = [leadtime]
                 vals = intermediate_dataset[pair.sim].sel(select_at)
                 leadset[outnamesim] = vals
                 if "units" in intermediate_dataset[pair.sim].attrs:  # type: ignore[misc] # attrs is a dict[Any,Any]

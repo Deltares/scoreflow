@@ -13,9 +13,9 @@ from fewsio.pi import (  # type: ignore[import-untyped] # See comment below impo
 
 from dpyverification.configuration import FileInputPixmlConfig
 from dpyverification.constants import (
-    DataModelCoords,
-    DataModelDims,
-    SimObsKind,
+    SimObsKinds,
+    StandardCoords,
+    StandardDims,
 )
 from dpyverification.datasources.base import BaseDatasource
 
@@ -80,7 +80,7 @@ class PiXmlFile(BaseDatasource):
                 raise ValueError(msg)
             return str(timeseries_id.location_id), lat, lon  # type: ignore[misc] # timeseries_id is Any
 
-        if simobstype == SimObsKind.SIM:
+        if simobstype == SimObsKinds.SIM:
             simulation_starttime: datetime.datetime = pi_series.forecast_datetime  # type: ignore[misc]  # pi_series is Any
             ensemble_member: int
             for ensemble_member in range(pi_series.ensemble_size):  # type: ignore[misc]  # pi_series is Any
@@ -90,21 +90,21 @@ class PiXmlFile(BaseDatasource):
                 ):
                     location_id, lat, lon = get_location_info(pi_series, timeseries_id)  # type: ignore[misc]  # pi_series is Any
                     coords = {  # separate variable for readability and type hinting
-                        DataModelCoords.time.name: times,
-                        DataModelCoords.location.name: [location_id],
-                        DataModelCoords.ensemble.name: [ensemble_member],
-                        DataModelCoords.lat.name: ([DataModelDims.location], [lat]),
-                        DataModelCoords.lon.name: ([DataModelDims.location], [lon]),
-                        DataModelCoords.simstart.name: [simulation_starttime],
+                        StandardCoords.time.name: times,
+                        StandardCoords.location.name: [location_id],
+                        StandardCoords.realization.name: [ensemble_member],
+                        StandardCoords.lat.name: ([StandardDims.stations], [lat]),
+                        StandardCoords.lon.name: ([StandardDims.stations], [lon]),
+                        StandardCoords.forecast_reference_time.name: [simulation_starttime],
                     }
                     attrs = {"units": pi_series.get_unit(timeseries_id)}  # type: ignore[misc]  # pi_series is Any
                     da = xr.DataArray(
                         data=np.expand_dims(data, axis=(1, 2, 3)),  # type: ignore[misc] # data and ndarray are Any
                         dims=[
-                            DataModelDims.time,
-                            DataModelDims.location,
-                            DataModelDims.ensemble,
-                            DataModelDims.simstart,
+                            StandardDims.time,
+                            StandardDims.stations,
+                            StandardDims.realization,
+                            StandardDims.forecast_reference_time,
                         ],
                         coords=coords,
                         attrs=attrs,
@@ -112,21 +112,21 @@ class PiXmlFile(BaseDatasource):
                     da.name = variable_name
                     data_arrays.append(da)
 
-        elif simobstype == SimObsKind.OBS:
+        elif simobstype == SimObsKinds.OBS:
             for timeseries_id, data in pi_series.items():  # type: ignore[misc] # pi_series and data are Any
                 location_id, lat, lon = get_location_info(pi_series, timeseries_id)  # type: ignore[misc]  # pi_series is Any
                 coords = {
-                    DataModelCoords.time.name: times,
-                    DataModelCoords.location.name: [location_id],
-                    DataModelCoords.lat.name: ([DataModelDims.location], [lat]),
-                    DataModelCoords.lon.name: ([DataModelDims.location], [lon]),
+                    StandardCoords.time.name: times,
+                    StandardCoords.location.name: [location_id],
+                    StandardCoords.lat.name: ([StandardDims.stations], [lat]),
+                    StandardCoords.lon.name: ([StandardDims.stations], [lon]),
                 }
                 attrs = {"units": pi_series.get_unit(timeseries_id)}  # type: ignore[misc]  # pi_series is Any
                 da = xr.DataArray(
                     data=np.expand_dims(data, axis=(1)),  # type: ignore[misc] # data and ndarray are Any
                     dims=[
-                        DataModelDims.time,
-                        DataModelDims.location,
+                        StandardDims.time,
+                        StandardDims.stations,
                     ],
                     coords=coords,
                     attrs=attrs,
@@ -140,7 +140,7 @@ class PiXmlFile(BaseDatasource):
 
     def get_data(self) -> Self:
         """Retrieve pixml content as an xarray DataArray."""
-        if self.simobstype == SimObsKind.COMBINED:
+        if self.simobstype == SimObsKinds.COMBINED:
             msg = "Cannot yet handle combined simobs data"
             raise NotImplementedError(msg)
 
