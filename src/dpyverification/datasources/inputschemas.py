@@ -27,6 +27,10 @@ We do not yet validate:
 - Attributes
 """
 
+# TODO(jb): remove mypy ignore errors  # noqa: FIX002, TD003
+# TODO(jb): replace hardcoded strings with constants # noqa: FIX002, TD003
+# TODO(jb): replace stations coord withs station_id # noqa: FIX002, TD003
+
 # mypy: ignore-errors
 # ruff: noqa: D100, D101, D102, D103, D104, D105, D106, D107
 
@@ -53,13 +57,13 @@ def check_tuple(
         # Check for missing required
         missing = required - value_set
         if missing:
-            msg = f"Missing required dims: {missing}"
+            msg = f"Missing required dims: {', '.join(missing)}"
             raise ValueError(msg)
 
         # Check for disallowed dims
         disallowed = value_set - allowed
         if disallowed:
-            msg = f"Invalid dims: {disallowed}. Allowed: {allowed}"
+            msg = f"Invalid dims: {disallowed}. Allowed: {', '.join(allowed)}"
             raise ValueError(msg)
 
         return value
@@ -97,7 +101,8 @@ class XYZCoord(BaseModel):
 
 class SharedCoords(BaseModel):
     time: TimeCoord
-    stations: StationsCoord
+    station_id: StationsCoord
+    station_names: StationsCoord | None = None  # Optional station name
     x: XYZCoord | None
     y: XYZCoord | None
     z: XYZCoord | None
@@ -112,7 +117,7 @@ class XarrayObservationsDataArray(BaseModel):
     dtype: AllowedDTypeFloat
 
 
-ValidVarName = Annotated[str, Field(pattern=r"[a-zA-Z_]*")]
+ValidVarName = Annotated[str, Field(pattern=r"[a-zA-Z0-9_]*")]
 
 
 class XarrayDatasetObservations(BaseModel):

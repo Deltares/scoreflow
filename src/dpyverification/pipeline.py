@@ -9,7 +9,7 @@ import pathlib
 from typing import TypeVar
 
 from dpyverification.configuration import ConfigFile
-from dpyverification.datamodel import DataModel
+from dpyverification.datamodel import OutputDataset, SimObsDataset
 from dpyverification.datasinks.base import BaseDatasink
 from dpyverification.datasinks.fewsnetcdf import FewsNetcdfFileSink
 from dpyverification.datasources.base import BaseDatasource
@@ -83,8 +83,14 @@ def execute_pipeline(
     for datasource in datasources:
         datasource.get_data()
 
-    # Initialize the datamodel
-    datamodel = DataModel(datasources, config.content.general)
+    # Initialize the input dataset
+    input_dataset = SimObsDataset(
+        [datasource.xarray for datasource in datasources],
+        config.content.general,
+    )
+
+    # Initizlize output dataset
+    output_dataset = OutputDataset(input_dataset=input_dataset.dataset)
 
     # Add score results to the datamodel
     for score_config in config.content.scores:
@@ -93,11 +99,11 @@ def execute_pipeline(
             kind=score_config.kind,
         )
         score = score_kind.from_config(score_config.model_dump())  # type: ignore[misc] # Allow Any
-        result = score.compute(datamodel)
-        datamodel.add_to_output(result)
+        result = score.compute(input_dataset)
+        output_dataset.add_score(kind=score.kind, score=result)
 
     # Write data for each datasink
     for datasink_config in config.content.datasinks:
         sink_kind = find_matching_kind_in_list(items=available_datasinks, kind=datasink_config.kind)
         datasink = sink_kind.from_config(datasink_config.model_dump())  # type: ignore[misc] # Allow Any
-        datasink.write_data(datamodel.output)
+        datasink.write_data(output_dataset.get_output_dataset(include_simobs=False))

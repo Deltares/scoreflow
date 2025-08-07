@@ -6,7 +6,7 @@ import xarray as xr
 import yaml
 from dpyverification.configuration import ConfigFile
 from dpyverification.constants import DataModelAttributes, DataModelCoords, DataModelDims
-from dpyverification.datamodel.main import DataModel
+from dpyverification.datamodel.main import SimObsDataset
 from dpyverification.datasinks.fewsnetcdf import FewsNetcdfFileSink, FewsNetcdfOutputSchema
 from dpyverification.datasources.fewsnetcdf import FewsNetcdfFile
 
@@ -69,7 +69,7 @@ def test_get_data_obs_and_check_dims_coords(tmp_path: Path) -> None:
     conf = ConfigFile(tmp_conf_file, "yaml")
 
     instance = FewsNetcdfFile.from_config(conf.content.datasources[0].model_dump()).get_data()  # type: ignore[misc] # Yes, allow any
-    DataModel._check_source_dims_and_coords(instance)
+    SimObsDataset._check_source_dims_and_coords(instance)
 
 
 def test_get_data_sim_and_check_dims_coords(tmp_path: Path) -> None:
@@ -90,7 +90,7 @@ def test_get_data_sim_and_check_dims_coords(tmp_path: Path) -> None:
     conf = ConfigFile(tmp_conf_file, "yaml")
 
     instance = FewsNetcdfFile.from_config(conf.content.datasources[0].model_dump()).get_data()  # type: ignore[misc] # Yes, allow any
-    DataModel._check_source_dims_and_coords(instance)
+    SimObsDataset._check_source_dims_and_coords(instance)
 
 
 def test_write_happy(tmp_path: Path) -> None:

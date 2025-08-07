@@ -8,7 +8,7 @@ from numpy import timedelta64
 from dpyverification.configuration import SimObsPairsConfig
 from dpyverification.configuration.base import SimObsVariables
 from dpyverification.constants import DataModelCoords, ScoreKind
-from dpyverification.datamodel import DataModel
+from dpyverification.datamodel import SimObsDataset
 from dpyverification.scores.base import BaseScore
 
 if TYPE_CHECKING:
@@ -26,7 +26,7 @@ class SimObsPairs(BaseScore):
 
     def compute(
         self,
-        data: DataModel,
+        data: SimObsDataset,
     ) -> xarray.Dataset:
         """Create pairs of obs and sim values, for the given leadtimes (default leadtime 0)."""
         if not self.config.leadtimes:

@@ -10,7 +10,7 @@ import pytest
 import xarray as xr
 from dpyverification.configuration import GeneralInfoConfig
 from dpyverification.configuration.utils import LeadTimes, TimePeriod, TimeUnits
-from dpyverification.datamodel.main import InputDataset
+from dpyverification.datamodel.main import SimObsDataset
 
 rng = np.random.default_rng(seed=42)
 
@@ -117,7 +117,7 @@ def xarray_dataset_simulations_forecast_period() -> xr.Dataset:
 def datamodel_forecast_reference_time(
     xarray_dataset_observations: xr.Dataset,
     xarray_dataset_simulations_forecast_reference_time: xr.Dataset,
-) -> InputDataset:
+) -> SimObsDataset:
     """Initialize datamodel with observations and forecasts (based on frt)."""
     general_config = GeneralInfoConfig(
         verificationperiod=TimePeriod(
@@ -127,7 +127,7 @@ def datamodel_forecast_reference_time(
         leadtimes=LeadTimes(unit=TimeUnits.HOUR, values=[1, 2, 3, 4]),
     )
 
-    return InputDataset(
+    return SimObsDataset(
         data=[xarray_dataset_observations, xarray_dataset_simulations_forecast_reference_time],
         general_config=general_config,
     )

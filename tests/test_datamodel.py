@@ -8,7 +8,7 @@ import xarray as xr
 from dpyverification.configuration import GeneralInfoConfig
 from dpyverification.configuration.utils import LeadTimes, TimePeriod, TimeUnits
 from dpyverification.constants import DataModelCoords
-from dpyverification.datamodel.main import DataModel, InputDataset
+from dpyverification.datamodel.main import SimObsDataset
 
 # mypy: disable-error-code="misc"
 
@@ -26,7 +26,7 @@ def test_init_datamodel_fp(
         leadtimes=LeadTimes(unit=TimeUnits.HOUR, values=[1, 2, 3, 4]),
     )
 
-    datamodel = InputDataset(
+    datamodel = SimObsDataset(
         data=[xarray_dataset_observations, xarray_dataset_simulations_forecast_period],
         general_config=general_config,
     )
@@ -35,14 +35,14 @@ def test_init_datamodel_fp(
 
 
 def test_init_datamodel_frt(
-    datamodel_forecast_reference_time: InputDataset,
+    datamodel_forecast_reference_time: SimObsDataset,
 ) -> None:
     """Test the datamodel initializes succefully with forecast ref time (frt) input."""
     assert isinstance(datamodel_forecast_reference_time.dataset, xr.Dataset)
 
 
 def test_datamodel_frt_structure_correct(
-    datamodel_forecast_reference_time: InputDataset,
+    datamodel_forecast_reference_time: SimObsDataset,
     xarray_dataset_simulations_forecast_reference_time: xr.Dataset,
 ) -> None:
     """Test the data structure of the datamodel for input sim based on frt."""
@@ -115,7 +115,7 @@ def test_create_intermediate_dataset() -> None:
         },
     )
 
-    output = DataModel._create_intermediate_dataset(
+    output = SimObsDataset._create_intermediate_dataset(
         input_dataset,
         input_dataset.coords,
         np.timedelta64(1, "h"),

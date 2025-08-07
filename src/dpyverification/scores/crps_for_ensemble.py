@@ -14,7 +14,7 @@ from dpyverification.constants import (
     DataModelDims,
     ScoreKind,
 )
-from dpyverification.datamodel import DataModel
+from dpyverification.datamodel import SimObsDataset
 from dpyverification.scores.base import BaseScore
 
 
@@ -29,7 +29,7 @@ class CrpsForEnsemble(BaseScore):
 
     def compute(
         self,
-        data: DataModel,
+        data: SimObsDataset,
     ) -> xr.DataArray:
         """Compute the CRPS for an ensemble of forecasts and observations."""
         # Select sim and obs.

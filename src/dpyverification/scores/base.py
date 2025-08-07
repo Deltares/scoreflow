@@ -6,7 +6,7 @@ import xarray as xr
 
 from dpyverification.base import Base
 from dpyverification.configuration.base import BaseScoreConfig
-from dpyverification.datamodel import DataModel
+from dpyverification.datamodel import SimObsDataset
 
 
 class BaseScore(Base):
@@ -21,6 +21,6 @@ class BaseScore(Base):
     @abstractmethod
     def compute(
         self,
-        data: DataModel,
+        data: SimObsDataset,
     ) -> xr.Dataset | xr.DataArray:
         """Abstract calculation."""

@@ -12,7 +12,7 @@ from dpyverification.configuration import RankHistogramConfig
 from dpyverification.constants import (
     DataModelDims,
 )
-from dpyverification.datamodel import DataModel
+from dpyverification.datamodel import SimObsDataset
 from dpyverification.scores.base import BaseScore
 
 
@@ -25,7 +25,7 @@ class RankHistogram(BaseScore):
     def __init__(self, config: RankHistogramConfig) -> None:
         self.config: RankHistogramConfig = config
 
-    def compute(self, data: DataModel) -> xr.Dataset:
+    def compute(self, data: SimObsDataset) -> xr.Dataset:
         """Compute the histogram of ranks over the specified dimensions."""
         # Select sim and obs.
         obs = data.intermediate[self.config.variablepairs[0].obs]
