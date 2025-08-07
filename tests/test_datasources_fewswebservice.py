@@ -111,7 +111,7 @@ def test_webservice_live() -> None:
 def test_get_obs_netcdf(
     tmp_path: Path,
 ) -> None:
-    """Check that the imported pixml gives an xarray with the expected content."""
+    """Check that the webservice gives expected outcome for obs."""
     verificationperiod = {
         "start": "2024-11-01T00:00:00Z",
         "end": "2024-12-01T00:00:00Z",
@@ -149,7 +149,7 @@ def test_get_obs_netcdf(
 def test_get_sim_netcdf(
     tmp_path: Path,
 ) -> None:
-    """Check that the imported pixml gives an xarray with the expected content."""
+    """Check that the webservice gives expected outcome for sim."""
     leadtimes = {"unit": "h", "values": [24, 48, 72, 96]}
     verificationperiod = {
         "start": "2024-11-01T00:00:00Z",

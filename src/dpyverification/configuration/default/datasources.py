@@ -38,12 +38,6 @@ class FewsWebserviceOutputConfig(FewsWebserviceInputConfig):
     """A fews webservice output config element."""
 
 
-class FileInputPixmlConfig(BaseDatasourceConfig, LocalFile):
-    """A file input of type pixml config element."""
-
-    kind: Literal[DataSourceKinds.PIXML]
-
-
 class FileInputFewsnetcdfConfig(BaseDatasourceConfig, LocalFile):
     """A file input fewsnetcdf config element."""
 

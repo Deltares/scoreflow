@@ -8,13 +8,13 @@ general:
     values: ["3", "6"]
 datasources: [
   {
-    kind: "pixml",
+    kind: "fewsnetcdf",
     simobstype: "obs",
     directory: "iets",
     filename: "anders",
   },
   {
-    kind: "pixml",
+    kind: "fewsnetcdf",
     simobstype: "sim",
     directory: "twee",
     filename: "drie",

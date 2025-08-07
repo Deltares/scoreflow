@@ -8,7 +8,6 @@ from dpyverification.configuration.default.datasources import (
     FewsWebserviceInputObsConfig,
     FewsWebserviceInputSimConfig,
     FileInputFewsnetcdfConfig,
-    FileInputPixmlConfig,
 )
 from dpyverification.configuration.default.scores import (
     CrpsForEnsembleConfig,

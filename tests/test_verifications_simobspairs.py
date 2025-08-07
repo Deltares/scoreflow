@@ -1,4 +1,4 @@
-"""Test the pixml module of the dpyverification.datasources package."""
+"""Test simobspairs."""
 
 import numpy as np
 import pandas as pd

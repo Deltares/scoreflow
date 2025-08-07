@@ -16,7 +16,6 @@ import importlib_metadata
 class DataSourceKinds(StrEnum):
     """Enumeration of the supported datasource types."""
 
-    PIXML = "pixml"
     FEWSNETCDF = "fewsnetcdf"
     FEWSWEBSERVICE = "fewswebservice"
 
