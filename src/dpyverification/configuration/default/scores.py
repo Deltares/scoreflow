@@ -5,21 +5,21 @@ from typing import Annotated, Literal
 from pydantic import AfterValidator, Field
 
 from dpyverification.configuration.base import BaseScoreConfig
-from dpyverification.constants import ScoreKinds, StandardDims
+from dpyverification.constants import ScoreKind, StandardDim
 
 
 class SimObsPairsConfig(BaseScoreConfig):
     """A sim obs pairs config element."""
 
-    kind: Literal[ScoreKinds.SIMOBSPAIRS]
+    kind: Literal[ScoreKind.SIMOBSPAIRS]
 
 
 class RankHistogramConfig(BaseScoreConfig):
     """A rank histogram config element."""
 
-    kind: Literal[ScoreKinds.RANKHISTOGRAM]
+    kind: Literal[ScoreKind.RANKHISTOGRAM]
     reduce_dims: Annotated[
-        list[StandardDims] | None,
+        list[StandardDim] | None,
         Field(
             description=(
                 "Dimension(s) over which to compute the histogram"
@@ -33,14 +33,14 @@ class CrpsForEnsembleConfig(BaseScoreConfig):
     """A crps for ensemble config element."""
 
     @staticmethod
-    def dim_is_not_ensemble(value: StandardDims) -> StandardDims:
+    def dim_is_not_ensemble(value: StandardDim) -> StandardDim:
         """Check dim is not ensemble dim."""
-        if value == StandardDims.realization:
+        if value == StandardDim.realization:
             msg = "Cannot preserve ensemble dimension."
             raise ValueError(msg)
         return value
 
-    kind: Literal[ScoreKinds.CRPSFORENSEMBLE]
+    kind: Literal[ScoreKind.CRPSFORENSEMBLE]
     method: Annotated[
         Literal["ecdf", "fair"],
         Field(
@@ -52,7 +52,7 @@ class CrpsForEnsembleConfig(BaseScoreConfig):
         ),
     ]
     preserve_dims: Annotated[
-        list[StandardDims] | None,
+        list[StandardDim] | None,
         AfterValidator(dim_is_not_ensemble),
         Field(
             description="List of dimension(s) to preserve in the output. Defaults to None.",

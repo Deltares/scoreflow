@@ -11,7 +11,7 @@ To generate a yaml / json file with the json representation of this schema:
     with FILEPATH.open("w") as myfile:
         yaml.dump(Config.model_json_schema(), myfile)
 
-Sidenote: It is also possible to go the other way around and generate a pydantic schema from a
+Side note: It is also possible to go the other way around and generate a pydantic schema from a
 yaml/json file, see datamodel_code_generator, for example from
 https://docs.pydantic.dev/latest/integrations/datamodel_code_generator/ . Note that this can
 generate a pydantic model that is not up-to-date with the latest pydantic / python, and might
@@ -34,12 +34,12 @@ from typing import Annotated
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.json_schema import SkipJsonSchema
 
-from .utils import LeadTimes, SimObsVariables, TimePeriod
+from .utils import ForecastPeriods, SimObsVariables, TimePeriod
 
 
 class GeneralInfoConfig(BaseModel):
-    verificationperiod: TimePeriod
-    leadtimes: LeadTimes
+    verification_period: TimePeriod
+    forecast_periods: ForecastPeriods
 
 
 class BaseConfig(BaseModel):
@@ -71,19 +71,19 @@ class BaseDatasourceConfig(BaseConfig):
     this base class.
     """
 
-    simobstype: str
+    simobskind: str
     general: SkipJsonSchema[GeneralInfoConfig]  # Do not serialize to json schema, since general
     # config is propagated from the general config section in the main config. This will prevent
     # users that use the json-schema for making config having to explicitly set a duplicate general
     # configuration section for each datasource.
 
     @property
-    def leadtimes(self) -> LeadTimes:
-        return self.general.leadtimes
+    def forecast_periods(self) -> ForecastPeriods:
+        return self.general.forecast_periods
 
     @property
-    def verificationperiod(self) -> TimePeriod:
-        return self.general.verificationperiod
+    def verification_period(self) -> TimePeriod:
+        return self.general.verification_period
 
 
 class BaseDatasinkConfig(BaseConfig):
@@ -108,7 +108,7 @@ class BaseScoreConfig(BaseConfig):
     # users that use the json-schema for making config having to explicitly set a duplicate general
     # configuration section for each datasource.
 
-    variablepairs: Annotated[
+    variable_pairs: Annotated[
         list[SimObsVariables],
         Field(
             description="Variable pairs to use for the computation.",
@@ -116,8 +116,8 @@ class BaseScoreConfig(BaseConfig):
     ]
 
     @property
-    def leadtimes(self) -> LeadTimes:
-        return self.general.leadtimes
+    def forecast_periods(self) -> ForecastPeriods:
+        return self.general.forecast_periods
 
 
 class Config(BaseModel):

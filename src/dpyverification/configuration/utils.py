@@ -1,6 +1,8 @@
 """A module for frequently used config elements in the context of verification."""
 
+from collections.abc import Generator
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Annotated
 
 import numpy as np
@@ -10,8 +12,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from dpyverification.constants import TimeUnits
 
 
-class LeadTimes(BaseModel):
-    """A leadtimes config element."""
+class ForecastPeriods(BaseModel):
+    """A forecast periods config element."""
 
     unit: TimeUnits
     values: list[int]
@@ -74,6 +76,21 @@ class LocalFile(BaseModel):
 
     directory: str
     filename: str
+
+
+class LocalFiles(BaseModel):
+    """Config for multiple local files using Path.glob()."""
+
+    directory: str
+    filename_pattern: Annotated[
+        str,
+        Field(description="Provide a valid filenamepattern, like '*.nc' for all netcdf files."),
+    ]
+
+    @property
+    def paths(self) -> Generator[Path]:
+        """Return all filepaths as Path objects."""
+        return Path(self.directory).rglob(self.filename_pattern)
 
 
 class FewsWebserviceAuthConfig(BaseSettings):  # type: ignore  # noqa: PGH003

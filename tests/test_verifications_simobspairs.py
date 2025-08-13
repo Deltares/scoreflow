@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 from dpyverification.configuration.base import SimObsVariables
-from dpyverification.constants import StandardCoords
+from dpyverification.constants import StandardCoord
 from dpyverification.scores.simobspairs import SimObsPairs
 
 # mypy: disable-error-code="misc"
@@ -15,7 +15,7 @@ def test_simobs_output() -> None:
 
     Are the values from the correct datetimes filtered, and placed at the correct output datetimes?
     """
-    leadtimes = [np.timedelta64(1, "h"), np.timedelta64(2, "h")]
+    forecast_periods = [np.timedelta64(1, "h"), np.timedelta64(2, "h")]
     varnames = ["obsvar1", "simvar1", "obsvar2", "simvar2"]
     variablepairs = [
         SimObsVariables(obs=varnames[0], sim=varnames[1]),
@@ -38,35 +38,35 @@ def test_simobs_output() -> None:
     input_dataset = xr.Dataset(
         data_vars={
             varnames[0]: (
-                StandardCoords.time.name,
+                StandardCoord.time.name,
                 x,
             ),
             varnames[1]: (
-                [StandardCoords.forecast_period.name, StandardCoords.time.name],
+                [StandardCoord.forecast_period.name, StandardCoord.time.name],
                 y,
             ),
             varnames[2]: (
-                [extradim, StandardCoords.time.name],
+                [extradim, StandardCoord.time.name],
                 x1,
             ),
             varnames[3]: (
-                [extradim, StandardCoords.forecast_period.name, StandardCoords.time.name],
+                [extradim, StandardCoord.forecast_period.name, StandardCoord.time.name],
                 y1,
             ),
         },
         coords={
-            StandardCoords.forecast_reference_time.name: simstarts,
-            StandardCoords.forecast_period.name: leadtimes,
-            StandardCoords.time.name: time,
+            StandardCoord.forecast_reference_time.name: simstarts,
+            StandardCoord.forecast_period.name: forecast_periods,
+            StandardCoord.time.name: time,
             extradim: [1, 2],
         },
     )
 
-    output = SimObsPairs._simobs(input_dataset, leadtimes, variablepairs)
+    output = SimObsPairs._simobs(input_dataset, forecast_periods, variablepairs)
 
     # The time dimension of the output is expected to be equal to the input time
     assert np.array_equal(
-        output[StandardCoords.time.name].data,
+        output[StandardCoord.time.name].data,
         time.values,
     )
     # Check the dims of the output variables are in the 'expected' order

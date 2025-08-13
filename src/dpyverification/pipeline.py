@@ -84,11 +84,11 @@ def execute_pipeline(
 
     # Initialize the input dataset
     input_dataset = SimObsDataset(
-        [datasource.xarray for datasource in datasources],
+        [datasource.dataset for datasource in datasources],
         config.content.general,
     )
 
-    # Initizlize output dataset
+    # Initialize output dataset
     output_dataset = OutputDataset(input_dataset=input_dataset.dataset)
 
     # Add score results to the datamodel

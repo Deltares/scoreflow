@@ -2,17 +2,24 @@
 
 # mypy: ignore-errors
 
+import io
 import os
 import time
+import zipfile
 from collections.abc import Generator
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 
 import numpy as np
 import pytest
 import requests
+import xarray as xr
 import yaml
+from dpyverification.api.fewswebservice import FewsWebserviceClient, TimeseriesType
 from dpyverification.configuration import ConfigFile
+from dpyverification.configuration.utils import ForecastPeriods
+from dpyverification.datasources.fewsnetcdf import FewsNetcdfFile, Preprocessor
 from dpyverification.datasources.fewswebservice import FewsWebservice
 
 from tests import TESTS_CONFIGURATION_FILE
@@ -25,7 +32,7 @@ TASK_START_SUCCESS_TEXT = '{"started":true,"message":"Task started"}'
 IN_GITHUB_ACTIONS = os.getenv("GITHUB_ACTIONS") == "true"
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="module", autouse=False)
 def _initialize_archive() -> None:
     @dataclass
     class _ArchiveTask:
@@ -112,7 +119,7 @@ def test_get_obs_netcdf(
     tmp_path: Path,
 ) -> None:
     """Check that the webservice gives expected outcome for obs."""
-    verificationperiod = {
+    verification_period = {
         "start": "2024-11-01T00:00:00Z",
         "end": "2024-12-01T00:00:00Z",
     }
@@ -120,10 +127,10 @@ def test_get_obs_netcdf(
     with TESTS_CONFIGURATION_FILE.open() as cf:
         testconf: dict[str, list[dict[str, str]]] = yaml.safe_load(cf)
 
-    testconf["general"]["verificationperiod"] = verificationperiod  # type: ignore[call-overload] # Indeed this assignment does not match with our faked type def of testconf
+    testconf["general"]["verification_period"] = verification_period  # type: ignore[call-overload] # Indeed this assignment does not match with our faked type def of testconf
 
     testconf["datasources"][0] = {
-        "simobstype": "obs",
+        "simobskind": "obs",
         "kind": "fewswebservice",
         "location_ids": ["H-RN-0001"],
         "parameter_ids": ["Q_m"],
@@ -140,8 +147,8 @@ def test_get_obs_netcdf(
         yaml.dump(testconf, tf)
     conf = ConfigFile(tmp_conf_file, "yaml")
     instance = FewsWebservice.from_config(conf.content.datasources[0].model_dump()).get_data()  # type: ignore[misc] # Yes, allow any
-    assert "Q_m" in instance.xarray
-    np.testing.assert_array_equal(instance.xarray["lat"].values, np.float64(51.85059))
+    assert "Q_m" in instance.dataset
+    np.testing.assert_array_equal(instance.dataset["lat"].values, np.float64(51.85059))
 
 
 @pytest.mark.usefixtures("_fews_webservice_mock_env")
@@ -150,8 +157,8 @@ def test_get_sim_netcdf(
     tmp_path: Path,
 ) -> None:
     """Check that the webservice gives expected outcome for sim."""
-    leadtimes = {"unit": "h", "values": [24, 48, 72, 96]}
-    verificationperiod = {
+    forecast_periods = {"unit": "h", "values": [24, 48, 72, 96]}
+    verification_period = {
         "start": "2024-11-01T00:00:00Z",
         "end": "2024-12-01T00:00:00Z",
     }
@@ -159,11 +166,11 @@ def test_get_sim_netcdf(
     with TESTS_CONFIGURATION_FILE.open() as cf:
         testconf: dict[str, list[dict[str, str]]] = yaml.safe_load(cf)
 
-    testconf["general"]["verificationperiod"] = verificationperiod  # type: ignore[call-overload] # Indeed this assignment does not match with our faked type def of testconf
-    testconf["general"]["leadtimes"] = leadtimes  # type: ignore[call-overload] # Indeed this assignment does not match with our faked type def of testconf
+    testconf["general"]["verification_period"] = verification_period  # type: ignore[call-overload] # Indeed this assignment does not match with our faked type def of testconf
+    testconf["general"]["forecast_periods"] = forecast_periods  # type: ignore[call-overload] # Indeed this assignment does not match with our faked type def of testconf
 
     testconf["datasources"][0] = {
-        "simobstype": "sim",
+        "simobskind": "sim",
         "kind": "fewswebservice",
         "location_ids": ["H-RN-0001"],
         "parameter_ids": ["Q_fs"],
@@ -182,3 +189,121 @@ def test_get_sim_netcdf(
     conf = ConfigFile(tmp_conf_file, "yaml")
     with pytest.raises(NotImplementedError, match="Simulations are not yet supported"):
         FewsWebservice.from_config(conf.content.datasources[0].model_dump()).get_data()  # type: ignore[misc] # Yes, allow any
+
+
+@pytest.mark.usefixtures("_fews_webservice_mock_env")
+@pytest.mark.skipif(IN_GITHUB_ACTIONS, reason="Cannot yet test webservice in GitHub CI")
+def test_get_netcdf_storage_forecast_reference_times() -> None:
+    """Test the get netcdf storage forecast endpoint."""
+    client = FewsWebserviceClient(
+        url="http://localhost:8080/FewsWebServices/rest/fewspiservice/v1",
+        username=None,
+        password=None,
+    )
+    datetime_list = client.get_netcdf_storage_forecasts_forecast_reference_times(
+        start_time=datetime(2024, 1, 1, tzinfo=timezone.utc),
+        end_time=datetime(2025, 1, 1, tzinfo=timezone.utc),
+    )
+    assert isinstance(datetime_list, list)
+    assert isinstance(datetime_list[0], datetime)
+
+
+def test_get_netcdf_storage_data_markermeer(tmp_path: Path) -> None:
+    """Get raw forecasts from the external storage archive."""
+    client = FewsWebserviceClient(
+        url="http://localhost:8080/FewsWebServices/rest/fewspiservice/v1",
+        username=None,
+        password=None,
+    )
+    datetime_list = client.get_netcdf_storage_forecasts_forecast_reference_times(
+        start_time=datetime(2024, 1, 1, tzinfo=timezone.utc),
+        end_time=datetime(2025, 1, 1, tzinfo=timezone.utc),
+    )
+
+    path_list = []
+    for dt in datetime_list:
+        response = client.get_timeseries(
+            location_ids=["GemaalVeendijk"],
+            parameter_ids=["waterlevel_model"],
+            module_instance_ids=["markermeer4c_ecmwf_eps"],
+            ensemble_id="ECMWF-EPS",
+            start_forecast_time=client._format_datetime(datetime(2024, 1, 1, tzinfo=timezone.utc)),
+            end_forecast_time=client._format_datetime(datetime(2025, 1, 1, tzinfo=timezone.utc)),
+            external_forecast_times=[client._format_datetime(dt)],
+            timeseries_type=TimeseriesType.EXTERNAL_FORECASTING,
+        )
+
+        # Use BytesIO to treat bytes as a file-like object
+        zip_bytes = io.BytesIO(response.content)
+
+        # Open the zipfile in memory
+        with zipfile.ZipFile(zip_bytes) as zf:
+            # Assuming you want the first .nc file in the zip
+            try:
+                netcdf_filename = next(name for name in zf.namelist() if name.endswith(".nc"))
+            except:
+                continue
+
+            # Extract that file in memory
+            with zf.open(netcdf_filename) as netcdf_file:
+                netcdf_data = netcdf_file.read()  # bytes of the .nc file
+
+            # Write the NetCDF file to tmp_path
+            netcdf_path = tmp_path / f"{dt.strftime('%Y%m%d%H')}.nc"
+            netcdf_path.write_bytes(netcdf_data)
+            path_list.append(netcdf_path)
+    _ = FewsNetcdfFile._open_mf_dataset(path_list=path_list)
+
+
+def test_load_50mb_of_data_transform_fp() -> None:
+    """Load 50mb of data."""
+    path = Path(
+        "c:/Users/beunk/OneDrive - Stichting Deltares/Documents/000 - Projects/"
+        "tmp/markermeer_files",
+    )
+    files = path.rglob("*.nc")
+
+    preprocessor = Preprocessor(
+        simobskind="sim",
+        filter_variables=["waterlevel_model"],
+        filter_forecast_periods=ForecastPeriods(unit="h", values=[12, 24, 36, 48]),
+        transform_to_forecast_period_based_dataset=True,
+    )
+    ds = xr.open_mfdataset(
+        files,
+        combine="nested",
+        concat_dim="time",
+        preprocess=preprocessor,
+        coords="minimal",
+        compat="override",
+        chunks=None,
+    )
+    _ = ds
+
+
+def test_load_50mb_of_data_along_frt() -> None:
+    """Load 50mb of data."""
+    path = Path(
+        "c:/Users/beunk/OneDrive - Stichting Deltares/Documents/000 - Projects/"
+        "tmp/markermeer_files",
+    )
+    files = path.rglob("*.nc")
+
+    preprocessor = Preprocessor(
+        simobskind="sim",
+        filter_variables=["waterlevel_model"],
+        filter_forecast_periods=ForecastPeriods(unit="h", values=[12, 24, 36, 48]),
+    )
+    # ds = xr.open_mfdataset(
+    #     files,
+    #     combine="nested",
+    #     concat_dim="forecast_reference_time",
+    #     preprocess=preprocessor,
+    #     coords="minimal",
+    #     compat="override",
+    #     parallel=True,
+    #     chunks=None,
+    # )
+
+    ds = xr.open_mfdataset(files, preprocess=preprocessor)
+    _ = ds

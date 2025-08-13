@@ -5,14 +5,11 @@ from pathlib import Path
 import xarray as xr
 import yaml
 from dpyverification.configuration import ConfigFile
-from dpyverification.constants import StandardAttributes, StandardCoords, StandardDims
-from dpyverification.datamodel.main import SimObsDataset
+from dpyverification.constants import StandardAttribute, StandardCoord, StandardDim
 from dpyverification.datasinks.fewsnetcdf import FewsNetcdfFileSink, FewsNetcdfOutputSchema
 from dpyverification.datasources.fewsnetcdf import FewsNetcdfFile
 
 from tests import (
-    TEST_DIR_FEWS_NETCDF_OBS,
-    TEST_DIR_FEWS_NETCDF_SIM,
     TESTS_CONFIGURATION_FILE,
     TESTS_FEWS_COMPLIANT_FILE,
 )
@@ -31,7 +28,7 @@ def test_get_data_compliant_file_happy(tmp_path: Path) -> None:
     testconf["datasources"][0]["kind"] = "fewsnetcdf"
     testconf["datasources"][0]["directory"] = str(TESTS_FEWS_COMPLIANT_FILE.parent)
     testconf["datasources"][0]["filename"] = TESTS_FEWS_COMPLIANT_FILE.name
-    testconf["datasources"][0]["simobstype"] = "sim"
+    testconf["datasources"][0]["simobskind"] = "sim"
     # Create:
     tmp_conf_file = tmp_path / "tempconf.yaml"
     with tmp_conf_file.open(mode="w") as tf:
@@ -40,7 +37,7 @@ def test_get_data_compliant_file_happy(tmp_path: Path) -> None:
 
     instance = FewsNetcdfFile.from_config(conf.content.datasources[0].model_dump()).get_data()  # type: ignore[misc] # Yes, allow any
 
-    assert instance.xarray.attrs["date_created"] == "2014-03-10 07:57:01 GMT"  # type: ignore[misc] # Yes, allow any
+    assert instance.dataset.attrs["date_created"] == "2014-03-10 07:57:01 GMT"  # type: ignore[misc] # Yes, allow any
 
 
 def test_schema_compliant_file() -> None:
@@ -51,46 +48,25 @@ def test_schema_compliant_file() -> None:
     FewsNetcdfOutputSchema.model_validate(dataset_dict)  # type: ignore[misc] # See above
 
 
-def test_get_data_obs_and_check_dims_coords(tmp_path: Path) -> None:
+def test_get_data_obs(
+    datasource_fewnetcdf_obs: FewsNetcdfFile,
+) -> None:
     """Check that the imported fewsnetcdf gives an xarray with the expected content."""
-    with TESTS_CONFIGURATION_FILE.open() as cf:
-        testconf: dict[str, list[dict[str, str]]] = yaml.safe_load(cf)
-
-    # Get the path to the obs file
-    test_file = next(iter(TEST_DIR_FEWS_NETCDF_OBS.rglob("*.nc")))
-    testconf["datasources"][0]["kind"] = "fewsnetcdf"
-    testconf["datasources"][0]["directory"] = str(test_file.parent)
-    testconf["datasources"][0]["filename"] = test_file.name
-    testconf["datasources"][0]["simobstype"] = "obs"
-    # Create:
-    tmp_conf_file = tmp_path / "tempconf.yaml"
-    with tmp_conf_file.open(mode="w") as tf:
-        yaml.dump(testconf, tf)
-    conf = ConfigFile(tmp_conf_file, "yaml")
-
-    instance = FewsNetcdfFile.from_config(conf.content.datasources[0].model_dump()).get_data()  # type: ignore[misc] # Yes, allow any
-    SimObsDataset._check_source_dims_and_coords(instance)
+    _ = datasource_fewnetcdf_obs.get_data()
 
 
-def test_get_data_sim_and_check_dims_coords(tmp_path: Path) -> None:
+def test_get_data_sim(
+    datasource_fewnetcdf_sim: FewsNetcdfFile,
+) -> None:
     """Check that the imported fewsnetcdf gives an xarray with the expected content."""
-    with TESTS_CONFIGURATION_FILE.open() as cf:
-        testconf: dict[str, list[dict[str, str]]] = yaml.safe_load(cf)
+    datasource = datasource_fewnetcdf_sim.get_data()
 
-    # Get the path to the obs file
-    test_file = next(iter(TEST_DIR_FEWS_NETCDF_SIM.rglob("*.nc")))
-    testconf["datasources"][0]["kind"] = "fewsnetcdf"
-    testconf["datasources"][0]["directory"] = str(test_file.parent)
-    testconf["datasources"][0]["filename"] = test_file.name
-    testconf["datasources"][0]["simobstype"] = "sim"
-    # Create:
-    tmp_conf_file = tmp_path / "tempconf.yaml"
-    with tmp_conf_file.open(mode="w") as tf:
-        yaml.dump(testconf, tf)
-    conf = ConfigFile(tmp_conf_file, "yaml")
-
-    instance = FewsNetcdfFile.from_config(conf.content.datasources[0].model_dump()).get_data()  # type: ignore[misc] # Yes, allow any
-    SimObsDataset._check_source_dims_and_coords(instance)
+    # Assert resulting forecast periods in dataset match
+    #   configured forecast periods
+    assert all(
+        datasource.dataset[StandardDim.forecast_period]
+        == datasource.config.forecast_periods.timedelta64,
+    )
 
 
 def test_write_happy(tmp_path: Path) -> None:
@@ -100,11 +76,11 @@ def test_write_happy(tmp_path: Path) -> None:
     # A fewscompliant nc file uses different names than our internal datamodel
     # Adapt the ds to look like our internal datamodel
     # When get_data has been implemented for fewsnetcdf, use that instead
-    ds_datamodel = ds.rename_dims({"analysis_time": StandardDims.forecast_reference_time})  # type: ignore[misc] # attrs is a dict[Any,Any]
+    ds_datamodel = ds.rename_dims({"analysis_time": StandardDim.forecast_reference_time})  # type: ignore[misc] # attrs is a dict[Any,Any]
     ds_datamodel = ds_datamodel.rename_vars(
-        {"analysis_time": StandardCoords.forecast_reference_time.name},
-    )  # type: ignore[misc] # attrs is a dict[Any,Any]
-    ds_datamodel.attrs[StandardAttributes.timestep] = 1  # type: ignore[misc] # attrs is a dict[Any,Any]
+        {"analysis_time": StandardCoord.forecast_reference_time.name},  # type: ignore[misc] # attrs is a dict[Any,Any]
+    )
+    ds_datamodel.attrs[StandardAttribute.timestep] = 1  # type: ignore[misc] # attrs is a dict[Any,Any]
 
     tmpfile = tmp_path / "test.nc"
     assert not tmpfile.exists()
@@ -159,11 +135,11 @@ def test_read_write_equal(tmp_path: Path) -> None:
     # A fewscompliant nc file uses different names than our internal datamodel
     # Adapt the ds to look like our internal datamodel
     # When get_data has been implemented for fewsnetcdf, use that instead
-    ds_datamodel = ds.rename_dims({"analysis_time": StandardDims.forecast_reference_time})  # type: ignore[misc] # attrs is a dict[Any,Any]
+    ds_datamodel = ds.rename_dims({"analysis_time": StandardDim.forecast_reference_time})  # type: ignore[misc] # attrs is a dict[Any,Any]
     ds_datamodel = ds_datamodel.rename_vars(
-        {"analysis_time": StandardCoords.forecast_reference_time.name},
-    )  # type: ignore[misc] # attrs is a dict[Any,Any]
-    ds_datamodel.attrs[StandardAttributes.timestep] = 1  # type: ignore[misc] # attrs is a dict[Any,Any]
+        {"analysis_time": StandardCoord.forecast_reference_time.name},  # type: ignore[misc] # attrs is a dict[Any,Any]
+    )
+    ds_datamodel.attrs[StandardAttribute.timestep] = 1  # type: ignore[misc] # attrs is a dict[Any,Any]
 
     FewsNetcdfFileSink.from_config(conf.content.datasinks[0].model_dump()).write_data(ds_datamodel)  # type: ignore[misc] # Yes, allow any
 
@@ -174,12 +150,3 @@ def test_read_write_equal(tmp_path: Path) -> None:
     # "Two Datasets are equal if they have matching variables and coordinates, all of which
     #  are equal." Thus, attributes are probably not checked by the following.
     assert ds.equals(ds2)
-
-
-# Add a test for cf compliance of output, with the tool cfchecker?
-#  However, cfchecker needs cfunits, which needs the udunits2 library. And udunits2 is not on
-#  pypi. It is on conda-forge, so could use it in CI, and/or for developers. And as an optional for
-#  the package? Definitely not as a required. If optional, then also use it in code to generate
-#  warnings, or only in the tests?
-#  Note that, even though the cf checker doc says it does not work on windows, it actually does
-#  work, at least for me in my conda environment on windows.

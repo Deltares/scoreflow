@@ -13,21 +13,21 @@ import importlib_metadata
 
 
 @unique
-class DataSourceKinds(StrEnum):
+class DataSourceKind(StrEnum):
     """Enumeration of the supported datasource types."""
 
     FEWSNETCDF = "fewsnetcdf"
     FEWSWEBSERVICE = "fewswebservice"
 
 
-class DataSinkKinds(StrEnum):
+class DataSinkKind(StrEnum):
     """Enumeration of the supported datasink types."""
 
     FEWSNETCDF = "fewsnetcdf"
 
 
 @unique
-class SimObsKinds(StrEnum):
+class SimObsKind(StrEnum):
     """Enumeration of the supported types of input data."""
 
     SIM = "sim"
@@ -36,10 +36,9 @@ class SimObsKinds(StrEnum):
 
 
 @unique
-class ScoreKinds(StrEnum):
+class ScoreKind(StrEnum):
     """Enumeration of the implemented verification scores."""
 
-    SIMOBSPAIRS = "simobspairs"
     RANKHISTOGRAM = "rankhistogram"
     CRPSFORENSEMBLE = "crps_for_ensemble"
 
@@ -57,7 +56,7 @@ class TimeUnits(StrEnum):
     SECOND = "s"
 
 
-class StandardDims(StrEnum):
+class StandardDim(StrEnum):
     """List of dimension names.
 
     To avoid hardcoded strings in multiple places,
@@ -65,13 +64,13 @@ class StandardDims(StrEnum):
     """
 
     time = "time"
-    stations = "stations"
+    station = "station"
     realization = "realization"
     forecast_reference_time = "forecast_reference_time"
     forecast_period = "forecast_period"
 
 
-class StandardCoords:
+class StandardCoord:
     """List of coordinate names and attributes.
 
     To avoid hardcoded strings in multiple places, have a single list with the names of known
@@ -97,11 +96,11 @@ class StandardCoords:
     #   Define units attribute here, or when putting in the values? How to make the values match the
     #   units, for the time-like coordinates mainly?
     time = CoordinateProperties(
-        StandardDims.time,
+        StandardDim.time,
         (("standard_name", "time"), ("long_name", "time"), ("axis", "T")),
     )
-    location = CoordinateProperties(
-        StandardDims.stations,
+    station_id = CoordinateProperties(
+        "station_id",
         # TODO(AU): Check location coordinate attributes and CF compliance # noqa: FIX002
         #   https://github.com/Deltares-research/DPyVerification/issues/35
         #   Having cf_role: timeseries_id on this coordinate, and featureType: timeSeries on the
@@ -111,6 +110,10 @@ class StandardCoords:
             ("long_name", "station identification code"),
             ("cf_role", "timeseries_id"),
         ),
+    )
+    station_name = CoordinateProperties(
+        "station_name",
+        (("long_name", "station name"),),
     )
     lat = CoordinateProperties(
         "lat",
@@ -158,7 +161,7 @@ class StandardCoords:
         ),
     )
     realization = CoordinateProperties(
-        StandardDims.realization,
+        StandardDim.realization,
         (
             ("standard_name", "realization"),
             ("long_name", "Index of an ensemble member within an ensemble"),
@@ -166,14 +169,14 @@ class StandardCoords:
         ),
     )
     forecast_reference_time = CoordinateProperties(
-        StandardDims.forecast_reference_time,
+        StandardDim.forecast_reference_time,
         (
             ("standard_name", "forecast_reference_time"),
             ("long_name", "forecast_reference_time"),
         ),
     )
     forecast_period = CoordinateProperties(
-        StandardDims.forecast_period,
+        StandardDim.forecast_period,
         (
             ("standard_name", "forecast_period"),
             ("long_name", "forecast_period"),
@@ -181,7 +184,7 @@ class StandardCoords:
     )
 
 
-class StandardAttributes:
+class StandardAttribute:
     """List of attribute names on the main xarray.
 
     To avoid hardcoded strings in multiple places,

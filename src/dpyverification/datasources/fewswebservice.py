@@ -12,7 +12,7 @@ from dpyverification.api.fewswebservice import FewsWebserviceClient
 from dpyverification.configuration import (
     FewsWebserviceInputConfig,
 )
-from dpyverification.constants import SimObsKinds
+from dpyverification.constants import SimObsKind
 from dpyverification.datasources.base import BaseDatasource
 from dpyverification.datasources.fewsnetcdf import FewsNetcdfFile
 
@@ -35,8 +35,8 @@ class FewsWebservice(BaseDatasource):
 
     def __init__(self, config: FewsWebserviceInputConfig) -> None:
         self.config = config
-        self.simobstype = config.simobstype
-        self.xarray = xr.Dataset()
+        self.simobskind = config.simobskind
+        self.dataset = xr.Dataset()
 
         # Initialize the webservice client
         self.client = FewsWebserviceClient(
@@ -48,14 +48,14 @@ class FewsWebservice(BaseDatasource):
     def get_data(self) -> Self:
         """Retrieve :py::class`~xarray.Dataset` from Delft-FEWS Webservice."""
         # Get observations
-        if self.config.simobstype == SimObsKinds.OBS:
+        if self.config.simobskind == SimObsKind.OBS:
             response = self.client.get_timeseries(
                 location_ids=self.config.location_ids,
                 parameter_ids=self.config.parameter_ids,
                 module_instance_ids=self.config.module_instance_ids,
                 qualifier_ids=self.config.qualifier_ids,
-                start_time=self.config.general.verificationperiod.start,
-                end_time=self.config.general.verificationperiod.end,
+                start_time=self.config.general.verification_period.start,
+                end_time=self.config.general.verification_period.end,
             )
 
             # Check response
@@ -75,13 +75,13 @@ class FewsWebservice(BaseDatasource):
                     raise ValueError(msg)
 
                 tmp_nc_file_path = file_list[0]
-                self.xarray = FewsNetcdfFile.nc_to_xarray(
+                self.dataset = FewsNetcdfFile.validate_input_is_fewsnetcdf(
                     Path(tmp_nc_file_path),
-                    self.config.simobstype,
+                    self.config.simobskind,
                 )
 
         # Get simulations
-        elif self.config.simobstype == SimObsKinds.SIM:
+        elif self.config.simobskind == SimObsKind.SIM:
             with tempfile.TemporaryDirectory() as tmpdir:
                 # Implement forecast retrieval, once Delft-FEWS development is completed.
                 _ = tmpdir
@@ -89,7 +89,7 @@ class FewsWebservice(BaseDatasource):
             raise NotImplementedError(msg)
         else:
             msg = (
-                f"Simobstype {self.simobstype} not implemented yet. Only sim and obs are supported."
+                f"Simobskind {self.simobskind} not implemented yet. Only sim and obs are supported."
             )
             raise NotImplementedError(msg)
         return self

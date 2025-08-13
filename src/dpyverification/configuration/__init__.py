@@ -2,7 +2,10 @@
 
 # The public interface
 from dpyverification.configuration.base import Config, GeneralInfoConfig
-from dpyverification.configuration.default.datasinks import FewsNetcdfOutputConfig
+from dpyverification.configuration.default.datasinks import (
+    CFCompliantNetCDFConfig,
+    FewsNetcdfOutputConfig,
+)
 from dpyverification.configuration.default.datasources import (
     FewsWebserviceInputConfig,
     FewsWebserviceInputObsConfig,

@@ -11,6 +11,7 @@ from pydantic import BaseModel, ValidationError
 
 from dpyverification.configuration import GeneralInfoConfig
 from dpyverification.configuration.utils import TimePeriod
+from dpyverification.constants import StandardDim
 from dpyverification.datasources.inputschemas import (
     XarrayDatasetObservations,
     XarrayDatasetSimulationsByForecastPeriod,
@@ -19,11 +20,64 @@ from dpyverification.datasources.inputschemas import (
 
 
 class DatasetKind(Enum):
-    """Enumeration of the supported types of input data."""
+    """Supported types of input data."""
 
     SIM_BY_FORECAST_REFERENCE_TIME = "SIM_BY_FORECAST_REFERENCE_TIME"
     SIM_BY_FORECAST_PERIOD = "SIM_BY_FORECAST_PERIOD"
     OBSERVATION = "OBSERVATION"
+
+
+def _transform_forecast_reference_time_sim_to_forecast_period_sim(ds: xr.Dataset) -> xr.Dataset:
+    """Transform an input simulation.
+
+    Transform an input simulation with forecast_reference_time dims/coords to
+    an input simulation dataset with forecast_period based dims/coords, to follow
+    the internal data structure definition of the SimObsDataset.
+    """
+    # Stack time and forecast_reference_time into one dimension ft_pair,
+    #   representing each unique pair of time and forecast_reference_time
+    #   along a 1d dimension.
+    ds_stacked = ds.stack(ft_pair=(StandardDim.forecast_reference_time, StandardDim.time))  # noqa: PD013
+
+    # For each unique pair of time and forecast_reference_time
+    #   compute the forecast_period (time - forecast_reference_time)
+    forecast_period = (
+        ds_stacked[StandardDim.time].to_numpy()  # type:ignore[misc]
+        - ds_stacked[StandardDim.forecast_reference_time].to_numpy()  # type:ignore[misc]
+    )
+
+    # Assign the result as a coordinate on dimension ft_pair
+    ds_stacked = ds_stacked.assign_coords(forecast_period=("ft_pair", forecast_period))  # type:ignore[misc]
+
+    # Swap the dimension so that time and forecast_reference_time now lie
+    #   on dimension forecast_period
+    ds_stacked = ds_stacked.swap_dims({"ft_pair": StandardDim.forecast_period})  # type:ignore[misc]
+
+    # Set a new multi-index based (forecast_period, time)
+    #   to re-introduce the original time dimension
+    ds_stacked = ds_stacked.set_index(
+        forecast_index=[StandardDim.forecast_period, StandardDim.time],
+    )
+
+    # Unstack to get back to time(time)
+    ds_out = ds_stacked.unstack("forecast_index")  # noqa: PD010
+
+    # Drop forecast_reference_time and ft_pair
+    ds_out = ds_out.drop_vars(["ft_pair", StandardDim.forecast_reference_time])
+
+    # Drop forecast_period < 0
+    ds_out = ds_out.where(
+        ds_out[StandardDim.forecast_period] >= np.timedelta64(0, "h"),
+        drop=True,
+    )
+
+    # Reorder dimensions and return
+    return ds_out.transpose(
+        StandardDim.time,
+        StandardDim.forecast_period,
+        StandardDim.station,
+        StandardDim.realization,
+    )
 
 
 def transform_dataset(
@@ -46,7 +100,7 @@ def transform_dataset(
     # Clip any input to be within the verification period
     dataset = clip_time_to_verification_period(
         dataset=dataset,
-        verification_period=general_config.verificationperiod,
+        verification_period=general_config.verification_period,
     )
 
     # Return observations, no further tranformation needed
@@ -59,56 +113,14 @@ def transform_dataset(
         try:
             # Config is dtype timedelta64, dataset may be timedelta64][ns]
             #   xarray will handle these dtype differenes automatically
-            return dataset.sel(forecast_period=general_config.leadtimes.timedelta64)
+            return dataset.sel(forecast_period=general_config.forecast_periods.timedelta64)
         except KeyError as e:
             msg = "Not all configured lead times could be found in dataset."
             raise KeyError(msg) from e
 
     # Return simulations with forecast reference time dimension
     #   after transforming it to a forecast-period based dataset.
-    def transform_forecast_reference_time_sim_to_forecast_period_sim(ds: xr.Dataset) -> xr.Dataset:
-        """Transform an input simulation with forecast_reference_time.
-
-        Transform an input simulation with forecast_reference_time dims/coords to
-        an input simulation dataset with forecast_period based dims/coords. This
-        allows easy forecast_period-based slicing in the main simobs datamodel, where
-        simulations are paired with observations along the time dimension.
-        """
-        # Stack time and forecast_reference_time into one dimension ft_pair,
-        #   representing each unique pair of time and forecast_reference_time
-        #   along a 1d dimension.
-        ds_stacked = ds.stack(ft_pair=("forecast_reference_time", "time"))  # noqa: PD013
-
-        # For each unique pair of time and forecast_reference_time
-        #   compute the forecast_period (time - forecast_reference_time)
-        forecast_period = (
-            ds_stacked["time"].to_numpy() - ds_stacked["forecast_reference_time"].to_numpy()  # type:ignore[misc]
-        )
-
-        # Assign the result as a coordinate on dimension ft_pair
-        ds_stacked = ds_stacked.assign_coords(forecast_period=("ft_pair", forecast_period))  # type:ignore[misc]
-
-        # Swap the dimension so that time and forecast_reference_time now lie
-        #   on dimension forecast_pepriod
-        ds_stacked = ds_stacked.swap_dims({"ft_pair": "forecast_period"})  # type:ignore[misc]
-
-        # Set a new multi-index based (forecast_period, time)
-        #   to re-introduce the original time dimension
-        ds_stacked = ds_stacked.set_index(forecast_index=["forecast_period", "time"])
-
-        # Unstack to get back to time(time)
-        ds_out = ds_stacked.unstack("forecast_index")  # noqa: PD010
-
-        # Drop forecast_reference_time and ft_pair
-        ds_out = ds_out.drop_vars(["ft_pair", "forecast_reference_time"])
-
-        # Drop forecast_period < 0
-        ds_out = ds_out.where(ds_out["forecast_period"] >= np.timedelta64(0, "h"), drop=True)
-
-        # Reorder dimensions and return
-        return ds_out.transpose("time", "forecast_period", "stations", "realization")
-
-    return transform_forecast_reference_time_sim_to_forecast_period_sim(dataset)
+    return _transform_forecast_reference_time_sim_to_forecast_period_sim(dataset)
 
 
 def validate_dataset(dataset: xr.Dataset) -> tuple[xr.Dataset, DatasetKind]:
@@ -120,7 +132,7 @@ def validate_dataset(dataset: xr.Dataset) -> tuple[xr.Dataset, DatasetKind]:
     }
 
     def attempt_validation(schema: type[BaseModel], dataset: xr.Dataset) -> bool:
-        """Validate and return True when succesfull, else False."""
+        """Validate and return True when succesful, else False."""
         try:
             schema.model_validate(dataset.to_dict(data=False))  # type:ignore[misc]
             return True  # noqa: TRY300
@@ -142,7 +154,7 @@ class OutputDataset:
 
     def __init__(self, input_dataset: xr.Dataset) -> None:
         self.input_dataset: xr.Dataset = input_dataset
-        self.scores: dict[str, xr.Dataset]
+        self.scores: dict[str, xr.Dataset | xr.DataArray]
 
         # Metadata
         self.current_time = datetime.now(tz=timezone.utc).strftime("%d/%m/%Y, %H:%M:%S")
@@ -154,7 +166,7 @@ class OutputDataset:
             raise ValueError(msg)
         self.scores[kind] = score
 
-    def _get_score(self, kind: str) -> xr.Dataset:
+    def _get_score(self, kind: str) -> xr.Dataset | xr.DataArray:
         try:
             return self.scores[kind]
         except KeyError as e:
@@ -201,7 +213,7 @@ class SimObsDataset:
       (:class:`dpyverification.datasources.inputschemas.XarrayDatasetSimulationsByForecastPeriod`)
 
     The SimObsDataset contains pairs of simulations and observations along dimensions
-    time, stations, forecast_period and, in case of ensemble forecasts, realization.
+    time, station, forecast_period and, in case of ensemble forecasts, realization.
     In this way, the dataset allows easy slicing based on forecast periods which makes it suited
     for calculating of a wide range of verification metrics.
     """

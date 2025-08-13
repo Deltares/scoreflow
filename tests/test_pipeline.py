@@ -7,15 +7,12 @@ import pytest
 import xarray as xr
 import yaml
 from dpyverification import pipeline
-from dpyverification.constants import ScoreKinds
+from dpyverification.constants import ScoreKind
 
 from tests import (
     TEST_DIR_FEWS_NETCDF_OBS,
     TEST_DIR_FEWS_NETCDF_SIM,
     TESTS_CONFIGURATION_FILE,
-    TESTS_FORECASTS_2_FILE,
-    TESTS_FORECASTS_FILE,
-    TESTS_OBSERVATIONS_FILE,
 )
 
 
@@ -23,11 +20,11 @@ def get_specific_score_config(scorekind: str) -> dict:
     """Get specific config added during test."""
     variablepairs = [{"sim": "Q_fs", "obs": "Q_m"}]
 
-    if scorekind == ScoreKinds.CRPSFORENSEMBLE:
+    if scorekind == ScoreKind.CRPSFORENSEMBLE:
         return {"variablepairs": variablepairs, "preserve_dims": ["time", "leadtime"]}  # type: ignore[misc]
-    if scorekind == ScoreKinds.RANKHISTOGRAM:
+    if scorekind == ScoreKind.RANKHISTOGRAM:
         return {"variablepairs": variablepairs}  # type: ignore[misc]
-    if scorekind == ScoreKinds.SIMOBSPAIRS:
+    if scorekind == ScoreKind.SIMOBSPAIRS:
         return {"variablepairs": variablepairs}  # type: ignore[misc]
     return {}  # type: ignore[misc]
 
@@ -65,7 +62,7 @@ def test_execute_pipeline_bad_conf_type() -> None:
 
 @pytest.mark.parametrize(
     "score_kind",
-    [ScoreKinds.SIMOBSPAIRS, ScoreKinds.CRPSFORENSEMBLE, ScoreKinds.RANKHISTOGRAM],
+    [ScoreKind.SIMOBSPAIRS, ScoreKind.CRPSFORENSEMBLE, ScoreKind.RANKHISTOGRAM],
 )
 def test_execute_pipeline_ext_storage(
     tmp_path: Path,
@@ -94,7 +91,7 @@ def test_execute_pipeline_ext_storage(
                 "directory": str(file.parent),
                 "filename": file.name,
                 "kind": "fewsnetcdf",
-                "simobstype": "sim",
+                "simobskind": "sim",
             },
         )
     # Scores

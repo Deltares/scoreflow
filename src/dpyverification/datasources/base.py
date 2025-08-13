@@ -7,7 +7,7 @@ import xarray
 
 from dpyverification.base import Base
 from dpyverification.configuration.base import BaseDatasourceConfig
-from dpyverification.constants import SimObsKinds
+from dpyverification.constants import SimObsKind
 
 
 class BaseDatasource(Base):
@@ -18,17 +18,17 @@ class BaseDatasource(Base):
 
     def __init__(self, config: BaseDatasourceConfig) -> None:
         self.config: BaseDatasourceConfig = config
-        self.simobstype = config.simobstype
-        self.xarray = xarray.Dataset()
+        self.simobskind = config.simobskind
+        self.dataset = xarray.Dataset()
 
     @property
-    def simobstype(self) -> str:
+    def simobskind(self) -> str:
         """Whether the instance represents sim or obs data."""
-        return self.config.simobstype
+        return self.config.simobskind
 
-    @simobstype.setter
-    def simobstype(self, new_simobstype: SimObsKinds) -> None:
-        if new_simobstype not in (SimObsKinds.SIM, SimObsKinds.OBS):
+    @simobskind.setter
+    def simobskind(self, new_simobskind: SimObsKind) -> None:
+        if new_simobskind not in (SimObsKind.SIM, SimObsKind.OBS):
             # Even if the underlying file or service can contain combined data, the creation of the
             #  datasource objects should split those. This assumption can then be used in the
             #  creation of the data model.
@@ -36,8 +36,8 @@ class BaseDatasource(Base):
                 "The simpobstype of a " + self.__class__.__name__ + " can only be either sim or obs"
             )
             raise ValueError(msg)
-        self._simobstype = new_simobstype
+        self._simobskind = new_simobskind
 
     @abstractmethod
     def get_data(self) -> Self:
-        """Get the data from the datasource and set it to the self.xarray an the instance."""
+        """Get the data from the datasource and set it to the self.dataset an the instance."""

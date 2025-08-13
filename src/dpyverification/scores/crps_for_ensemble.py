@@ -11,8 +11,8 @@ from scores.probability import (  # type: ignore[import-untyped]
 
 from dpyverification.configuration import CrpsForEnsembleConfig
 from dpyverification.constants import (
-    ScoreKinds,
-    StandardDims,
+    ScoreKind,
+    StandardDim,
 )
 from dpyverification.datamodel import SimObsDataset
 from dpyverification.scores.base import BaseScore
@@ -33,14 +33,14 @@ class CrpsForEnsemble(BaseScore):
     ) -> xr.DataArray:
         """Compute the CRPS for an ensemble of forecasts and observations."""
         # Select sim and obs.
-        obs: xr.DataArray = data.intermediate[self.config.variablepairs[0].obs]
-        sim: xr.DataArray = data.intermediate[self.config.variablepairs[0].sim]
+        obs: xr.DataArray = data.dataset[self.config.variable_pairs[0].obs]
+        sim: xr.DataArray = data.dataset[self.config.variable_pairs[0].sim]
 
         # Compute
         result: xr.Dataset | xr.DataArray = _crps_for_ensemble(
             fcst=sim,
             obs=obs,
-            ensemble_member_dim=StandardDims.realization,
+            ensemble_member_dim=StandardDim.realization,
             preserve_dims=self.config.preserve_dims,
         )
 
@@ -49,7 +49,7 @@ class CrpsForEnsemble(BaseScore):
             raise NotImplementedError(msg)
 
         # Set variable name on xr.DataArray
-        result.name = ScoreKinds.CRPSFORENSEMBLE
+        result.name = ScoreKind.CRPSFORENSEMBLE
 
         # Set attrs on xr.DataArray
         # For now, store config as dict
