@@ -74,7 +74,7 @@ class SimObsVariables(BaseModel):
 class LocalFile(BaseModel):
     """A local file config element."""
 
-    directory: str
+    directory: str | Path
     filename: str
 
 

@@ -15,7 +15,6 @@ from dpyverification.configuration.default.datasources import (
 from dpyverification.configuration.default.scores import (
     CrpsForEnsembleConfig,
     RankHistogramConfig,
-    SimObsPairsConfig,
 )
-from dpyverification.configuration.file import ConfigFile, ConfigTypes
+from dpyverification.configuration.file import ConfigFile, ConfigType
 from dpyverification.configuration.utils import FewsWebserviceAuthConfig

@@ -8,25 +8,10 @@ from dpyverification.configuration.base import BaseScoreConfig
 from dpyverification.constants import ScoreKind, StandardDim
 
 
-class SimObsPairsConfig(BaseScoreConfig):
-    """A sim obs pairs config element."""
-
-    kind: Literal[ScoreKind.SIMOBSPAIRS]
-
-
 class RankHistogramConfig(BaseScoreConfig):
     """A rank histogram config element."""
 
-    kind: Literal[ScoreKind.RANKHISTOGRAM]
-    reduce_dims: Annotated[
-        list[StandardDim] | None,
-        Field(
-            description=(
-                "Dimension(s) over which to compute the histogram"
-                "of ranks. Defaults to all dimensions."
-            ),
-        ),
-    ] = None
+    kind: Literal[ScoreKind.rank_histogram]
 
 
 class CrpsForEnsembleConfig(BaseScoreConfig):
@@ -40,7 +25,7 @@ class CrpsForEnsembleConfig(BaseScoreConfig):
             raise ValueError(msg)
         return value
 
-    kind: Literal[ScoreKind.CRPSFORENSEMBLE]
+    kind: Literal[ScoreKind.crps_for_ensemble]
     method: Annotated[
         Literal["ecdf", "fair"],
         Field(

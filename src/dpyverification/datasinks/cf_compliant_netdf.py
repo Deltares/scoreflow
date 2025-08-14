@@ -10,7 +10,7 @@ from dpyverification.configuration import (
 from dpyverification.datasinks.base import BaseDatasink
 
 
-class CFCompliantNetCDFf(BaseDatasink):
+class CFCompliantNetCDF(BaseDatasink):
     """For writing data to a fews netcdf file."""
 
     kind = "cf_compliant_netcdf"

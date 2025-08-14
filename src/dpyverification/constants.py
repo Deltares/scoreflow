@@ -23,24 +23,25 @@ class DataSourceKind(StrEnum):
 class DataSinkKind(StrEnum):
     """Enumeration of the supported datasink types."""
 
-    FEWSNETCDF = "fewsnetcdf"
+    fews_netcdf = "fewsnetcdf"
+    cf_compliant_netcdf = "cf_compliant_netcdf"
 
 
 @unique
 class SimObsKind(StrEnum):
     """Enumeration of the supported types of input data."""
 
-    SIM = "sim"
-    OBS = "obs"
-    COMBINED = "combined"
+    sim = "sim"
+    obs = "obs"
+    combined = "combined"
 
 
 @unique
 class ScoreKind(StrEnum):
     """Enumeration of the implemented verification scores."""
 
-    RANKHISTOGRAM = "rankhistogram"
-    CRPSFORENSEMBLE = "crps_for_ensemble"
+    rank_histogram = "rank_histogram"
+    crps_for_ensemble = "crps_for_ensemble"
 
 
 @unique

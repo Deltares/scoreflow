@@ -100,7 +100,7 @@ class FewsWebserviceClient:
         }
         response = self.session.get(
             url=f"{self.url}/archive/netcdfstorageforecasts?",
-            params=params,  # type: ignore[arg-type]
+            params=params,
         )
         response.raise_for_status()
 

@@ -34,29 +34,29 @@ def test_init_simobsdataset_fp(
 
 
 def test_init_simobsdataset_frt(
-    simobsdataset_forecast_reference_time: SimObsDataset,
+    simobsdataset_dummy_data_forecast_reference_time: SimObsDataset,
 ) -> None:
     """Test the simobsdataset initializes successfully with forecast ref time (frt) input."""
-    assert isinstance(simobsdataset_forecast_reference_time.dataset, xr.Dataset)
+    assert isinstance(simobsdataset_dummy_data_forecast_reference_time.dataset, xr.Dataset)
 
 
 def test_init_simobsdataset_fewsnetcdf(
-    datasource_fewnetcdf_obs: FewsNetcdfFile,
-    datasource_fewnetcdf_sim: FewsNetcdfFile,
+    datasource_fewsnetcdf_obs: FewsNetcdfFile,
+    datasource_fewsnetcdf_sim: FewsNetcdfFile,
     general_info_config_fewsnetcdf: GeneralInfoConfig,
 ) -> None:
     """Test the fewsnetcdf is accepted by the simobsdataset."""
     SimObsDataset(
         data=[
-            datasource_fewnetcdf_obs.get_data().dataset,
-            datasource_fewnetcdf_sim.get_data().dataset,
+            datasource_fewsnetcdf_obs.get_data().dataset,
+            datasource_fewsnetcdf_sim.get_data().dataset,
         ],
         general_config=general_info_config_fewsnetcdf,
     )
 
 
 def test_simobsdataset_frt_structure_correct(
-    simobsdataset_forecast_reference_time: SimObsDataset,
+    simobsdataset_dummy_data_forecast_reference_time: SimObsDataset,
     xarray_dataset_simulations_forecast_reference_time: xr.Dataset,
 ) -> None:
     """Test the data structure of the simobsdataset for input sim based on frt."""
@@ -68,7 +68,9 @@ def test_simobsdataset_frt_structure_correct(
         forecast_reference_time=0,
     )[1]
 
-    value_in_simobsdataset = simobsdataset_forecast_reference_time.dataset["forecast"].isel(
+    value_in_simobsdataset = simobsdataset_dummy_data_forecast_reference_time.dataset[
+        "forecast"
+    ].isel(
         station=0,
         realization=0,
         forecast_period=1,

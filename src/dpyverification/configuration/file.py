@@ -11,7 +11,7 @@ from .base import (
 
 
 @unique
-class ConfigTypes(StrEnum):
+class ConfigType(StrEnum):
     """The types of configuration files that are supported."""
 
     YAML = "yaml"
@@ -27,19 +27,19 @@ class ConfigFile:
     def __init__(
         self,
         configfile: pathlib.Path,
-        configtype: ConfigTypes | str,
+        configtype: ConfigType | str,
     ) -> None:
-        conftype = ConfigTypes(
+        conftype = ConfigType(
             configtype,
         )
-        if conftype is ConfigTypes.RUNINFO:
+        if conftype is ConfigType.RUNINFO:
             # parse the runinfo into a yaml
             yamlcontent = {
                 "fileversion": "0.0.1",
             }
             # TODO(AU): Implement parsing of a runinfo xml file to valid config dict # noqa: FIX002
             #   https://github.com/Deltares-research/DPyVerification/issues/8
-        elif conftype is ConfigTypes.YAML:
+        elif conftype is ConfigType.YAML:
             with configfile.open() as cf:
                 yamlcontent = yaml.safe_load(cf)
             # conversion from older fileversion to current schema

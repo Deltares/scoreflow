@@ -12,7 +12,7 @@ from dpyverification.constants import DataSinkKind
 class FewsNetcdfOutputConfig(LocalFile, BaseDatasinkConfig):
     """A fews netcdf output config element."""
 
-    kind: Literal[DataSinkKind.FEWSNETCDF]
+    kind: Literal[DataSinkKind.fews_netcdf]
     title: Annotated[
         str | None,
         Field(
@@ -31,7 +31,7 @@ class FewsNetcdfOutputConfig(LocalFile, BaseDatasinkConfig):
 class CFCompliantNetCDFConfig(LocalFile, BaseDatasinkConfig):
     """A cf-compliant netcdf output config element."""
 
-    kind: Literal[DataSinkKind.FEWSNETCDF]
+    kind: Literal[DataSinkKind.cf_compliant_netcdf]
     title: Annotated[
         str | None,
         Field(

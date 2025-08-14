@@ -28,7 +28,7 @@ class BaseDatasource(Base):
 
     @simobskind.setter
     def simobskind(self, new_simobskind: SimObsKind) -> None:
-        if new_simobskind not in (SimObsKind.SIM, SimObsKind.OBS):
+        if new_simobskind not in (SimObsKind.sim, SimObsKind.obs):
             # Even if the underlying file or service can contain combined data, the creation of the
             #  datasource objects should split those. This assumption can then be used in the
             #  creation of the data model.

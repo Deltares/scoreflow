@@ -32,13 +32,13 @@ class FewsWebserviceInputConfig(BaseDatasourceConfig):
 class FewsWebserviceInputObsConfig(FewsWebserviceInputConfig):
     """Fews webservice config for obs and sim."""
 
-    simobskind: Literal[SimObsKind.OBS]
+    simobskind: Literal[SimObsKind.obs]
 
 
 class FewsWebserviceInputSimConfig(FewsWebserviceInputConfig):
     """A fews webservice input sim config element."""
 
-    simobskind: Literal[SimObsKind.SIM]
+    simobskind: Literal[SimObsKind.sim]
     ensemble_id: Annotated[list[str], Field(default=None)]
     ensemble_member_id: Annotated[list[int], Field(default=None)]
 

@@ -49,7 +49,7 @@ class Preprocessor:
         """Convert byte strings."""
         for coord in coords:
             dataset[coord] = xr.DataArray(
-                [
+                [  # type:ignore[misc]
                     v.decode("utf-8") if isinstance(v, bytes) else v  # type:ignore[misc]
                     for v in dataset[coord].to_numpy()  # type:ignore[misc]
                 ],
@@ -169,7 +169,7 @@ class FewsNetcdfFile(BaseDatasource):
             da = dataset[data_var]
 
             da_list = []
-            for forecast_period in da["forecast_period"]:
+            for forecast_period in da["forecast_period"]:  # type:ignore[misc]
                 da_fp = da.sel({"forecast_period": forecast_period})  # type:ignore[misc]
                 da_fp = da_fp.expand_dims({"forecast_period": 1})
                 da_fp = da_fp.assign_coords(
@@ -191,7 +191,7 @@ class FewsNetcdfFile(BaseDatasource):
 
     def get_data(self) -> Self:
         """Retrieve fewsnetcdf content as an xarray DataArray."""
-        if self.config.simobskind == SimObsKind.COMBINED:
+        if self.config.simobskind == SimObsKind.combined:
             msg = "Cannot yet handle combined simobs data"
             raise NotImplementedError(msg)
 
@@ -203,7 +203,7 @@ class FewsNetcdfFile(BaseDatasource):
         )
 
         # Observations
-        if self.config.simobskind == SimObsKind.OBS:
+        if self.config.simobskind == SimObsKind.obs:
             dataset = xr.open_mfdataset(
                 self.config.paths,  # type:ignore[arg-type] # generator is acceptable argument
                 preprocess=preprocessor,

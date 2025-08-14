@@ -16,6 +16,7 @@ from dpyverification.constants import (
 )
 from dpyverification.datamodel import SimObsDataset
 from dpyverification.scores.base import BaseScore
+from dpyverification.scores.utils import set_data_array_attributes
 
 
 class CrpsForEnsemble(BaseScore):
@@ -49,11 +50,13 @@ class CrpsForEnsemble(BaseScore):
             raise NotImplementedError(msg)
 
         # Set variable name on xr.DataArray
-        result.name = ScoreKind.CRPSFORENSEMBLE
+        result.name = ScoreKind.crps_for_ensemble
 
         # Set attrs on xr.DataArray
-        # For now, store config as dict
-        # General config could be stored as xr.Dataset attrs
-        result.attrs = {str(k): str(v) for k, v in self.config.__dict__.items()}  # type: ignore[misc]
-
-        return result
+        units: str = sim.attrs["units"] if sim.attrs["units"] is not None else "1"  # type:ignore[misc]
+        return set_data_array_attributes(
+            result,
+            long_name="continuous ranked probability score",
+            units=units,
+            config=self.config,
+        )

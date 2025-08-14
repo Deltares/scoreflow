@@ -1,9 +1,5 @@
 """Module for reading from and writing to a fews webservice."""
 
-import io
-import tempfile
-import zipfile
-from pathlib import Path
 from typing import Self
 
 import xarray as xr
@@ -14,7 +10,6 @@ from dpyverification.configuration import (
 )
 from dpyverification.constants import SimObsKind
 from dpyverification.datasources.base import BaseDatasource
-from dpyverification.datasources.fewsnetcdf import FewsNetcdfFile
 
 
 class FewsWebservice(BaseDatasource):
@@ -48,48 +43,15 @@ class FewsWebservice(BaseDatasource):
     def get_data(self) -> Self:
         """Retrieve :py::class`~xarray.Dataset` from Delft-FEWS Webservice."""
         # Get observations
-        if self.config.simobskind == SimObsKind.OBS:
-            response = self.client.get_timeseries(
-                location_ids=self.config.location_ids,
-                parameter_ids=self.config.parameter_ids,
-                module_instance_ids=self.config.module_instance_ids,
-                qualifier_ids=self.config.qualifier_ids,
-                start_time=self.config.general.verification_period.start,
-                end_time=self.config.general.verification_period.end,
-            )
-
-            # Check response
-            response.raise_for_status()
-
-            # Extract the zip file and open netcdf
-            with (
-                zipfile.ZipFile(io.BytesIO(response.content)) as zip_ref,
-                tempfile.TemporaryDirectory() as tmpdir,
-            ):
-                tmpdir_path = Path(tmpdir)
-                zip_ref.extractall(tmpdir)
-                file_list = list(tmpdir_path.rglob("*nc"))
-
-                if len(file_list) != 1:
-                    msg = "Expected exactly one .nc file."
-                    raise ValueError(msg)
-
-                tmp_nc_file_path = file_list[0]
-                self.dataset = FewsNetcdfFile.validate_input_is_fewsnetcdf(
-                    Path(tmp_nc_file_path),
-                    self.config.simobskind,
-                )
+        if self.config.simobskind == SimObsKind.obs:
+            msg = "Observations are not yet supported."
+            raise NotImplementedError(msg)
 
         # Get simulations
-        elif self.config.simobskind == SimObsKind.SIM:
-            with tempfile.TemporaryDirectory() as tmpdir:
-                # Implement forecast retrieval, once Delft-FEWS development is completed.
-                _ = tmpdir
-                msg = "Simulations are not yet supported."
+        if self.config.simobskind == SimObsKind.sim:
+            # Implement forecast retrieval, once Delft-FEWS development is completed.
+            msg = "Simulations are not yet supported."
             raise NotImplementedError(msg)
-        else:
-            msg = (
-                f"Simobskind {self.simobskind} not implemented yet. Only sim and obs are supported."
-            )
-            raise NotImplementedError(msg)
-        return self
+
+        msg = f"Simobskind {self.simobskind} not implemented yet. Only sim and obs are supported."
+        raise NotImplementedError(msg)

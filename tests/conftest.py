@@ -3,17 +3,30 @@
 # mypy: ignore-errors
 
 from datetime import datetime, timezone
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import pytest
 import xarray as xr
 from dpyverification.configuration import GeneralInfoConfig
-from dpyverification.configuration.default.datasources import FewsNetcdfKind
-from dpyverification.configuration.utils import ForecastPeriods, TimePeriod, TimeUnits
-from dpyverification.constants import StandardCoord, StandardDim
+from dpyverification.configuration.default.datasinks import CFCompliantNetCDFConfig
+from dpyverification.configuration.default.datasources import (
+    FewsNetcdfKind,
+)
+from dpyverification.configuration.default.scores import CrpsForEnsembleConfig, RankHistogramConfig
+from dpyverification.configuration.utils import (
+    ForecastPeriods,
+    SimObsVariables,
+    TimePeriod,
+    TimeUnits,
+)
+from dpyverification.constants import DataSinkKind, ScoreKind, StandardCoord, StandardDim
 from dpyverification.datamodel.main import SimObsDataset
+from dpyverification.datasinks.cf_compliant_netdf import CFCompliantNetCDF
 from dpyverification.datasources.fewsnetcdf import FewsNetcdfFile
+
+from tests import TESTS_FEWS_COMPLIANT_FILE
 
 rng = np.random.default_rng(seed=42)
 
@@ -157,15 +170,15 @@ def general_info_config_fewsnetcdf() -> GeneralInfoConfig:
     """Get general info config matching the test data."""
     return GeneralInfoConfig(
         verification_period=TimePeriod(
-            start=datetime(2025, 10, 1, tzinfo=timezone.utc),
-            end=datetime(2025, 12, 1, tzinfo=timezone.utc),
+            start=datetime(2024, 11, 10, tzinfo=timezone.utc),
+            end=datetime(2024, 12, 1, tzinfo=timezone.utc),
         ),
-        forecast_periods=ForecastPeriods(unit=TimeUnits.HOUR, values=[3, 6, 9, 12]),
+        forecast_periods=ForecastPeriods(unit=TimeUnits.DAY, values=[1, 2, 3, 4]),
     )
 
 
 @pytest.fixture()
-def datasource_fewnetcdf_obs(general_info_config_fewsnetcdf: GeneralInfoConfig) -> FewsNetcdfFile:
+def datasource_fewsnetcdf_obs(general_info_config_fewsnetcdf: GeneralInfoConfig) -> FewsNetcdfFile:
     """Fewsnetcdf datasource obs config."""
     return FewsNetcdfFile.from_config(
         {
@@ -181,7 +194,7 @@ def datasource_fewnetcdf_obs(general_info_config_fewsnetcdf: GeneralInfoConfig) 
 
 
 @pytest.fixture()
-def datasource_fewnetcdf_sim(general_info_config_fewsnetcdf: GeneralInfoConfig) -> FewsNetcdfFile:
+def datasource_fewsnetcdf_sim(general_info_config_fewsnetcdf: GeneralInfoConfig) -> FewsNetcdfFile:
     """Fewsnetcdf datasource sim config."""
     return FewsNetcdfFile.from_config(
         {
@@ -197,29 +210,21 @@ def datasource_fewnetcdf_sim(general_info_config_fewsnetcdf: GeneralInfoConfig) 
 
 
 @pytest.fixture()
-def datasource_fewsnetcdf_obs(
+def datasource_fewsnetcdf_compliant(
     datasource_fewnetcdf_obs: dict[
         str,
         str | list[str] | dict[str, dict[str, str | list[str]]],
     ],
 ) -> FewsNetcdfFile:
     """Get a fews netcdf datasource."""
-    return FewsNetcdfFile(datasource_fewnetcdf_obs).get_data()
+    config = datasource_fewnetcdf_obs
+    config.station_ids = None
+    config.directory = TESTS_FEWS_COMPLIANT_FILE.parent
+    return FewsNetcdfFile(datasource_fewnetcdf_obs)
 
 
 @pytest.fixture()
-def datasource_fewsnetcdf_sim(
-    datasource_fewnetcdf_sim: dict[
-        str,
-        str | list[str] | dict[str, dict[str, str | list[str]]],
-    ],
-) -> FewsNetcdfFile:
-    """Get a fews netcdf datasource."""
-    return FewsNetcdfFile(datasource_fewnetcdf_sim).get_data()
-
-
-@pytest.fixture()
-def simobsdataset_forecast_reference_time(
+def simobsdataset_dummy_data_forecast_reference_time(
     xarray_dataset_observations: xr.Dataset,
     xarray_dataset_simulations_forecast_reference_time: xr.Dataset,
     testconfig_general_info_simobsdataset_from_dummy_data: GeneralInfoConfig,
@@ -228,4 +233,59 @@ def simobsdataset_forecast_reference_time(
     return SimObsDataset(
         data=[xarray_dataset_observations, xarray_dataset_simulations_forecast_reference_time],
         general_config=testconfig_general_info_simobsdataset_from_dummy_data,
+    )
+
+
+@pytest.fixture()
+def simobsdataset_fews_netcdf_data(
+    datasource_fewsnetcdf_obs: FewsNetcdfFile,
+    datasource_fewsnetcdf_sim: FewsNetcdfFile,
+    general_info_config_fewsnetcdf: GeneralInfoConfig,
+) -> SimObsDataset:
+    """Initialize datamodel with observations and forecasts (based on frt)."""
+    return SimObsDataset(
+        data=[
+            datasource_fewsnetcdf_obs.get_data().dataset,
+            datasource_fewsnetcdf_sim.get_data().dataset,
+        ],
+        general_config=general_info_config_fewsnetcdf,
+    )
+
+
+fews_netcdf_variable_pairs = [(SimObsVariables(sim="Q_fs", obs="Q_m"))]
+
+
+@pytest.fixture()
+def score_config_crps(
+    general_info_config_fewsnetcdf: GeneralInfoConfig,
+) -> CrpsForEnsembleConfig:
+    """Flexible fixture for scores config, sharing general config."""
+    return CrpsForEnsembleConfig(
+        kind=ScoreKind.crps_for_ensemble,
+        general=general_info_config_fewsnetcdf,
+        variable_pairs=fews_netcdf_variable_pairs,
+    )
+
+
+@pytest.fixture()
+def score_config_rank_histogram(
+    general_info_config_fewsnetcdf: GeneralInfoConfig,
+) -> CrpsForEnsembleConfig:
+    """Flexible fixture for scores config, sharing general config."""
+    return RankHistogramConfig(
+        kind=ScoreKind.rank_histogram,
+        general=general_info_config_fewsnetcdf,
+        variable_pairs=fews_netcdf_variable_pairs,
+    )
+
+
+@pytest.fixture()
+def datasink_cf_compliant_netcdf(tmp_path: Path) -> CFCompliantNetCDF:
+    """CF Compliant NetCDF datasink."""
+    return CFCompliantNetCDF(
+        config=CFCompliantNetCDFConfig(
+            kind=DataSinkKind.cf_compliant_netcdf,
+            directory=tmp_path,
+            filename="test.nc",
+        ),
     )

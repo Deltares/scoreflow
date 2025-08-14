@@ -14,12 +14,10 @@ from pathlib import Path
 import numpy as np
 import pytest
 import requests
-import xarray as xr
 import yaml
 from dpyverification.api.fewswebservice import FewsWebserviceClient, TimeseriesType
 from dpyverification.configuration import ConfigFile
-from dpyverification.configuration.utils import ForecastPeriods
-from dpyverification.datasources.fewsnetcdf import FewsNetcdfFile, Preprocessor
+from dpyverification.datasources.fewsnetcdf import FewsNetcdfFile
 from dpyverification.datasources.fewswebservice import FewsWebservice
 
 from tests import TESTS_CONFIGURATION_FILE
@@ -241,7 +239,7 @@ def test_get_netcdf_storage_data_markermeer(tmp_path: Path) -> None:
             # Assuming you want the first .nc file in the zip
             try:
                 netcdf_filename = next(name for name in zf.namelist() if name.endswith(".nc"))
-            except:
+            except:  # noqa: E722, S112
                 continue
 
             # Extract that file in memory
@@ -253,57 +251,3 @@ def test_get_netcdf_storage_data_markermeer(tmp_path: Path) -> None:
             netcdf_path.write_bytes(netcdf_data)
             path_list.append(netcdf_path)
     _ = FewsNetcdfFile._open_mf_dataset(path_list=path_list)
-
-
-def test_load_50mb_of_data_transform_fp() -> None:
-    """Load 50mb of data."""
-    path = Path(
-        "c:/Users/beunk/OneDrive - Stichting Deltares/Documents/000 - Projects/"
-        "tmp/markermeer_files",
-    )
-    files = path.rglob("*.nc")
-
-    preprocessor = Preprocessor(
-        simobskind="sim",
-        filter_variables=["waterlevel_model"],
-        filter_forecast_periods=ForecastPeriods(unit="h", values=[12, 24, 36, 48]),
-        transform_to_forecast_period_based_dataset=True,
-    )
-    ds = xr.open_mfdataset(
-        files,
-        combine="nested",
-        concat_dim="time",
-        preprocess=preprocessor,
-        coords="minimal",
-        compat="override",
-        chunks=None,
-    )
-    _ = ds
-
-
-def test_load_50mb_of_data_along_frt() -> None:
-    """Load 50mb of data."""
-    path = Path(
-        "c:/Users/beunk/OneDrive - Stichting Deltares/Documents/000 - Projects/"
-        "tmp/markermeer_files",
-    )
-    files = path.rglob("*.nc")
-
-    preprocessor = Preprocessor(
-        simobskind="sim",
-        filter_variables=["waterlevel_model"],
-        filter_forecast_periods=ForecastPeriods(unit="h", values=[12, 24, 36, 48]),
-    )
-    # ds = xr.open_mfdataset(
-    #     files,
-    #     combine="nested",
-    #     concat_dim="forecast_reference_time",
-    #     preprocess=preprocessor,
-    #     coords="minimal",
-    #     compat="override",
-    #     parallel=True,
-    #     chunks=None,
-    # )
-
-    ds = xr.open_mfdataset(files, preprocess=preprocessor)
-    _ = ds

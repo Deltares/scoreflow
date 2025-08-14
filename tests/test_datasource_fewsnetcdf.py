@@ -15,32 +15,14 @@ from tests import (
 )
 
 
-def test_get_data_compliant_file_happy(tmp_path: Path) -> None:
+def test_get_data_compliant_file_happy(
+    datasource_fewsnetcdf_compliant: FewsNetcdfFile,
+) -> None:
     """Check that the imported fewsnetcdf gives an xarray with the expected content."""
-    # Create an adapted testconfig, based on default testconfig
-    # - load default config
-    # - adapt config
-    # - create config object from adapted config
-    # Load:
-    with TESTS_CONFIGURATION_FILE.open() as cf:
-        testconf: dict[str, list[dict[str, str]]] = yaml.safe_load(cf)
-    # Adapt:
-    testconf["datasources"][0]["kind"] = "fewsnetcdf"
-    testconf["datasources"][0]["directory"] = str(TESTS_FEWS_COMPLIANT_FILE.parent)
-    testconf["datasources"][0]["filename"] = TESTS_FEWS_COMPLIANT_FILE.name
-    testconf["datasources"][0]["simobskind"] = "sim"
-    # Create:
-    tmp_conf_file = tmp_path / "tempconf.yaml"
-    with tmp_conf_file.open(mode="w") as tf:
-        yaml.dump(testconf, tf)
-    conf = ConfigFile(tmp_conf_file, "yaml")
-
-    instance = FewsNetcdfFile.from_config(conf.content.datasources[0].model_dump()).get_data()  # type: ignore[misc] # Yes, allow any
-
-    assert instance.dataset.attrs["date_created"] == "2014-03-10 07:57:01 GMT"  # type: ignore[misc] # Yes, allow any
+    _ = datasource_fewsnetcdf_compliant
 
 
-def test_schema_compliant_file() -> None:
+def test_fewsnetcdf_output_schema_compliant_file() -> None:
     """Test FEWS-compliant file is compliant with schema."""
     ds = xr.open_dataset(TESTS_FEWS_COMPLIANT_FILE)
     dataset_dict = ds.to_dict()  # type: ignore[misc] # Yes, the dict could have any content, it will be checked against the FewsNetcdfSchema

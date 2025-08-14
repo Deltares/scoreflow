@@ -92,7 +92,7 @@ def transform_dataset(
         verification_period: TimePeriod,
     ) -> xr.Dataset:
         """Clip the dataset on time dimension to verification period."""
-        return dataset.sel(time=slice(verification_period.start, verification_period.end))  # type:ignore[misc]
+        return dataset.sel(time=slice(verification_period.start, verification_period.end))
 
     # Make a copy of the original dataset
     dataset = dataset.copy()
@@ -125,7 +125,7 @@ def transform_dataset(
 
 def validate_dataset(dataset: xr.Dataset) -> tuple[xr.Dataset, DatasetKind]:
     """Validate a datasource by validating the xr.Dataset to a Pydantic schema."""
-    schemas = {
+    schemas: dict[type[BaseModel], DatasetKind] = {
         XarrayDatasetObservations: DatasetKind.OBSERVATION,
         XarrayDatasetSimulationsByForecastPeriod: DatasetKind.SIM_BY_FORECAST_PERIOD,
         XarrayDatasetSimulationsByForecastReferenceTime: DatasetKind.SIM_BY_FORECAST_REFERENCE_TIME,
@@ -152,9 +152,9 @@ class OutputDataset:
     Contains input data, results from verificaition scores and metadata.
     """
 
-    def __init__(self, input_dataset: xr.Dataset) -> None:
-        self.input_dataset: xr.Dataset = input_dataset
-        self.scores: dict[str, xr.Dataset | xr.DataArray]
+    def __init__(self, simobs_dataset: xr.Dataset) -> None:
+        self.simobs_dataset: xr.Dataset = simobs_dataset
+        self.scores: dict[str, xr.Dataset | xr.DataArray] = {}
 
         # Metadata
         self.current_time = datetime.now(tz=timezone.utc).strftime("%d/%m/%Y, %H:%M:%S")
@@ -190,9 +190,10 @@ class OutputDataset:
         )
 
         if include_simobs:
-            scores_selection.append(self.input_dataset)
+            scores_selection.append(self.simobs_dataset)
 
-        return xr.merge(scores_selection)
+        # Empty dataset attributes
+        return xr.merge(scores_selection, combine_attrs="drop")
 
 
 class SimObsDataset:
