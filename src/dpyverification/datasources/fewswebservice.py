@@ -9,7 +9,10 @@ from typing import Self
 import requests
 import xarray as xr
 
-from dpyverification.api.fewswebservice import FewsWebserviceClient, TimeseriesType
+from dpyverification.api.fewswebservice import (
+    FewsWebserviceClient,
+    TimeseriesType,
+)
 from dpyverification.configuration import (
     FewsWebserviceInputConfig,
     FileInputFewsnetcdfConfig,
@@ -17,7 +20,10 @@ from dpyverification.configuration import (
 )
 from dpyverification.constants import DataSourceKind, SimObsKind
 from dpyverification.datasources.base import BaseDatasource
-from dpyverification.datasources.fewsnetcdf import FewsNetcdfFile, FewsNetcdfKind
+from dpyverification.datasources.fewsnetcdf import (
+    FewsNetcdfFile,
+    FewsNetcdfKind,
+)
 
 
 class FewsWebservice(BaseDatasource):
@@ -81,7 +87,7 @@ class FewsWebservice(BaseDatasource):
             netcdf_path.write_bytes(netcdf_data)
         return write_dir
 
-    def get_data(self) -> Self:
+    def fetch_data(self) -> Self:
         """Retrieve :py::class`~xarray.Dataset` from Delft-FEWS Webservice."""
         # Get observations
         if self.config.simobskind == SimObsKind.obs:
@@ -97,7 +103,10 @@ class FewsWebservice(BaseDatasource):
                 )
 
                 # Unzip and write
-                self.write_netcdf_response_to_dir(response, write_dir=Path(tmpdir))
+                self.write_netcdf_response_to_dir(
+                    response,
+                    write_dir=Path(tmpdir),
+                )
 
                 # Load all downloaded data into one object
                 datasource = FewsNetcdfFile(
@@ -110,7 +119,7 @@ class FewsWebservice(BaseDatasource):
                         netcdf_kind=FewsNetcdfKind.observation,
                     ),
                 )
-                datasource.get_data()
+                datasource.fetch_data()
 
                 # After this, the context manager will be closed, and tmpdir deleted
                 self.dataset = datasource.dataset
@@ -138,6 +147,14 @@ class FewsWebservice(BaseDatasource):
                 )
             )
 
+            if len(forecast_reference_times) == 0:
+                msg = (
+                    f"No forecasts found between {self.config.verification_period.start}",
+                    f"and {self.config.verification_period.end} and module instance ids",
+                    f"{self.config.module_instance_ids}.",
+                )
+                raise ValueError(msg)
+
             with tempfile.TemporaryDirectory() as tmpdir:
                 # Download all data to temporary folder
                 for forecast_reference_time in forecast_reference_times:
@@ -154,7 +171,9 @@ class FewsWebservice(BaseDatasource):
                     self.write_netcdf_response_to_dir(
                         response,
                         write_dir=Path(tmpdir),
-                        unique_prefix=forecast_reference_time.strftime("%Y%m%d_%H%M%S"),
+                        unique_prefix=forecast_reference_time.strftime(
+                            "%Y%m%d_%H%M%S",
+                        ),
                     )
 
                 # Load all downloaded data into one object
@@ -168,7 +187,7 @@ class FewsWebservice(BaseDatasource):
                         netcdf_kind=FewsNetcdfKind.one_full_simulation,
                     ),
                 )
-                datasource.get_data()
+                datasource.fetch_data()
 
                 # After this, the context manager will be closed, and tmpdir deleted
                 self.dataset = datasource.dataset

@@ -34,29 +34,34 @@ class CrpsForEnsemble(BaseScore):
     ) -> xr.DataArray:
         """Compute the CRPS for an ensemble of forecasts and observations."""
         # Select sim and obs.
-        obs: xr.DataArray = data.dataset[self.config.variable_pairs[0].obs]
-        sim: xr.DataArray = data.dataset[self.config.variable_pairs[0].sim]
 
-        # Compute
-        result: xr.Dataset | xr.DataArray = _crps_for_ensemble(
-            fcst=sim,
-            obs=obs,
-            ensemble_member_dim=StandardDim.realization,
-            preserve_dims=self.config.preserve_dims,
-        )
+        results = []
+        for variable_pair in self.config.variable_pairs:
+            obs: xr.DataArray = data.dataset[variable_pair.obs]
+            sim: xr.DataArray = data.dataset[variable_pair.sim]
 
-        if not isinstance(result, xr.DataArray):  # type: ignore[misc]
-            msg = f"Expected xr.DataArray, got {type(result)}"
-            raise NotImplementedError(msg)
+            # Compute
+            result: xr.Dataset | xr.DataArray = _crps_for_ensemble(
+                fcst=sim,
+                obs=obs,
+                ensemble_member_dim=StandardDim.realization,
+                preserve_dims=self.config.preserve_dims,
+            )
 
-        # Set variable name on xr.DataArray
-        result.name = ScoreKind.crps_for_ensemble
+            if not isinstance(result, xr.DataArray):  # type: ignore[misc]
+                msg = f"Expected xr.DataArray, got {type(result)}"
+                raise NotImplementedError(msg)
 
-        # Set attrs on xr.DataArray
-        units: str = sim.attrs["units"] if sim.attrs["units"] is not None else "1"  # type:ignore[misc]
-        return set_data_array_attributes(
-            result,
-            long_name="continuous ranked probability score",
-            units=units,
-            config=self.config,
-        )
+            # Set variable name on xr.DataArray
+            result.name = f"{ScoreKind.crps_for_ensemble}_{variable_pair.sim_obs_string}"
+
+            # Set attrs on xr.DataArray
+            units: str = sim.attrs["units"] if sim.attrs["units"] is not None else "1"  # type:ignore[misc]
+            result = set_data_array_attributes(
+                result,
+                long_name="continuous ranked probability score",
+                units=units,
+                config=self.config,
+            )
+            results.append(result)
+        return xr.merge(results)

@@ -1,9 +1,11 @@
 """Module with the base class that all datasources should inherit from."""
 
+import hashlib
 from abc import abstractmethod
 from typing import Self
 
 import xarray
+import xarray as xr
 
 from dpyverification.base import Base
 from dpyverification.configuration.base import BaseDatasourceConfig
@@ -33,11 +35,27 @@ class BaseDatasource(Base):
             #  datasource objects should split those. This assumption can then be used in the
             #  creation of the data model.
             msg: str = (
-                "The simpobstype of a " + self.__class__.__name__ + " can only be either sim or obs"
+                "The simobskind of a " + self.__class__.__name__ + " can only be either sim or obs"
             )
             raise ValueError(msg)
         self._simobskind = new_simobskind
 
     @abstractmethod
+    def fetch_data(self) -> Self:
+        """Fetch data from datasource and assign xr.Dataset to the self.dataset variable."""
+
     def get_data(self) -> Self:
-        """Get the data from the datasource and set it to the self.dataset an the instance."""
+        """Get cached data, or fetch and cache."""
+        config_json = self.config.model_dump_json().encode("utf-8")
+        config_hash = hashlib.sha256(config_json).hexdigest()
+
+        cached_dataset_path = (
+            self.config.general.cache_dir / f"{self.__class__.__name__}_{config_hash}.nc"
+        )
+        if cached_dataset_path.exists():
+            self.dataset = xr.open_dataset(cached_dataset_path)
+            return self
+        # Go fetch and cache
+        self.fetch_data()
+        self.dataset.to_netcdf(cached_dataset_path)
+        return self

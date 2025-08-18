@@ -26,11 +26,11 @@ class ConfigFile:
 
     def __init__(
         self,
-        configfile: pathlib.Path,
-        configtype: ConfigType | str,
+        config_file: pathlib.Path,
+        config_type: ConfigType | str,
     ) -> None:
         conftype = ConfigType(
-            configtype,
+            config_type,
         )
         if conftype is ConfigType.RUNINFO:
             # parse the runinfo into a yaml
@@ -40,13 +40,13 @@ class ConfigFile:
             # TODO(AU): Implement parsing of a runinfo xml file to valid config dict # noqa: FIX002
             #   https://github.com/Deltares-research/DPyVerification/issues/8
         elif conftype is ConfigType.YAML:
-            with configfile.open() as cf:
+            with config_file.open() as cf:
                 yamlcontent = yaml.safe_load(cf)
             # conversion from older fileversion to current schema
             # NOT IMPLEMENTED YET, because we have not had a fileversion update
 
-        self.filename = configfile
-        self.configtype = configtype
+        self.filename = config_file
+        self.configtype = config_type
 
         # Propagate the general config to datasources
         for datasource in yamlcontent["datasources"]:

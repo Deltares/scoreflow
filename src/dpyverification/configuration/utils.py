@@ -90,6 +90,11 @@ class SimObsVariables(BaseModel):
     sim: str
     obs: str
 
+    @property
+    def sim_obs_string(self) -> str:
+        """Return a string representation of sim and obs."""
+        return f"{self.sim}_{self.obs}"
+
 
 class LocalFile(BaseModel):
     """A local file config element."""

@@ -17,13 +17,17 @@ from dpyverification.datasinks.base import BaseDatasink
 from dpyverification.datasinks.cf_compliant_netdf import CFCompliantNetCDF
 from dpyverification.datasources.base import BaseDatasource
 from dpyverification.datasources.fewsnetcdf.main import FewsNetcdfFile
+from dpyverification.datasources.fewswebservice import FewsWebservice
 from dpyverification.scores.base import BaseScore
 from dpyverification.scores.crps_for_ensemble import CrpsForEnsemble
 from dpyverification.scores.rank_histogram import RankHistogram
 
 TItem = TypeVar("TItem", bound=BaseDatasource | BaseDatasink | BaseScore)
 
-DEFAULT_DATASOURCES: list[type[BaseDatasource]] = [FewsNetcdfFile]
+DEFAULT_DATASOURCES: list[type[BaseDatasource]] = [
+    FewsNetcdfFile,
+    FewsWebservice,
+]
 DEFAULT_SCORES: list[type[BaseScore]] = [RankHistogram, CrpsForEnsemble]
 DEFAULT_DATASINKS: list[type[BaseDatasink]] = [CFCompliantNetCDF]
 
@@ -40,6 +44,16 @@ def find_matching_kind_in_list(
     raise ValueError(msg)
 
 
+def merge_user_and_default_items(
+    default_items: list[type[TItem]],
+    user_items: list[type[TItem]] | None,
+) -> list[type[TItem]]:
+    """Merge default and user-provided items."""
+    if user_items is None:
+        return default_items
+    return default_items + user_items
+
+
 def execute_pipeline(
     config: tuple[Path, ConfigType] | Config,
     user_datasources: list[type[BaseDatasource]] | None = None,
@@ -47,23 +61,26 @@ def execute_pipeline(
     user_datasinks: list[type[BaseDatasink]] | None = None,
 ) -> xr.Dataset:
     """Execute a pipeline as defined in the configfile."""
-    # TODO(AU): Implement parsing of a runinfo xml file into a valid config dict # noqa: FIX002
-    #   https://github.com/Deltares-research/DPyVerification/issues/8
-    #   As part of that, add a unit test on what happens if a wrong conftype is passed, and make
-    #   sure it gives a nice error message
+    # Get the available sources, scores and sinks
+    available_datasources = merge_user_and_default_items(
+        DEFAULT_DATASOURCES,
+        user_datasources,
+    )
+    available_scores = merge_user_and_default_items(
+        DEFAULT_SCORES,
+        user_scores,
+    )
+    available_datasinks = merge_user_and_default_items(
+        DEFAULT_DATASINKS,
+        user_datasinks,
+    )
 
-    available_datasources = (
-        user_datasources + DEFAULT_DATASOURCES
-        if user_datasources is not None
-        else DEFAULT_DATASOURCES
-    )
-    available_scores = user_scores + DEFAULT_SCORES if user_scores is not None else DEFAULT_SCORES
-    available_datasinks = (
-        user_datasinks + DEFAULT_DATASINKS if user_datasinks is not None else DEFAULT_DATASINKS
-    )
     # Initialize the config instance from file when it's not directly provided
     if not isinstance(config, Config):
-        config = ConfigFile(configfile=config[0], configtype=config[1]).content
+        config = ConfigFile(
+            config_file=config[0],
+            config_type=config[1],
+        ).content
 
     # Collect and initialize all datasources
     datasources: list[BaseDatasource] = []
@@ -102,8 +119,13 @@ def execute_pipeline(
 
     # Write data for each datasink
     for datasink_config in config.datasinks:
-        sink_kind = find_matching_kind_in_list(items=available_datasinks, kind=datasink_config.kind)
+        sink_kind = find_matching_kind_in_list(
+            items=available_datasinks,
+            kind=datasink_config.kind,
+        )
         datasink = sink_kind.from_config(datasink_config.model_dump())  # type: ignore[misc] # Allow Any
-        datasink.write_data(output_dataset.get_output_dataset(include_simobs=False))
+        datasink.write_data(
+            output_dataset.get_output_dataset(include_simobs=False),
+        )
 
     return output_dataset.get_output_dataset()

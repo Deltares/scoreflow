@@ -189,7 +189,7 @@ class FewsNetcdfFile(BaseDatasource):
         )
         raise TypeError(msg)
 
-    def get_data(self) -> Self:
+    def fetch_data(self) -> Self:
         """Retrieve fewsnetcdf content as an xarray DataArray."""
         if self.config.simobskind == SimObsKind.combined:
             msg = "Cannot yet handle combined simobs data"

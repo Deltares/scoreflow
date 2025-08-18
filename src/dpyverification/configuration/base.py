@@ -29,9 +29,10 @@ need some modifications.
 # ruff: noqa: D101 Do not require class docstrings for the classes in this file
 # ruff: noqa: D102 Do not require class docstrings for the classes in this file
 
+from pathlib import Path
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic.json_schema import SkipJsonSchema
 
 from .utils import ForecastPeriods, SimObsVariables, TimePeriod
@@ -40,6 +41,18 @@ from .utils import ForecastPeriods, SimObsVariables, TimePeriod
 class GeneralInfoConfig(BaseModel):
     verification_period: TimePeriod
     forecast_periods: ForecastPeriods
+    cache_dir: Path = Path("./.verification_cache")
+
+    @field_validator("cache_dir")
+    @classmethod
+    def validate_is_dir_and_create_if_not_exists(cls, v: Path) -> Path:
+        """Validate the projects cache directory."""
+        if not v.exists():
+            v.mkdir(parents=True, exist_ok=True)
+        elif not v.is_dir():
+            msg = "Provided cache dir is not a directory."
+            raise ValueError(msg)
+        return v
 
 
 class BaseConfig(BaseModel):
