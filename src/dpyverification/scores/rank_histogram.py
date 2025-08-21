@@ -27,8 +27,8 @@ class RankHistogram(BaseScore):
         """Compute the histogram of ranks over the specified dimensions."""
         results = []
         for variable_pair in self.config.variable_pairs:
-            obs: xr.DataArray = data.dataset[variable_pair.obs]
-            sim: xr.DataArray = data.dataset[variable_pair.sim]
+            obs: xr.DataArray = data.dataset[variable_pair.obs_variable_name]
+            sim: xr.DataArray = data.dataset[variable_pair.sim_variable_name]
 
             # xskillscore.rank_histogram assumes equal dimensions between observations
             #   and simulations, so expand observations to have forecast_period dim.

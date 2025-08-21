@@ -29,8 +29,9 @@ need some modifications.
 # ruff: noqa: D101 Do not require class docstrings for the classes in this file
 # ruff: noqa: D102 Do not require class docstrings for the classes in this file
 
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic.json_schema import SkipJsonSchema
@@ -42,6 +43,12 @@ class GeneralInfoConfig(BaseModel):
     verification_period: Annotated[
         TimePeriod,
         Field(description="The start and end of the verification period."),
+    ]
+    variable_pairs: Annotated[
+        list[SimObsVariables],
+        Field(
+            description="Variable pairs to use for the computation.",
+        ),
     ]
     forecast_periods: Annotated[
         ForecastPeriods,
@@ -72,6 +79,15 @@ class GeneralInfoConfig(BaseModel):
             msg = "Provided cache dir is not a directory."
             raise ValueError(msg)
         return v
+
+    def get_variable_pairs_rename_dict(self, simobskind: Literal["sim", "obs"]) -> dict[str, str]:
+        """Map the configured sim and obs to internal names."""
+        if simobskind not in ["sim", "obs"]:
+            msg = f"{simobskind} simobskind not valid."
+            raise ValueError(msg)
+        if simobskind == "obs":
+            return {k.obs: k.obs_variable_name for k in self.variable_pairs}
+        return {k.sim: k.sim_variable_name for k in self.variable_pairs}
 
 
 class BaseConfig(BaseModel):
@@ -126,6 +142,8 @@ class BaseDatasinkConfig(BaseConfig):
     this base class.
     """
 
+    force_overwrite: bool = True
+
 
 class BaseScoreConfig(BaseConfig):
     """
@@ -140,12 +158,10 @@ class BaseScoreConfig(BaseConfig):
     # users that use the json-schema for making config having to explicitly set a duplicate general
     # configuration section for each datasource.
 
-    variable_pairs: Annotated[
-        list[SimObsVariables],
-        Field(
-            description="Variable pairs to use for the computation.",
-        ),
-    ]
+    @property
+    def variable_pairs(self) -> list[SimObsVariables]:
+        """The configured variable pairs from general config."""
+        return self.general.variable_pairs
 
     @property
     def forecast_periods(self) -> ForecastPeriods:
@@ -155,6 +171,10 @@ class BaseScoreConfig(BaseConfig):
 class Config(BaseModel):
     fileversion: str
     general: GeneralInfoConfig
-    datasources: Annotated[list[BaseDatasourceConfig], Field(min_length=1)]
-    scores: Annotated[list[BaseScoreConfig], Field(min_length=1)]
-    datasinks: Annotated[list[BaseDatasinkConfig], Field(min_length=1)]
+    # For each of the sources, scores, sinks use duck-typing (SerializeAsAny) to serialize
+    #   all fields in the subclass rather than using the schema of the base class.
+    #   see: https://docs.pydantic.dev/latest/concepts/serialization/#serializing-with-duck-typing
+    #   comes in handy when doing config_instance.model_dump_json() for example.
+    datasources: Annotated[Sequence[BaseDatasourceConfig], Field(min_length=1)]
+    scores: Annotated[Sequence[BaseScoreConfig], Field(min_length=1)]
+    datasinks: Annotated[Sequence[BaseDatasinkConfig], Field(min_length=1)]

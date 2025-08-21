@@ -5,7 +5,12 @@ from datetime import datetime, timezone
 import numpy as np
 import xarray as xr
 from dpyverification.configuration import GeneralInfoConfig
-from dpyverification.configuration.utils import ForecastPeriods, TimePeriod, TimeUnits
+from dpyverification.configuration.utils import (
+    ForecastPeriods,
+    SimObsVariables,
+    TimePeriod,
+    TimeUnits,
+)
 from dpyverification.datamodel.main import SimObsDataset
 from dpyverification.datasources.fewsnetcdf import FewsNetcdfFile
 
@@ -23,6 +28,7 @@ def test_init_simobsdataset_fp(
             end=datetime(2025, 1, 3, tzinfo=timezone.utc),
         ),
         forecast_periods=ForecastPeriods(unit=TimeUnits.HOUR, values=[1, 2, 3, 4]),
+        variable_pairs=[SimObsVariables(obs="dummy", sim="dummy")],
     )
 
     simobsdataset = SimObsDataset(

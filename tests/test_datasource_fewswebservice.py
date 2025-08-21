@@ -81,7 +81,7 @@ def _initialize_archive() -> None:
 @pytest.mark.skipif(IN_GITHUB_ACTIONS, reason="Cannot yet test webservice in GitHub CI")
 def test_webservice_live() -> None:
     """Test that a webservice is live and can find filters."""
-    url = "http://localhost:8080/FewsWebServices/rest/fewspiservice/v1"
+    url = "https://rwsos-dataservices.avi.deltares.nl/testarchive/FewsWebServices/rest/fewspiservice/v1"
     endpoint = "archive/locations"
     test_endpoint_url = url + "/" + endpoint
     response = requests.get(test_endpoint_url, timeout=10)

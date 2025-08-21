@@ -4,10 +4,11 @@ import asyncio
 import io
 import tempfile
 import zipfile
+from collections.abc import Awaitable
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
-from typing import Self
+from typing import Self, TypeVar
 
 import requests
 import xarray as xr
@@ -23,10 +24,40 @@ from dpyverification.configuration import (
 )
 from dpyverification.constants import DataSourceKind, SimObsKind
 from dpyverification.datasources.base import BaseDatasource
-from dpyverification.datasources.fewsnetcdf import (
-    FewsNetcdfFile,
-    FewsNetcdfKind,
-)
+from dpyverification.datasources.fewsnetcdf import FewsNetcdfFile, FewsNetcdfKind
+
+T = TypeVar("T")
+
+
+def run_async_in_compatible_environment(coro: Awaitable[T]) -> T:
+    """Run an async coroutine in a way that works in both normal Python and Jupyter environments.
+
+    This function detects if there's already an event loop running (like in Jupyter)
+    and handles the execution appropriately.
+    """
+    try:
+        # Try to get the current event loop
+        _ = asyncio.get_running_loop()
+        # If we get here, there's already a running event loop (e.g., in Jupyter)
+        # Create a new event loop in a separate thread
+        import concurrent.futures
+
+        def run_in_new_loop() -> T:
+            new_loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(new_loop)
+            try:
+                result: T = new_loop.run_until_complete(coro)
+                return result
+            finally:
+                new_loop.close()
+
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future = executor.submit(run_in_new_loop)
+            return future.result()
+    except RuntimeError:
+        # No event loop is running, we can use asyncio.run() safely
+        result: T = asyncio.run(coro)  # type:ignore[arg-type]
+        return result
 
 
 class FewsWebservice(BaseDatasource):
@@ -185,7 +216,9 @@ class FewsWebservice(BaseDatasource):
                     )
 
                     # Write NetCDF response to disk
-                    unique_prefix = forecast_reference_time.strftime("%Y%m%d_%H%M%S")
+                    unique_prefix = forecast_reference_time.strftime(
+                        "%Y%m%d_%H%M%S",
+                    )
                     self.write_netcdf_response_to_dir(
                         response,
                         write_dir=write_dir,
@@ -199,16 +232,26 @@ class FewsWebservice(BaseDatasource):
                 ) -> None:
                     """Asynchronously download all timeseries."""
                     loop = asyncio.get_event_loop()
-                    executor = ThreadPoolExecutor(max_workers=10)
 
-                    # Create async tasks for each forecast_reference_time
-                    tasks = [
-                        fetch_and_write(executor, loop, client, frt, config, Path(tmpdir))
-                        for frt in forecast_reference_times
-                    ]
-                    await asyncio.gather(*tasks)
+                    with ThreadPoolExecutor(
+                        max_workers=self.config.max_workers_in_thread_pool,
+                    ) as executor:
+                        # Create async tasks for each forecast_reference_time
+                        tasks = [
+                            fetch_and_write(
+                                executor,
+                                loop,
+                                client,
+                                frt,
+                                config,
+                                Path(tmpdir),
+                            )
+                            for frt in forecast_reference_times
+                        ]
+                        await asyncio.gather(*tasks, return_exceptions=True)
 
-                asyncio.run(
+                # Use the compatible async runner instead of asyncio.run()
+                run_async_in_compatible_environment(
                     download_all_timeseries_async(
                         self.client,
                         forecast_reference_times,

@@ -58,28 +58,42 @@ class Preprocessor:
         return dataset
 
     @staticmethod
-    def rename_dims_coords_to_internal(dataset: xr.Dataset, fews_netcdf_kind: str) -> xr.Dataset:
+    def rename_dims_coords_to_internal(
+        dataset: xr.Dataset,
+        fews_netcdf_kind: str,
+    ) -> xr.Dataset:
         """Rename dims, coords to internal definition."""
         # Rename station coords/dims
-        dataset = dataset.rename({FewsNetcdfCoord.station_names: StandardCoord.station_name.name})  # type:ignore[misc]
-        dataset = dataset.rename({FewsNetcdfDims.stations: StandardDim.station})  # type:ignore[misc]
+        dataset = dataset.rename(
+            {FewsNetcdfCoord.station_names: StandardCoord.station_name.name},  # type:ignore[misc]
+        )
+        dataset = dataset.rename(
+            {FewsNetcdfDims.stations: StandardDim.station},  # type:ignore[misc]
+        )
         dataset = dataset.set_coords(StandardCoord.station_name.name)
 
         if fews_netcdf_kind == FewsNetcdfKind.one_full_simulation:
             # Rename analysis_time for simulations
             dataset = dataset.rename(
-                {FewsNetcdfDims.analysis_time: StandardDim.forecast_reference_time},  # type:ignore[misc]
+                {
+                    FewsNetcdfDims.analysis_time: StandardDim.forecast_reference_time,  # type:ignore[misc]
+                },
             )
 
         return dataset
 
     @staticmethod
-    def filter_stations(dataset: xr.Dataset, stations: list[str]) -> xr.Dataset:
+    def filter_stations(
+        dataset: xr.Dataset,
+        stations: list[str],
+    ) -> xr.Dataset:
         """Filter stations."""
         swap_dict = {StandardDim.station: StandardCoord.station_id.name}
         dataset = dataset.swap_dims(swap_dict)
         dataset = dataset.sel({StandardCoord.station_id.name: stations})  # type:ignore[misc]
-        return dataset.swap_dims({StandardCoord.station_id.name: StandardDim.station})  # type:ignore[misc]
+        return dataset.swap_dims(
+            {StandardCoord.station_id.name: StandardDim.station},  # type:ignore[misc]
+        )
 
     @staticmethod
     def transform_full_simulation_to_full_info_sim_dataset(
@@ -88,7 +102,9 @@ class Preprocessor:
     ) -> xr.Dataset:
         """Transform the dataset to full-information dataset."""
         forecast_periods = (dataset["time"] - dataset["forecast_reference_time"]).to_numpy().ravel()  # type:ignore[misc]
-        ds = dataset.assign_coords({"forecast_period": ("time", forecast_periods)})  # type:ignore[misc]
+        ds = dataset.assign_coords(
+            {"forecast_period": ("time", forecast_periods)},  # type:ignore[misc]
+        )
 
         ds = ds.swap_dims({"time": "forecast_period"}).drop_vars("time")  # type:ignore[misc]
 
@@ -99,7 +115,12 @@ class Preprocessor:
 
         # Now assign time
         ds = ds.assign_coords(
-            {"time": (("forecast_period", "forecast_reference_time"), time_index_2d)},  # type:ignore[misc]
+            {
+                "time": (  # type:ignore[misc]
+                    ("forecast_period", "forecast_reference_time"),
+                    time_index_2d,  # type:ignore[misc]
+                ),
+            },
         )
 
         # Filter data variables explicitly
@@ -157,7 +178,9 @@ class FewsNetcdfFile(BaseDatasource):
         self.config: FileInputFewsnetcdfConfig = config
 
     @staticmethod
-    def transform_to_forecast_period_dataset(dataset: xr.Dataset) -> xr.Dataset:
+    def transform_to_forecast_period_dataset(
+        dataset: xr.Dataset,
+    ) -> xr.Dataset:
         """
         Transform dataset for pipeline ingestion.
 
@@ -173,7 +196,12 @@ class FewsNetcdfFile(BaseDatasource):
                 da_fp = da.sel({"forecast_period": forecast_period})  # type:ignore[misc]
                 da_fp = da_fp.expand_dims({"forecast_period": 1})
                 da_fp = da_fp.assign_coords(
-                    {"forecast_period": ("forecast_period", forecast_period.to_numpy().reshape(1))},  # type:ignore[misc]
+                    {
+                        "forecast_period": (  # type:ignore[misc]
+                            "forecast_period",
+                            forecast_period.to_numpy().reshape(1),  # type:ignore[misc]
+                        ),
+                    },
                 )
                 da_fp = da_fp.swap_dims({"forecast_reference_time": "time"})  # type:ignore[misc]
                 da_list.append(da_fp)
@@ -210,6 +238,13 @@ class FewsNetcdfFile(BaseDatasource):
             ) as dataset:
                 dataset.load()
 
+            # Rename the configured observation variable with prefix obs_
+            dataset = dataset.rename_vars(
+                self.config.general.get_variable_pairs_rename_dict(
+                    simobskind="obs",
+                ),
+            )
+
             self.dataset = dataset
             return self
 
@@ -228,6 +263,15 @@ class FewsNetcdfFile(BaseDatasource):
         #   for now, we assume the dataset with lead time filtering fits into memory
         dataset.load()
 
+        # Rename the configured simulation variable with prefix obs_
+        dataset = dataset.rename_vars(
+            self.config.general.get_variable_pairs_rename_dict(
+                simobskind="sim",
+            ),
+        )
+
         # Make the dataset ready for pipeline ingestion
-        self.dataset = FewsNetcdfFile.transform_to_forecast_period_dataset(dataset)
+        self.dataset = FewsNetcdfFile.transform_to_forecast_period_dataset(
+            dataset,
+        )
         return self

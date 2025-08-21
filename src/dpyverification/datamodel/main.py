@@ -11,7 +11,7 @@ from pydantic import BaseModel, ValidationError
 
 from dpyverification.configuration import GeneralInfoConfig
 from dpyverification.configuration.utils import TimePeriod
-from dpyverification.constants import StandardDim
+from dpyverification.constants import StandardCoord, StandardDim
 from dpyverification.datasources.inputschemas import (
     XarrayDatasetObservations,
     XarrayDatasetSimulationsByForecastPeriod,
@@ -104,6 +104,14 @@ def transform_dataset(
 
     # Make a copy of the original dataset
     dataset = dataset.copy()
+
+    # For all datasets, set the station_id as index on station dim
+    #   to ensure automatic alignment based on this coord later on.
+    dataset = dataset.assign_coords(
+        {
+            StandardDim.station: dataset[StandardCoord.station_id.name].to_numpy(),  # type:ignore[misc]
+        },
+    )
 
     # Clip any input to be within the verification period
     dataset = clip_time_to_verification_period(
@@ -253,4 +261,8 @@ class SimObsDataset:
         # Merge input data and assign to self
         #   use compat override so we don't require an exact match
         #   between data variables and coordinates.
-        self.dataset = xr.merge(transformed_datasets, compat="override")
+        self.dataset = xr.merge(
+            transformed_datasets,
+            compat="override",
+            join="inner",
+        )

@@ -6,7 +6,10 @@ from typing import Annotated, Literal
 from pydantic import Field
 
 from dpyverification.configuration.base import BaseDatasourceConfig
-from dpyverification.configuration.utils import FewsWebserviceAuthConfig, LocalFiles
+from dpyverification.configuration.utils import (
+    FewsWebserviceAuthConfig,
+    LocalFiles,
+)
 from dpyverification.constants import DataSourceKind
 
 
@@ -29,7 +32,9 @@ class FewsWebserviceInputConfig(BaseDatasourceConfig):
     """A fews webservice input config element."""
 
     kind: Literal[DataSourceKind.FEWSWEBSERVICE]
-    auth_config: FewsWebserviceAuthConfig
+    auth_config: FewsWebserviceAuthConfig = Field(
+        default_factory=FewsWebserviceAuthConfig,  # type:ignore[misc]
+    )
     location_ids: Annotated[list[str], Field(min_length=1)]
     parameter_ids: Annotated[list[str], Field(min_length=1)]
     module_instance_ids: Annotated[list[str], Field(min_length=1)]
@@ -49,6 +54,15 @@ class FewsWebserviceInputConfig(BaseDatasourceConfig):
         ]
         | None
     ) = None
+    max_workers_in_thread_pool: Annotated[
+        int,
+        Field(
+            description="This datasource asynchronously retrieves data from the "
+            "Delft-FEWS webservice. Define here the maximum workers it can use. "
+            "Use 5-10 for gentle load on the server-side and keep below 30 "
+            "to avoid instability and minimize the risk of internal server errors.",
+        ),
+    ] = 2
 
 
 class FewsWebserviceOutputConfig(FewsWebserviceInputConfig):

@@ -166,6 +166,7 @@ def testconfig_general_info_simobsdataset_from_dummy_data() -> GeneralInfoConfig
             end=datetime(2025, 1, 3, tzinfo=timezone.utc),
         ),
         forecast_periods=ForecastPeriods(unit=TimeUnits.HOUR, values=[1, 2, 3, 4]),
+        variable_pairs=[(SimObsVariables(sim="forecast", obs="obs"))],
     )
 
 
@@ -178,6 +179,7 @@ def general_info_config_fewsnetcdf() -> GeneralInfoConfig:
             end=datetime(2024, 12, 1, tzinfo=timezone.utc),
         ),
         forecast_periods=ForecastPeriods(unit=TimeUnits.DAY, values=[1, 2, 3, 4]),
+        variable_pairs=[(SimObsVariables(sim="Q_fs", obs="Q_m"))],
     )
 
 
@@ -219,7 +221,7 @@ def fews_webservice_auth_config(
 ) -> FewsWebserviceAuthConfig:
     """Create a mock environment for testing secret env vars."""
     # The dummy url, username and password
-    url = "http://localhost:8080/FewsWebServices/rest/fewspiservice/v1"
+    url = "https://rwsos-dataservices.avi.deltares.nl/testarchive/FewsWebServices/rest/fewspiservice/v1"
     monkeypatch.setenv("FEWSWEBSERVICE_URL", url)  # type: ignore  # noqa: PGH003
     monkeypatch.setenv("FEWSWEBSERVICE_USERNAME", "")  # type: ignore  # noqa: PGH003
     monkeypatch.setenv("FEWSWEBSERVICE_PASSWORD", "")  # type: ignore  # noqa: PGH003
@@ -315,7 +317,6 @@ def score_config_crps(
     return CrpsForEnsembleConfig(
         kind=ScoreKind.crps_for_ensemble,
         general=general_info_config_fewsnetcdf,
-        variable_pairs=[(SimObsVariables(sim="Q_fs", obs="Q_m"))],
     )
 
 
@@ -327,7 +328,6 @@ def score_config_rank_histogram(
     return RankHistogramConfig(
         kind=ScoreKind.rank_histogram,
         general=general_info_config_fewsnetcdf,
-        variable_pairs=[(SimObsVariables(sim="Q_fs", obs="Q_m"))],
     )
 
 

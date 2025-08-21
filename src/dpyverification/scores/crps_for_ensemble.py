@@ -37,8 +37,8 @@ class CrpsForEnsemble(BaseScore):
 
         results = []
         for variable_pair in self.config.variable_pairs:
-            obs: xr.DataArray = data.dataset[variable_pair.obs]
-            sim: xr.DataArray = data.dataset[variable_pair.sim]
+            obs: xr.DataArray = data.dataset[variable_pair.obs_variable_name]
+            sim: xr.DataArray = data.dataset[variable_pair.sim_variable_name]
 
             # Compute
             result: xr.Dataset | xr.DataArray = _crps_for_ensemble(

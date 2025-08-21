@@ -95,6 +95,16 @@ class SimObsVariables(BaseModel):
         """Return a string representation of sim and obs."""
         return f"{self.sim}_{self.obs}"
 
+    @property
+    def sim_variable_name(self) -> str:
+        """The name for simulation in the internal dataset."""
+        return f"sim_{self.sim}"
+
+    @property
+    def obs_variable_name(self) -> str:
+        """The name for observation in the internal dataset."""
+        return f"obs_{self.obs}"
+
 
 class LocalFile(BaseModel):
     """A local file config element."""
@@ -109,7 +119,9 @@ class LocalFiles(BaseModel):
     directory: str
     filename_pattern: Annotated[
         str,
-        Field(description="Provide a valid filenamepattern, like '*.nc' for all netcdf files."),
+        Field(
+            description="Provide a valid filenamepattern, like '*.nc' for all netcdf files.",
+        ),
     ]
 
     @property
