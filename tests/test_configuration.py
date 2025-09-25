@@ -55,7 +55,10 @@ def test_schema_jsonable(tmp_path: Path) -> None:
 def test_forecast_period_config() -> None:
     """Check forecast periods config identical when using list or range."""
     list_instance = ForecastPeriods(unit=TimeUnits.HOUR, values=[1, 2, 3])
-    range_instance = ForecastPeriods(unit=TimeUnits.HOUR, values=Range(start=1, end=3, step=1))
+    range_instance = ForecastPeriods(
+        unit=TimeUnits.HOUR,
+        values=Range(start=1, end=3, step=1).to_list(),
+    )
     assert list_instance == range_instance
     assert list_instance.timedelta64 == range_instance.timedelta64
     assert list_instance.stdlib_timedelta == range_instance.stdlib_timedelta
@@ -69,8 +72,8 @@ def test_single_id_map_get_mapping() -> None:
     assert config.get_external_to_internal_mapping("sourceA") == {"extId1": "intId1"}
 
 
-def test_id_mapping_rename_dataset(xarray_data_array_observation: xr.DataArray) -> None:
+def test_id_mapping_rename_dataset(xarray_data_array_observations: xr.DataArray) -> None:
     """Test partial renaming of stations on dummy dataset."""
     config = IdMappingConfig(station=IdMap({"newstation1": {"obs_source_0": "station0"}}))
-    new_da = config.rename_data_array(xarray_data_array_observation)
+    new_da = config.rename_data_array(xarray_data_array_observations)
     assert next(iter(new_da.station.to_numpy())) == "newstation1"  # type:ignore[misc]

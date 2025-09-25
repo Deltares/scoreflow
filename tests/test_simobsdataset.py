@@ -18,7 +18,7 @@ from dpyverification.datasources.fewsnetcdf import FewsNetCDFFile
 
 
 def test_init_simobsdataset(
-    xarray_data_array_observation: xr.DataArray,
+    xarray_data_array_observations: xr.DataArray,
     xarray_data_array_simulation: xr.DataArray,
 ) -> None:
     """Test the simobsdataset initializes successfully with forecast period (fp) input."""
@@ -37,21 +37,21 @@ def test_init_simobsdataset(
     )
 
     _ = SimObsDataset(
-        data=[xarray_data_array_observation, xarray_data_array_simulation],
+        data=[xarray_data_array_observations, xarray_data_array_simulation],
         general_config=general_config,
     )
 
 
 def test_init_simobsdataset_fewsnetcdf(
     datasource_fewsnetcdf_obs: FewsNetCDFFile,
-    datasource_fewsnetcdf_sim: FewsNetCDFFile,
+    datasource_fewsnetcdf_sim_per_forecast_reference_time: FewsNetCDFFile,
     general_info_config_fewsnetcdf: GeneralInfoConfig,
 ) -> None:
     """Test the fewsnetcdf is accepted by the simobsdataset."""
     SimObsDataset(
         data=[
             datasource_fewsnetcdf_obs.get_data().data_array,
-            datasource_fewsnetcdf_sim.get_data().data_array,
+            datasource_fewsnetcdf_sim_per_forecast_reference_time.get_data().data_array,
         ],
         general_config=general_info_config_fewsnetcdf,
     )

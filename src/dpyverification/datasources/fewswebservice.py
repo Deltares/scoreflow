@@ -4,12 +4,13 @@ import asyncio
 import io
 import tempfile
 import zipfile
-from collections.abc import Awaitable
+from collections.abc import Awaitable, Generator
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
 from typing import Self, TypeVar
 
+import numpy as np
 import requests
 import xarray as xr
 
@@ -22,9 +23,14 @@ from dpyverification.configuration import (
     FileInputFewsNetCDFConfig,
     SimulationRetrievalMethod,
 )
-from dpyverification.constants import DataSourceKind, SimObsKind
+from dpyverification.constants import DataSourceKind, StandardCoord, StandardDim, TimeseriesKind
 from dpyverification.datasources.base import BaseDatasource
-from dpyverification.datasources.fewsnetcdf import FewsNetCDFFile, FewsNetCDFKind
+from dpyverification.datasources.fewsnetcdf import (
+    FewsNetcdfCoord,
+    FewsNetCDFFile,
+    FewsNetCDFKind,
+    Preprocessor,
+)
 
 T = TypeVar("T")
 
@@ -60,6 +66,75 @@ def run_async_in_compatible_environment(coro: Awaitable[T]) -> T:
         return result
 
 
+def process_forecast_period_netcdf_response(
+    paths: Generator[Path],
+    timeseries_kind: TimeseriesKind,
+    source: str,
+) -> xr.DataArray:
+    """Parse NetCDF responses from get timeseries with leadTimes parameter."""
+
+    def _preprocess(dataset: xr.Dataset) -> xr.Dataset:
+        """
+        Preprocess individual files, set forecast_period based on filename.
+
+        When requesting data for a specific forecast period via the FEWS-Webservice,
+        the actual forecast period used in the request is not available in the
+        response. As a workaround, we prefix with filename with the forecast period
+        in milliseconds, access it via the dataset encoding and set it as a dim/coord
+        on the dataset.
+        """
+        filename = Path(dataset.encoding["source"]).name  # type:ignore[misc]
+        forecast_period_millis = int(filename.split("_")[0])
+        forecast_period = np.timedelta64(forecast_period_millis, "ms")
+
+        # Now assign forecast period as coordinate
+        return dataset.assign_coords(
+            {
+                StandardCoord.forecast_period.name: (
+                    StandardDim.forecast_period,
+                    [forecast_period],
+                ),  # type:ignore[misc]
+            },
+        )
+
+    with xr.open_mfdataset(
+        paths,  # type:ignore[arg-type] # generator is acceptable argument
+        combine="nested",
+        concat_dim="forecast_period",
+        preprocess=_preprocess,
+        coords="minimal",
+        compat="override",
+    ) as dataset:
+        dataset.load()
+
+    # Decode byte-string coords
+    dataset = Preprocessor.convert_byte_string_coord_to_utf8(
+        dataset,
+        coords=[FewsNetcdfCoord.station_id],
+    )
+
+    # Rename dims/coords to internal definitions
+    dataset = Preprocessor.rename_dims_coords_to_internal(
+        dataset,
+    )
+
+    # On resulting object, assign forecast_reference_time as coordinate
+    dataset = dataset.assign_coords(
+        {  # type:ignore[misc]
+            StandardDim.forecast_reference_time: (  # type:ignore[misc]
+                (StandardDim.time, StandardDim.forecast_period),
+                (dataset[StandardDim.time] - dataset[StandardDim.forecast_period]).to_numpy(),  # type:ignore[misc]
+            ),
+        },
+    )
+
+    return FewsNetCDFFile.convert_to_data_array_and_set_source_variable_coords(
+        dataset,
+        timeseries_kind.data_array_name,
+        source=source,
+    )
+
+
 class FewsWebservice(BaseDatasource):
     """For downloading data using a Delft-FEWS webservice."""
 
@@ -78,7 +153,7 @@ class FewsWebservice(BaseDatasource):
 
     def __init__(self, config: FewsWebserviceInputConfig) -> None:
         self.config = config
-        self.simobskind = config.simobskind
+        self.timeseries_kind = config.timeseries_kind
         self.dataset = xr.Dataset()
 
         # Initialize the webservice client
@@ -125,13 +200,13 @@ class FewsWebservice(BaseDatasource):
     def fetch_data(self) -> Self:
         """Retrieve :py::class`~xarray.Dataset` from Delft-FEWS Webservice."""
         # Get observations
-        if self.config.simobskind == SimObsKind.obs:
+        if self.config.timeseries_kind == TimeseriesKind.observed_historical:
             with tempfile.TemporaryDirectory() as tmpdir:
                 # Download data to temporary folder
                 response = self.client.get_timeseries(
                     location_ids=self.config.location_ids,
                     parameter_ids=self.config.parameter_ids,
-                    module_instance_ids=self.config.module_instance_ids,
+                    module_instance_ids=self.config.module_instance_id,
                     start_time=self.config.verification_period.start,
                     end_time=self.config.verification_period.end,
                     timeseries_type=TimeseriesType.EXTERNAL_HISTORICAL,
@@ -146,23 +221,25 @@ class FewsWebservice(BaseDatasource):
                 # Load all downloaded data into one object
                 datasource = FewsNetCDFFile(
                     FileInputFewsNetCDFConfig(
-                        simobskind=SimObsKind.obs,
+                        timeseries_kind=TimeseriesKind.observed_historical,
                         directory=tmpdir,
                         filename_glob="*.nc",
                         kind=DataSourceKind.FEWSNETCDF,
                         general=self.config.general,
                         netcdf_kind=FewsNetCDFKind.observation,
+                        id_mapping=self.config.id_mapping,
+                        source=self.config.source,
                     ),
                 )
                 datasource.fetch_data()
 
                 # After this, the context manager will be closed, and tmpdir deleted
-                self.dataset = datasource.data_array
+                self.data_array = datasource.data_array
 
                 return self
         # Get simulations
         if (
-            self.config.simobskind == SimObsKind.sim
+            self.config.timeseries_kind == TimeseriesKind.simulated_forecast_ensemble
             and self.config.simulation_retrieval_method
             == SimulationRetrievalMethod.retrieve_all_forecast_data
         ):
@@ -178,7 +255,7 @@ class FewsWebservice(BaseDatasource):
                     end_time=(
                         self.config.verification_period.end - self.config.forecast_periods.min
                     ),
-                    module_instance_ids=self.config.module_instance_ids,
+                    module_instance_ids=self.config.module_instance_id,
                 )
             )
 
@@ -186,7 +263,7 @@ class FewsWebservice(BaseDatasource):
                 msg = (
                     f"No forecasts found between {self.config.verification_period.start}",
                     f"and {self.config.verification_period.end} and module instance ids",
-                    f"{self.config.module_instance_ids}.",
+                    f"{self.config.module_instance_id}.",
                 )
                 raise ValueError(msg)
 
@@ -207,7 +284,7 @@ class FewsWebservice(BaseDatasource):
                         lambda: client.get_timeseries(
                             location_ids=config.location_ids,
                             parameter_ids=config.parameter_ids,
-                            module_instance_ids=config.module_instance_ids,
+                            module_instance_ids=config.module_instance_id,
                             ensemble_id=config.ensemble_id,
                             start_forecast_time=min(forecast_reference_times),
                             end_forecast_time=max(forecast_reference_times),
@@ -263,30 +340,59 @@ class FewsWebservice(BaseDatasource):
                 # Load all downloaded data into one object
                 datasource = FewsNetCDFFile(
                     FileInputFewsNetCDFConfig(
-                        simobskind=SimObsKind.sim,
+                        timeseries_kind=TimeseriesKind.simulated_forecast_ensemble,
                         directory=tmpdir,
                         filename_glob="*.nc",
                         kind=DataSourceKind.FEWSNETCDF,
                         general=self.config.general,
-                        netcdf_kind=FewsNetCDFKind.simulation_per_forecast_reference_time,
+                        netcdf_kind=FewsNetCDFKind.simulated_forecast_per_forecast_reference_time,
+                        id_mapping=self.config.id_mapping,
+                        source=self.config.source,
                     ),
                 )
                 datasource.fetch_data()
 
                 # After this, the context manager will be closed and tmpdir deleted
-                self.dataset = datasource.data_array
+                self.data_array = datasource.data_array
 
                 return self
 
         elif (
-            self.config.simobskind == SimObsKind.sim
+            self.config.timeseries_kind == TimeseriesKind.simulated_forecast_ensemble
             and self.config.simulation_retrieval_method
             == SimulationRetrievalMethod.retrieve_forecast_data_per_lead_time
         ):
-            # Implement forecast retrieval, once Delft-FEWS development is completed.
-            msg2 = "Simulation retrieval per lead time is not yet supported."
-            raise NotImplementedError(msg2)
+            with tempfile.TemporaryDirectory() as tmpdir:
+                for fp in self.config.general.forecast_periods.stdlib_timedelta:
+                    response = self.client.get_timeseries(
+                        location_ids=self.config.location_ids,
+                        parameter_ids=self.config.parameter_ids,
+                        module_instance_ids=self.config.module_instance_id,
+                        ensemble_id=self.config.ensemble_id,
+                        start_time=self.config.general.verification_period.start,
+                        end_time=self.config.general.verification_period.end,
+                        lead_time=fp,
+                        timeseries_type=TimeseriesType.EXTERNAL_FORECASTING,
+                    )
+
+                    # Write NetCDF response to disk
+                    unique_prefix = str(int(fp.total_seconds() * 1000))
+                    tmpdir_path = Path(tmpdir)
+                    self.write_netcdf_response_to_dir(
+                        response,
+                        write_dir=tmpdir_path,
+                        unique_prefix=unique_prefix,
+                    )
+
+                # After this, the context manager will be closed and tmpdir deleted
+                self.data_array = process_forecast_period_netcdf_response(
+                    tmpdir_path.rglob("*.nc"),
+                    timeseries_kind=self.config.timeseries_kind,
+                    source=self.config.source,
+                )
+
+                return self
 
         # Other simobs kinds are not supported (yet)
-        msg3 = f"Simobskind {self.simobskind} not implemented yet. Only sim and obs are supported."
+        msg3 = f"Simobskind {self.timeseries_kind} not implemented yet."
         raise NotImplementedError(msg3)

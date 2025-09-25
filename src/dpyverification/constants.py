@@ -28,12 +28,19 @@ class DataSinkKind(StrEnum):
 
 
 @unique
-class SimObsKind(StrEnum):
+class TimeseriesKind(StrEnum):
     """Enumeration of the supported types of input data."""
 
-    sim = "sim"
-    obs = "obs"
-    combined = "combined"
+    simulated_forecast_ensemble = "simulated_forecast_ensemble"
+    observed_historical = "observed_historical"
+
+    @property
+    def data_array_name(self) -> str:
+        """Get the array name used in in the internal datamodel."""
+        return {
+            TimeseriesKind.simulated_forecast_ensemble: "sim",
+            TimeseriesKind.observed_historical: "obs",
+        }[self]
 
 
 @unique

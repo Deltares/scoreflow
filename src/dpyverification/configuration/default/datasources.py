@@ -3,7 +3,7 @@
 from enum import StrEnum
 from typing import Annotated, Literal
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from dpyverification.configuration.base import BaseDatasourceConfig
 from dpyverification.configuration.utils import (
@@ -18,8 +18,10 @@ class FewsNetCDFKind(StrEnum):
     """List of kinds of FEWS NetCDFs."""
 
     observation = "observation"
-    simulation_per_forecast_reference_time = "simulation_per_forecast_reference_time"
-    simulation_per_forecast_period = "simulation_per_forecast_period"
+    simulated_forecast_per_forecast_reference_time = (
+        "simulated_forecast_per_forecast_reference_time"
+    )
+    simulated_forecast_per_forecast_period = "simulated_forecast_per_forecast_period"
 
 
 class SimulationRetrievalMethod(StrEnum):
@@ -38,7 +40,7 @@ class FewsWebserviceInputConfig(BaseDatasourceConfig):
     )
     location_ids: Annotated[list[str], Field(min_length=1)]
     parameter_ids: Annotated[list[str], Field(min_length=1)]
-    module_instance_ids: Annotated[list[str], Field(min_length=1)]
+    module_instance_id: Annotated[str, Field(min_length=1)]
     ensemble_id: Annotated[str, Field(min_length=1)] | None = None
     qualifier_ids: Annotated[list[str], Field(min_length=1)] | None = None
     simulation_retrieval_method: (
@@ -55,6 +57,10 @@ class FewsWebserviceInputConfig(BaseDatasourceConfig):
         ]
         | None
     ) = None
+    source: Annotated[
+        Source,
+        Field(description="If not provided, source will be equal to module_instance_id."),
+    ] = ""
     max_workers_in_thread_pool: Annotated[
         int,
         Field(
@@ -65,6 +71,13 @@ class FewsWebserviceInputConfig(BaseDatasourceConfig):
         ),
     ] = 2
 
+    @model_validator(mode="after")
+    def set_source_equal_to_module_instance_id_if_none(self) -> "FewsWebserviceInputConfig":
+        """By default, set source equal to module instance id."""
+        if self.source == "":
+            self.source = self.module_instance_id
+        return self
+
 
 class FewsWebserviceOutputConfig(FewsWebserviceInputConfig):
     """A fews webservice output config element."""
@@ -74,7 +87,6 @@ class FileInputFewsNetCDFConfig(BaseDatasourceConfig, LocalFiles):
     """A file input fewsnetcdf config element."""
 
     kind: Literal[DataSourceKind.FEWSNETCDF]
-
     netcdf_kind: FewsNetCDFKind
     source: Source
     station_ids: Annotated[list[str], Field(min_length=1)] | None = None

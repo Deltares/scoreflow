@@ -30,12 +30,12 @@ def test_time_coord_bad() -> None:
         TimeCoord(**bad)
 
 
-def test_xarray_observations(xarray_data_array_observation: xr.DataArray) -> None:
-    Observation.model_validate(xarray_data_array_observation.to_dict(data=False))
+def test_xarray_observations(xarray_data_array_observations: xr.DataArray) -> None:
+    Observation.model_validate(xarray_data_array_observations.to_dict(data=False))
 
 
-def test_xarray_observations_invalid_dims(xarray_data_array_observation: xr.DataArray) -> None:
-    ds = xarray_data_array_observation.copy()
+def test_xarray_observations_invalid_dims(xarray_data_array_observations: xr.DataArray) -> None:
+    ds = xarray_data_array_observations.copy()
     ds = ds.expand_dims("invalid_dimension")
     with pytest.raises(ValidationError):
         Observation.model_validate(ds.to_dict(data=False))

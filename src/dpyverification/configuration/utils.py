@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Annotated
 
 import numpy as np
-from pydantic import AnyUrl, BaseModel, Field, SecretStr, field_validator
+from pydantic import AnyUrl, BaseModel, BeforeValidator, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from dpyverification.constants import TimeUnits
@@ -46,15 +46,10 @@ class ForecastPeriods(BaseModel):
     """A forecast periods config element."""
 
     unit: TimeUnits
-    values: list[int] | Range
-
-    @field_validator("values", mode="after")
-    @classmethod
-    def expand_range(cls, v: list[int] | Range) -> list[int]:
-        """Make a list from provided range."""
-        if isinstance(v, Range):
-            return v.to_list()
-        return v  # already a list[int]
+    values: Annotated[
+        list[int],
+        BeforeValidator(lambda v: v.to_list() if isinstance(v, Range) else v),
+    ]
 
     @property
     def timedelta64(self) -> list[np.timedelta64]:

@@ -8,7 +8,7 @@ import xarray as xr
 
 from dpyverification.configuration import FileInputFewsNetCDFConfig
 from dpyverification.configuration.default.datasources import FewsNetCDFKind
-from dpyverification.constants import SimObsKind, StandardCoord, StandardDim
+from dpyverification.constants import StandardCoord, StandardDim, TimeseriesKind
 from dpyverification.datasources.base import BaseDatasource
 
 
@@ -60,7 +60,6 @@ class Preprocessor:
     @staticmethod
     def rename_dims_coords_to_internal(
         dataset: xr.Dataset,
-        fews_netcdf_kind: str,
     ) -> xr.Dataset:
         """Rename dims, coords to internal definition."""
         # Rename station coords/dims
@@ -70,20 +69,11 @@ class Preprocessor:
                 FewsNetcdfCoord.station_id: StandardCoord.station.name,
             },  # type:ignore[misc]
         )
-        dataset = dataset.rename(
+        dataset = dataset.swap_dims(
             {FewsNetcdfDims.stations: StandardDim.station},  # type:ignore[misc]
         )
-        dataset = dataset.set_coords(StandardCoord.station_name.name)
 
-        if fews_netcdf_kind == FewsNetCDFKind.simulation_per_forecast_reference_time:
-            # Rename analysis_time for simulations
-            dataset = dataset.rename(
-                {
-                    FewsNetcdfDims.analysis_time: StandardDim.forecast_reference_time,  # type:ignore[misc]
-                },
-            )
-
-        return dataset
+        return dataset.set_coords(StandardCoord.station_name.name)
 
     @staticmethod
     def filter_stations(
@@ -103,7 +93,12 @@ class Preprocessor:
         dataset: xr.Dataset,
     ) -> xr.Dataset:
         """Transform the dataset to full-information dataset."""
-        forecast_periods = (dataset["time"] - dataset["forecast_reference_time"]).to_numpy().ravel()  # type:ignore[misc]
+        forecast_periods = (
+            (dataset["time"] - dataset["forecast_reference_time"])
+            # type:ignore[misc]
+            .to_numpy()
+            .ravel()
+        )
         ds = dataset.assign_coords(
             {"forecast_period": ("time", forecast_periods)},  # type:ignore[misc]
         )
@@ -136,19 +131,24 @@ class Preprocessor:
     def __call__(self, dataset: xr.Dataset) -> xr.Dataset:
         """Sequence of processing tasks."""
         # Decode byte-string coords
-        dataset = self.convert_byte_string_coord_to_utf8(
+        dataset = Preprocessor.convert_byte_string_coord_to_utf8(
             dataset,
             coords=[FewsNetcdfCoord.station_id],
         )
 
         # Rename dims/coords to internal definitions
-        dataset = self.rename_dims_coords_to_internal(
+        dataset = Preprocessor.rename_dims_coords_to_internal(
             dataset,
-            fews_netcdf_kind=self.fews_netcdf_kind,
         )
 
-        # Transform to full info sim dataset
-        if self.fews_netcdf_kind == FewsNetCDFKind.simulation_per_forecast_reference_time:
+        if self.fews_netcdf_kind == FewsNetCDFKind.simulated_forecast_per_forecast_reference_time:
+            # Rename analysis_time for simulations
+            dataset = dataset.rename(
+                {
+                    FewsNetcdfDims.analysis_time: StandardDim.forecast_reference_time,  # type:ignore[misc]
+                },
+            )
+            # Transform to full info sim dataset
             dataset = self.transform_full_simulation_to_full_info_sim_dataset(
                 dataset,
             )
@@ -164,7 +164,8 @@ class Preprocessor:
         # Filter forecast periods for simulations
         if (
             self.forecast_periods is not None
-            and self.fews_netcdf_kind == FewsNetCDFKind.simulation_per_forecast_reference_time
+            and self.fews_netcdf_kind
+            == FewsNetCDFKind.simulated_forecast_per_forecast_reference_time
         ):
             # Filter the relevant forecast_periods to maximize memory efficiency
             selector = {StandardDim.forecast_period: self.forecast_periods}
@@ -193,10 +194,11 @@ class FewsNetCDFFile(BaseDatasource):
         a coordinate for explicit timestamps. This allows slicing by forecast_period
         while keeping the timestamp available.
         """
+        data_arrays = []
         for data_var in dataset.data_vars:
             da = dataset[data_var]
 
-            da_list = []
+            forecast_period_arrays = []
             for forecast_period in da["forecast_period"]:  # type:ignore[misc]
                 da_fp = da.sel({"forecast_period": forecast_period})  # type:ignore[misc]
                 da_fp = da_fp.expand_dims({"forecast_period": 1})
@@ -209,31 +211,39 @@ class FewsNetCDFFile(BaseDatasource):
                     },
                 )
                 da_fp = da_fp.swap_dims({"forecast_reference_time": "time"})  # type:ignore[misc]
-                da_list.append(da_fp)
+                forecast_period_arrays.append(da_fp)
 
-        combined_data_arrays = xr.combine_nested(
-            da_list,
-            concat_dim=StandardDim.forecast_period,
-            combine_attrs="drop_conflicts",
+            data_arrays.append(
+                xr.combine_nested(
+                    forecast_period_arrays,
+                    concat_dim=StandardDim.forecast_period,
+                    combine_attrs="drop_conflicts",
+                ),
+            )
+
+        dataset = xr.merge(data_arrays)
+
+        # Reset and re-compute the forecast_reference_time to have no missing values on coord
+        return dataset.assign_coords(
+            {  # type:ignore[misc]
+                StandardDim.forecast_reference_time: (  # type:ignore[misc]
+                    (StandardDim.time, StandardDim.forecast_period),
+                    (dataset[StandardDim.time] - dataset[StandardDim.forecast_period]).to_numpy(),  # type:ignore[misc]
+                ),
+            },
         )
 
-        if isinstance(combined_data_arrays, xr.Dataset):  # type:ignore[misc]
-            return combined_data_arrays
-
-        # combine_nested can actually return xr.DataArray, despite return type signature xr.Dataset
-        return combined_data_arrays.to_dataset()  # type:ignore[unreachable]
-
     @staticmethod
-    def transform_dataset_to_internal_datamodel(
+    def convert_to_data_array_and_set_source_variable_coords(
         dataset: xr.Dataset,
-        config: FileInputFewsNetCDFConfig,
+        name: str,
+        source: str,
     ) -> xr.DataArray:
         """Transform dataset to internal datamodel."""
         # Extract the variable units from data variables
         units = [dataset[da].attrs["units"] for da in dataset]  # type:ignore[misc]
 
         # Stack the variables along dimension variable
-        name = "observations" if config.simobskind == SimObsKind.obs else "simulations"
         da = dataset.to_dataarray(dim=StandardDim.variable, name=name)
 
         # Set the units as auxillary coordinate on new dimension variable
@@ -243,14 +253,10 @@ class FewsNetCDFFile(BaseDatasource):
 
         # Set the source as coordinate
         da = da.expand_dims({StandardCoord.source.name: 1})
-        return da.assign_coords({StandardCoord.source.name: [config.source]})  # type:ignore[misc]
+        return da.assign_coords({StandardCoord.source.name: [source]})  # type:ignore[misc]
 
     def fetch_data(self) -> Self:
         """Retrieve fewsnetcdf content as an xarray DataArray."""
-        if self.config.simobskind == SimObsKind.combined:
-            msg = "Cannot yet handle combined simobs data"
-            raise NotImplementedError(msg)
-
         # Configure pre-processing
         preprocessor = Preprocessor(
             fews_netcdf_kind=self.config.netcdf_kind,
@@ -259,7 +265,7 @@ class FewsNetCDFFile(BaseDatasource):
         )
 
         # Observations
-        if self.config.simobskind == SimObsKind.obs:
+        if self.config.timeseries_kind == TimeseriesKind.observed_historical:
             with xr.open_mfdataset(
                 self.config.paths,  # type:ignore[arg-type] # generator is acceptable argument
                 preprocess=preprocessor,
@@ -267,7 +273,7 @@ class FewsNetCDFFile(BaseDatasource):
                 dataset.load()
 
         # Simulations
-        else:
+        if self.config.netcdf_kind == FewsNetCDFKind.simulated_forecast_per_forecast_reference_time:
             with xr.open_mfdataset(
                 self.config.paths,  # type:ignore[arg-type] # generator is acceptable argument
                 combine="nested",
@@ -276,6 +282,8 @@ class FewsNetCDFFile(BaseDatasource):
                 coords="minimal",
                 compat="override",
             ) as dataset:
+                # Load the dataset into memory
+                #   for now, we assume the dataset with lead time filtering fits into memory
                 dataset.load()
 
             # Transform forecast reference time simulation to forecast period
@@ -284,9 +292,10 @@ class FewsNetCDFFile(BaseDatasource):
             )
 
         # Final transformation for observations and simulations
-        self.data_array = FewsNetCDFFile.transform_dataset_to_internal_datamodel(
+        self.data_array = FewsNetCDFFile.convert_to_data_array_and_set_source_variable_coords(
             dataset,
-            self.config,
+            name=self.config.timeseries_kind.data_array_name,
+            source=self.config.source,
         )
 
         return self

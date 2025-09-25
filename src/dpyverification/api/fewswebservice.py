@@ -1,6 +1,6 @@
 """A python interface to the Delft-FEWS Webservices."""
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import StrEnum
 
 import requests
@@ -40,6 +40,12 @@ class FewsWebserviceClient:
             return time.strftime(self.datetime_format)
         return time
 
+    def format_timedelta(self, td: timedelta | None) -> int | None:
+        """Format datetime to string."""
+        if isinstance(td, timedelta):
+            return int(td.total_seconds() * 1000)  # milliseconds
+        return td
+
     def format_list_of_datetime(
         self,
         datetime_list: list[datetime] | None,
@@ -53,13 +59,13 @@ class FewsWebserviceClient:
         self,
         location_ids: list[str],
         parameter_ids: list[str],
-        module_instance_ids: list[str],
+        module_instance_ids: list[str] | str,
         qualifier_ids: list[str] | None = None,
         start_time: datetime | None = None,
         end_time: datetime | None = None,
         start_forecast_time: datetime | None = None,
         end_forecast_time: datetime | None = None,
-        lead_time: int | None = None,
+        lead_time: timedelta | None = None,
         ensemble_id: str | None = None,
         ensemble_member_id: int | None = None,
         forecast_count: int | None = None,
@@ -77,7 +83,7 @@ class FewsWebserviceClient:
             "endTime": self.format_datetime(end_time),
             "startForecastTime": self.format_datetime(start_forecast_time),
             "endForecastTime": self.format_datetime(end_forecast_time),
-            "leadTime": lead_time,
+            "leadTime": self.format_timedelta(lead_time),
             "ensembleId": ensemble_id,
             "ensembleMemberId": ensemble_member_id,
             "forecastCount": forecast_count,
@@ -101,9 +107,12 @@ class FewsWebserviceClient:
         self,
         start_time: datetime,
         end_time: datetime,
-        module_instance_ids: list[str],
+        module_instance_ids: list[str] | str,
     ) -> list[datetime]:
         """Get forecastTimes from external netcdf storage."""
+        if isinstance(module_instance_ids, str):
+            module_instance_ids = [module_instance_ids]
+
         params = {
             "startTime": self.format_datetime(start_time),
             "endTime": self.format_datetime(end_time),

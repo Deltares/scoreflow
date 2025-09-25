@@ -17,7 +17,7 @@ from pytest_lazy_fixtures import lf
 def test_pipeline_fewsnetcdf(
     general_info_config_fewsnetcdf: GeneralInfoConfig,
     datasource_fewsnetcdf_obs: FewsNetCDFFile,
-    datasource_fewsnetcdf_sim: FewsNetCDFFile,
+    datasource_fewsnetcdf_sim_per_forecast_reference_time: FewsNetCDFFile,
     score_config: BaseScoreConfig,
     datasink_cf_compliant_netcdf: CFCompliantNetCDF,
 ) -> None:
@@ -25,7 +25,10 @@ def test_pipeline_fewsnetcdf(
     config = Config(
         fileversion="0.0.1",
         general=general_info_config_fewsnetcdf,
-        datasources=[datasource_fewsnetcdf_obs.config, datasource_fewsnetcdf_sim.config],
+        datasources=[
+            datasource_fewsnetcdf_obs.config,
+            datasource_fewsnetcdf_sim_per_forecast_reference_time.config,
+        ],
         scores=[score_config],
         datasinks=[datasink_cf_compliant_netcdf.config],
     )

@@ -14,7 +14,6 @@ from dpyverification.configuration import GeneralInfoConfig
 from dpyverification.configuration.base import IdMappingConfig
 from dpyverification.configuration.default.datasinks import CFCompliantNetCDFConfig
 from dpyverification.configuration.default.datasources import (
-    FewsNetCDFKind,
     FewsWebserviceAuthConfig,
     FewsWebserviceInputConfig,
 )
@@ -29,10 +28,10 @@ from dpyverification.configuration.utils import (
 from dpyverification.constants import DataSinkKind, ScoreKind, StandardCoord, StandardDim
 from dpyverification.datamodel.main import SimObsDataset
 from dpyverification.datasinks.cf_compliant_netdf import CFCompliantNetCDF
-from dpyverification.datasources.fewsnetcdf import FewsNetCDFFile
+from dpyverification.datasources.fewsnetcdf import FewsNetCDFFile, FewsNetCDFKind
 from dpyverification.datasources.fewswebservice import FewsWebservice, SimulationRetrievalMethod
 
-from tests import TESTS_FEWS_COMPLIANT_FILE
+TESTS_DATA_DIR = Path(__file__).parent / "data"
 
 cache_dir = Path(".verification_cache")
 
@@ -81,7 +80,13 @@ forecast_period = np.array([np.timedelta64(i, "h") for i in range(1, n_forecast_
 
 
 @pytest.fixture()
-def xarray_data_array_observation() -> xr.DataArray:
+def xarray_dataset_fews_compliant() -> xr.Dataset:
+    """Return xarray dataset for FEWS Compliant file."""
+    return xr.open_dataset(TESTS_DATA_DIR / "fews_compliant_test_file.nc")
+
+
+@pytest.fixture()
+def xarray_data_array_observations() -> xr.Dataset:
     """Return example observations."""
     # Create observation data
     obs_data = rng.random((len(time), len(stations), 1, len(obs_sources)))
@@ -157,7 +162,10 @@ def testconfig_general_info_simobsdataset_from_dummy_data() -> GeneralInfoConfig
         verification_pairs=[
             VerificationPair(
                 id="dummy_var",
-                source={"obs": "source_1", "sim": "source_1"},
+                source={
+                    "obs": "source_1",
+                    "sim": "source_1",
+                },
             ),
         ],
     )
@@ -167,7 +175,14 @@ def testconfig_general_info_simobsdataset_from_dummy_data() -> GeneralInfoConfig
 def id_mapping_config_fewsnetcdf() -> IdMappingConfig:
     """Id mapping config to be used across tests."""
     return IdMappingConfig(
-        variable={"discharge": {"observed": "Q_m", "Sobek3": "Q_fs"}},
+        variable={
+            "discharge": {
+                "observed": "Q_m",
+                "Hydro_Prep": "Q_m",
+                "SBK3_MaxRTK_ECMWF_ENS": "Q_fs",
+                "Sobek3": "Q_fs",
+            },
+        },
     )
 
 
@@ -198,7 +213,7 @@ def datasource_fewsnetcdf_obs(
     return FewsNetCDFFile.from_config(
         {
             "kind": "fewsnetcdf",
-            "simobskind": "obs",
+            "timeseries_kind": "observed_historical",
             "netcdf_kind": "observation",
             "directory": "tests/data/webservice_responses_netcdf/obs",
             "filename_glob": "*.nc",
@@ -211,7 +226,7 @@ def datasource_fewsnetcdf_obs(
 
 
 @pytest.fixture()
-def datasource_fewsnetcdf_sim(
+def datasource_fewsnetcdf_sim_per_forecast_reference_time(
     general_info_config_fewsnetcdf: GeneralInfoConfig,
     id_mapping_config_fewsnetcdf: IdMappingConfig,
 ) -> FewsNetCDFFile:
@@ -219,9 +234,9 @@ def datasource_fewsnetcdf_sim(
     return FewsNetCDFFile.from_config(
         {
             "kind": "fewsnetcdf",
-            "simobskind": "sim",
-            "netcdf_kind": FewsNetCDFKind.simulation_per_forecast_reference_time,
-            "directory": "tests/data/webservice_responses_netcdf/sim",
+            "timeseries_kind": "simulated_forecast_ensemble",
+            "netcdf_kind": FewsNetCDFKind.simulated_forecast_per_forecast_reference_time,
+            "directory": "tests/data/webservice_responses_netcdf/sim_per_forecast_reference_time",
             "filename_glob": "*.nc",
             "station_ids": ["H-RN-0001", "H-RN-0689"],
             "source": "Sobek3",
@@ -233,44 +248,70 @@ def datasource_fewsnetcdf_sim(
 
 @pytest.fixture()
 def fews_webservice_auth_config() -> FewsWebserviceAuthConfig:
-    """Create a mock environment for testing secret env vars."""
+    """Read authorization config from environment."""
     return FewsWebserviceAuthConfig()
-
-
-@pytest.fixture()
-def datasource_fewswebservice_sim(
-    general_info_config_fewsnetcdf: GeneralInfoConfig,
-    fews_webservice_auth_config: FewsWebserviceAuthConfig,
-) -> FewsWebservice:
-    """Fewsnetcdf datasource sim config."""
-    config = FewsWebserviceInputConfig(
-        kind="fewswebservice",
-        simobskind="sim",
-        location_ids=["H-RN-0001", "H-RN-0689"],
-        parameter_ids=["Q_fs"],
-        module_instance_ids=["SBK3_MaxRTK_ECMWF_ENS"],
-        ensemble_id="ECMWF_ENS",
-        simulation_retrieval_method=SimulationRetrievalMethod.retrieve_all_forecast_data,
-        general=general_info_config_fewsnetcdf,
-        auth_config=fews_webservice_auth_config,
-    )
-    return FewsWebservice(config)
 
 
 @pytest.fixture()
 def datasource_fewswebservice_obs(
     general_info_config_fewsnetcdf: GeneralInfoConfig,
     fews_webservice_auth_config: FewsWebserviceAuthConfig,
+    id_mapping_config_fewsnetcdf: IdMappingConfig,
 ) -> FewsWebservice:
     """Fewsnetcdf datasource sim config."""
     config = FewsWebserviceInputConfig(
         kind="fewswebservice",
-        simobskind="obs",
+        timeseries_kind="observed_historical",
         location_ids=["H-RN-0001", "H-RN-0689"],
         parameter_ids=["Q_m"],
-        module_instance_ids=["Hydro_Prep"],
+        module_instance_id="Hydro_Prep",
         general=general_info_config_fewsnetcdf,
         auth_config=fews_webservice_auth_config,
+        id_mapping=id_mapping_config_fewsnetcdf,
+    )
+    return FewsWebservice(config)
+
+
+@pytest.fixture()
+def datasource_fewswebservice_sim_all_forecasts(
+    general_info_config_fewsnetcdf: GeneralInfoConfig,
+    fews_webservice_auth_config: FewsWebserviceAuthConfig,
+    id_mapping_config_fewsnetcdf: IdMappingConfig,
+) -> FewsWebservice:
+    """Fewsnetcdf datasource sim config."""
+    config = FewsWebserviceInputConfig(
+        kind="fewswebservice",
+        timeseries_kind="simulated_forecast_ensemble",
+        location_ids=["H-RN-0001", "H-RN-0689"],
+        parameter_ids=["Q_fs"],
+        module_instance_id="SBK3_MaxRTK_ECMWF_ENS",
+        ensemble_id="ECMWF_ENS",
+        simulation_retrieval_method=SimulationRetrievalMethod.retrieve_all_forecast_data,
+        general=general_info_config_fewsnetcdf,
+        auth_config=fews_webservice_auth_config,
+        id_mapping=id_mapping_config_fewsnetcdf,
+    )
+    return FewsWebservice(config)
+
+
+@pytest.fixture()
+def datasource_fewswebservice_sim_for_forecast_period(
+    general_info_config_fewsnetcdf: GeneralInfoConfig,
+    fews_webservice_auth_config: FewsWebserviceAuthConfig,
+    id_mapping_config_fewsnetcdf: IdMappingConfig,
+) -> FewsWebservice:
+    """Fewsnetcdf datasource sim config."""
+    config = FewsWebserviceInputConfig(
+        kind="fewswebservice",
+        timeseries_kind="simulated_forecast_ensemble",
+        location_ids=["H-RN-0001", "H-RN-0689"],
+        parameter_ids=["Q_fs"],
+        module_instance_id="SBK3_MaxRTK_ECMWF_ENS",
+        ensemble_id="ECMWF_ENS",
+        simulation_retrieval_method=SimulationRetrievalMethod.retrieve_forecast_data_per_lead_time,
+        general=general_info_config_fewsnetcdf,
+        auth_config=fews_webservice_auth_config,
+        id_mapping=id_mapping_config_fewsnetcdf,
     )
     return FewsWebservice(config)
 
@@ -285,7 +326,7 @@ def datasource_fewsnetcdf_compliant(
     """Get a fews netcdf datasource."""
     config = datasource_fewsnetcdf_obs
     config.station_ids = None
-    config.directory = TESTS_FEWS_COMPLIANT_FILE.parent
+    config.directory = TESTS_DATA_DIR
     return FewsNetCDFFile(datasource_fewsnetcdf_obs)
 
 
@@ -305,14 +346,14 @@ def simobsdataset_dummy_data_forecast_reference_time(
 @pytest.fixture()
 def simobsdataset_fews_netcdf_data(
     datasource_fewsnetcdf_obs: FewsNetCDFFile,
-    datasource_fewsnetcdf_sim: FewsNetCDFFile,
+    datasource_fewsnetcdf_sim_per_forecast_reference_time: FewsNetCDFFile,
     general_info_config_fewsnetcdf: GeneralInfoConfig,
 ) -> SimObsDataset:
     """Initialize datamodel with observations and forecasts (based on frt)."""
     return SimObsDataset(
         data=[
             datasource_fewsnetcdf_obs.get_data().data_array,
-            datasource_fewsnetcdf_sim.get_data().data_array,
+            datasource_fewsnetcdf_sim_per_forecast_reference_time.get_data().data_array,
         ],
         general_config=general_info_config_fewsnetcdf,
     )

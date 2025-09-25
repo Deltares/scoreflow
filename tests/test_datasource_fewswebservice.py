@@ -8,6 +8,7 @@ from dataclasses import dataclass
 
 import pytest
 import requests
+import xarray as xr
 import yaml
 from dpyverification.datasources.fewswebservice import FewsWebservice
 
@@ -81,7 +82,7 @@ def _initialize_archive() -> None:
 @pytest.mark.skipif(IN_GITHUB_ACTIONS, reason="Cannot yet test webservice in GitHub CI")
 def test_webservice_live() -> None:
     """Test that a webservice is live and can find filters."""
-    url = "https://rwsos-dataservices.avi.deltares.nl/testarchive/FewsWebServices/rest/fewspiservice/v1"
+    url = os.environ["FEWSWEBSERVICE_URL"]
     endpoint = "archive/locations"
     test_endpoint_url = url + "/" + endpoint
     response = requests.get(test_endpoint_url, timeout=10)
@@ -95,8 +96,27 @@ def test_get_obs_netcdf(datasource_fewswebservice_obs: FewsWebservice) -> None:
 
 
 @pytest.mark.skipif(IN_GITHUB_ACTIONS, reason="Cannot yet test webservice in GitHub CI")
-def test_get_sim_netcdf(
-    datasource_fewswebservice_sim: FewsWebservice,
+def test_get_sim_netcdf_per_forecast_reference_time(
+    datasource_fewswebservice_sim_all_forecasts: FewsWebservice,
 ) -> None:
     """Check that the webservice gives expected outcome for sim."""
-    _ = datasource_fewswebservice_sim.get_data()
+    _ = datasource_fewswebservice_sim_all_forecasts.get_data()
+
+
+@pytest.mark.skipif(IN_GITHUB_ACTIONS, reason="Cannot yet test webservice in GitHub CI")
+def test_get_sim_netcdf_per_forecast_period(
+    datasource_fewswebservice_sim_for_forecast_period: FewsWebservice,
+) -> None:
+    """Check that the webservice gives expected outcome for sim."""
+    _ = datasource_fewswebservice_sim_for_forecast_period.get_data()
+
+
+@pytest.mark.skipif(IN_GITHUB_ACTIONS, reason="Cannot yet test webservice in GitHub CI")
+def test_sim_retrieval_methods_return_equal_datasets(
+    datasource_fewswebservice_sim_for_forecast_period: FewsWebservice,
+    datasource_fewswebservice_sim_all_forecasts: FewsWebservice,
+) -> None:
+    """Check that retrieval methods for webservice return equal datasets."""
+    a = datasource_fewswebservice_sim_for_forecast_period.get_data().dataset
+    b = datasource_fewswebservice_sim_all_forecasts.get_data().dataset
+    xr.testing.assert_equal(a, b)
