@@ -15,7 +15,7 @@ from dpyverification.configuration.base import IdMappingConfig
 from dpyverification.configuration.default.datasinks import CFCompliantNetCDFConfig
 from dpyverification.configuration.default.datasources import (
     FewsWebserviceAuthConfig,
-    FewsWebserviceInputConfig,
+    FewsWebserviceConfig,
 )
 from dpyverification.configuration.default.scores import CrpsForEnsembleConfig, RankHistogramConfig
 from dpyverification.configuration.utils import (
@@ -28,7 +28,7 @@ from dpyverification.configuration.utils import (
 from dpyverification.constants import DataSinkKind, ScoreKind, StandardCoord, StandardDim
 from dpyverification.datamodel.main import SimObsDataset
 from dpyverification.datasinks.cf_compliant_netdf import CFCompliantNetCDF
-from dpyverification.datasources.fewsnetcdf import FewsNetCDFFile, FewsNetCDFKind
+from dpyverification.datasources.fewsnetcdf import FewsNetCDF, FewsNetCDFKind
 from dpyverification.datasources.fewswebservice import FewsWebservice, SimulationRetrievalMethod
 
 TESTS_DATA_DIR = Path(__file__).parent / "data"
@@ -208,9 +208,9 @@ def general_info_config_fewsnetcdf() -> GeneralInfoConfig:
 def datasource_fewsnetcdf_obs(
     general_info_config_fewsnetcdf: GeneralInfoConfig,
     id_mapping_config_fewsnetcdf: IdMappingConfig,
-) -> FewsNetCDFFile:
+) -> FewsNetCDF:
     """Fewsnetcdf datasource obs config."""
-    return FewsNetCDFFile.from_config(
+    return FewsNetCDF.from_config(
         {
             "kind": "fewsnetcdf",
             "timeseries_kind": "observed_historical",
@@ -229,9 +229,9 @@ def datasource_fewsnetcdf_obs(
 def datasource_fewsnetcdf_sim_per_forecast_reference_time(
     general_info_config_fewsnetcdf: GeneralInfoConfig,
     id_mapping_config_fewsnetcdf: IdMappingConfig,
-) -> FewsNetCDFFile:
+) -> FewsNetCDF:
     """Fewsnetcdf datasource sim config."""
-    return FewsNetCDFFile.from_config(
+    return FewsNetCDF.from_config(
         {
             "kind": "fewsnetcdf",
             "timeseries_kind": "simulated_forecast_ensemble",
@@ -259,7 +259,7 @@ def datasource_fewswebservice_obs(
     id_mapping_config_fewsnetcdf: IdMappingConfig,
 ) -> FewsWebservice:
     """Fewsnetcdf datasource sim config."""
-    config = FewsWebserviceInputConfig(
+    config = FewsWebserviceConfig(
         kind="fewswebservice",
         timeseries_kind="observed_historical",
         location_ids=["H-RN-0001", "H-RN-0689"],
@@ -279,7 +279,7 @@ def datasource_fewswebservice_sim_all_forecasts(
     id_mapping_config_fewsnetcdf: IdMappingConfig,
 ) -> FewsWebservice:
     """Fewsnetcdf datasource sim config."""
-    config = FewsWebserviceInputConfig(
+    config = FewsWebserviceConfig(
         kind="fewswebservice",
         timeseries_kind="simulated_forecast_ensemble",
         location_ids=["H-RN-0001", "H-RN-0689"],
@@ -301,7 +301,7 @@ def datasource_fewswebservice_sim_for_forecast_period(
     id_mapping_config_fewsnetcdf: IdMappingConfig,
 ) -> FewsWebservice:
     """Fewsnetcdf datasource sim config."""
-    config = FewsWebserviceInputConfig(
+    config = FewsWebserviceConfig(
         kind="fewswebservice",
         timeseries_kind="simulated_forecast_ensemble",
         location_ids=["H-RN-0001", "H-RN-0689"],
@@ -322,12 +322,12 @@ def datasource_fewsnetcdf_compliant(
         str,
         str | list[str] | dict[str, dict[str, str | list[str]]],
     ],
-) -> FewsNetCDFFile:
+) -> FewsNetCDF:
     """Get a fews netcdf datasource."""
     config = datasource_fewsnetcdf_obs
     config.station_ids = None
     config.directory = TESTS_DATA_DIR
-    return FewsNetCDFFile(datasource_fewsnetcdf_obs)
+    return FewsNetCDF(datasource_fewsnetcdf_obs)
 
 
 @pytest.fixture()
@@ -345,8 +345,8 @@ def simobsdataset_dummy_data_forecast_reference_time(
 
 @pytest.fixture()
 def simobsdataset_fews_netcdf_data(
-    datasource_fewsnetcdf_obs: FewsNetCDFFile,
-    datasource_fewsnetcdf_sim_per_forecast_reference_time: FewsNetCDFFile,
+    datasource_fewsnetcdf_obs: FewsNetCDF,
+    datasource_fewsnetcdf_sim_per_forecast_reference_time: FewsNetCDF,
     general_info_config_fewsnetcdf: GeneralInfoConfig,
 ) -> SimObsDataset:
     """Initialize datamodel with observations and forecasts (based on frt)."""

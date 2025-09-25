@@ -5,7 +5,7 @@ from dpyverification.configuration.base import GeneralInfoConfig
 from dpyverification.configuration.default.scores import BaseScoreConfig
 from dpyverification.configuration.file import Config
 from dpyverification.datasinks.cf_compliant_netdf import CFCompliantNetCDF
-from dpyverification.datasources.fewsnetcdf import FewsNetCDFFile
+from dpyverification.datasources.fewsnetcdf import FewsNetCDF
 from dpyverification.pipeline import execute_pipeline
 from pytest_lazy_fixtures import lf
 
@@ -16,8 +16,8 @@ from pytest_lazy_fixtures import lf
 )
 def test_pipeline_fewsnetcdf(
     general_info_config_fewsnetcdf: GeneralInfoConfig,
-    datasource_fewsnetcdf_obs: FewsNetCDFFile,
-    datasource_fewsnetcdf_sim_per_forecast_reference_time: FewsNetCDFFile,
+    datasource_fewsnetcdf_obs: FewsNetCDF,
+    datasource_fewsnetcdf_sim_per_forecast_reference_time: FewsNetCDF,
     score_config: BaseScoreConfig,
     datasink_cf_compliant_netcdf: CFCompliantNetCDF,
 ) -> None:

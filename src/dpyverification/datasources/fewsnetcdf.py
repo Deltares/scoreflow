@@ -6,7 +6,7 @@ from typing import Self
 import numpy as np
 import xarray as xr
 
-from dpyverification.configuration import FileInputFewsNetCDFConfig
+from dpyverification.configuration import FewsNetCDFConfig
 from dpyverification.configuration.default.datasources import FewsNetCDFKind
 from dpyverification.constants import StandardCoord, StandardDim, TimeseriesKind
 from dpyverification.datasources.base import BaseDatasource
@@ -174,14 +174,14 @@ class Preprocessor:
         return dataset
 
 
-class FewsNetCDFFile(BaseDatasource):
+class FewsNetCDF(BaseDatasource):
     """For reading data from, and writing data to, a FEWS NetCDF file."""
 
     kind = "fewsnetcdf"
-    config_class = FileInputFewsNetCDFConfig
+    config_class = FewsNetCDFConfig
 
-    def __init__(self, config: FileInputFewsNetCDFConfig) -> None:
-        self.config: FileInputFewsNetCDFConfig = config
+    def __init__(self, config: FewsNetCDFConfig) -> None:
+        self.config: FewsNetCDFConfig = config
 
     @staticmethod
     def transform_frt_simulation_to_internal_datamodel(
@@ -287,12 +287,12 @@ class FewsNetCDFFile(BaseDatasource):
                 dataset.load()
 
             # Transform forecast reference time simulation to forecast period
-            dataset = FewsNetCDFFile.transform_frt_simulation_to_internal_datamodel(
+            dataset = FewsNetCDF.transform_frt_simulation_to_internal_datamodel(
                 dataset,
             )
 
         # Final transformation for observations and simulations
-        self.data_array = FewsNetCDFFile.convert_to_data_array_and_set_source_variable_coords(
+        self.data_array = FewsNetCDF.convert_to_data_array_and_set_source_variable_coords(
             dataset,
             name=self.config.timeseries_kind.data_array_name,
             source=self.config.source,

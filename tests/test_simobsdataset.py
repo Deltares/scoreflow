@@ -12,7 +12,7 @@ from dpyverification.configuration.utils import (
     VerificationPair,
 )
 from dpyverification.datamodel.main import SimObsDataset
-from dpyverification.datasources.fewsnetcdf import FewsNetCDFFile
+from dpyverification.datasources.fewsnetcdf import FewsNetCDF
 
 # mypy: disable-error-code="misc"
 
@@ -43,8 +43,8 @@ def test_init_simobsdataset(
 
 
 def test_init_simobsdataset_fewsnetcdf(
-    datasource_fewsnetcdf_obs: FewsNetCDFFile,
-    datasource_fewsnetcdf_sim_per_forecast_reference_time: FewsNetCDFFile,
+    datasource_fewsnetcdf_obs: FewsNetCDF,
+    datasource_fewsnetcdf_sim_per_forecast_reference_time: FewsNetCDF,
     general_info_config_fewsnetcdf: GeneralInfoConfig,
 ) -> None:
     """Test the fewsnetcdf is accepted by the simobsdataset."""

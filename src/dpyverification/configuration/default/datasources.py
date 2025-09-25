@@ -31,7 +31,7 @@ class SimulationRetrievalMethod(StrEnum):
     retrieve_forecast_data_per_lead_time = "retrieve_forecast_data_per_lead_time"
 
 
-class FewsWebserviceInputConfig(BaseDatasourceConfig):
+class FewsWebserviceConfig(BaseDatasourceConfig):
     """A fews webservice input config element."""
 
     kind: Literal[DataSourceKind.FEWSWEBSERVICE]
@@ -72,18 +72,14 @@ class FewsWebserviceInputConfig(BaseDatasourceConfig):
     ] = 2
 
     @model_validator(mode="after")
-    def set_source_equal_to_module_instance_id_if_none(self) -> "FewsWebserviceInputConfig":
+    def set_source_equal_to_module_instance_id_if_none(self) -> "FewsWebserviceConfig":
         """By default, set source equal to module instance id."""
         if self.source == "":
             self.source = self.module_instance_id
         return self
 
 
-class FewsWebserviceOutputConfig(FewsWebserviceInputConfig):
-    """A fews webservice output config element."""
-
-
-class FileInputFewsNetCDFConfig(BaseDatasourceConfig, LocalFiles):
+class FewsNetCDFConfig(BaseDatasourceConfig, LocalFiles):
     """A file input fewsnetcdf config element."""
 
     kind: Literal[DataSourceKind.FEWSNETCDF]

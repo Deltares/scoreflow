@@ -19,15 +19,15 @@ from dpyverification.api.fewswebservice import (
     TimeseriesType,
 )
 from dpyverification.configuration import (
-    FewsWebserviceInputConfig,
-    FileInputFewsNetCDFConfig,
+    FewsNetCDFConfig,
+    FewsWebserviceConfig,
     SimulationRetrievalMethod,
 )
 from dpyverification.constants import DataSourceKind, StandardCoord, StandardDim, TimeseriesKind
 from dpyverification.datasources.base import BaseDatasource
 from dpyverification.datasources.fewsnetcdf import (
+    FewsNetCDF,
     FewsNetcdfCoord,
-    FewsNetCDFFile,
     FewsNetCDFKind,
     Preprocessor,
 )
@@ -128,7 +128,7 @@ def process_forecast_period_netcdf_response(
         },
     )
 
-    return FewsNetCDFFile.convert_to_data_array_and_set_source_variable_coords(
+    return FewsNetCDF.convert_to_data_array_and_set_source_variable_coords(
         dataset,
         timeseries_kind.data_array_name,
         source=source,
@@ -144,14 +144,14 @@ class FewsWebservice(BaseDatasource):
     #
 
     kind = "fewswebservice"
-    config_class = FewsWebserviceInputConfig
+    config_class = FewsWebserviceConfig
     # Annotate the correct type, otherwise mypy will infer from baseclass
-    config: FewsWebserviceInputConfig
+    config: FewsWebserviceConfig
     # The datetime format that is used to pass datetimes to the fewswebservice
     datetime_format = "%Y-%m-%dT%H:%M:%SZ"
     timeout = 30
 
-    def __init__(self, config: FewsWebserviceInputConfig) -> None:
+    def __init__(self, config: FewsWebserviceConfig) -> None:
         self.config = config
         self.timeseries_kind = config.timeseries_kind
         self.dataset = xr.Dataset()
@@ -219,8 +219,8 @@ class FewsWebservice(BaseDatasource):
                 )
 
                 # Load all downloaded data into one object
-                datasource = FewsNetCDFFile(
-                    FileInputFewsNetCDFConfig(
+                datasource = FewsNetCDF(
+                    FewsNetCDFConfig(
                         timeseries_kind=TimeseriesKind.observed_historical,
                         directory=tmpdir,
                         filename_glob="*.nc",
@@ -275,7 +275,7 @@ class FewsWebservice(BaseDatasource):
                     loop: asyncio.AbstractEventLoop,
                     client: FewsWebserviceClient,
                     forecast_reference_time: datetime,
-                    config: FewsWebserviceInputConfig,
+                    config: FewsWebserviceConfig,
                     write_dir: Path,
                 ) -> None:
                     """Run get_timeseries in loop and write responses to NetCDF."""
@@ -306,7 +306,7 @@ class FewsWebservice(BaseDatasource):
                 async def download_all_timeseries_async(
                     client: FewsWebserviceClient,
                     forecast_reference_times: list[datetime],
-                    config: FewsWebserviceInputConfig,
+                    config: FewsWebserviceConfig,
                 ) -> None:
                     """Asynchronously download all timeseries."""
                     loop = asyncio.get_event_loop()
@@ -338,8 +338,8 @@ class FewsWebservice(BaseDatasource):
                 )
 
                 # Load all downloaded data into one object
-                datasource = FewsNetCDFFile(
-                    FileInputFewsNetCDFConfig(
+                datasource = FewsNetCDF(
+                    FewsNetCDFConfig(
                         timeseries_kind=TimeseriesKind.simulated_forecast_ensemble,
                         directory=tmpdir,
                         filename_glob="*.nc",

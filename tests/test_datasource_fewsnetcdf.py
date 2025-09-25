@@ -3,11 +3,11 @@
 import xarray as xr
 from dpyverification.constants import StandardDim
 from dpyverification.datasinks.fewsnetcdf import FewsNetcdfOutputSchema
-from dpyverification.datasources.fewsnetcdf import FewsNetCDFFile
+from dpyverification.datasources.fewsnetcdf import FewsNetCDF
 
 
 def test_get_data_compliant_file_happy(
-    datasource_fewsnetcdf_compliant: FewsNetCDFFile,
+    datasource_fewsnetcdf_compliant: FewsNetCDF,
 ) -> None:
     """Check that the imported fewsnetcdf gives an xarray with the expected content."""
     _ = datasource_fewsnetcdf_compliant
@@ -21,14 +21,14 @@ def test_fewsnetcdf_output_schema_compliant_file(xarray_dataset_fews_compliant: 
 
 
 def test_get_data_obs(
-    datasource_fewsnetcdf_obs: FewsNetCDFFile,
+    datasource_fewsnetcdf_obs: FewsNetCDF,
 ) -> None:
     """Check that the imported fewsnetcdf gives an xarray with the expected content."""
     _ = datasource_fewsnetcdf_obs.get_data()
 
 
 def test_get_data_sim_for_full_simulations(
-    datasource_fewsnetcdf_sim_per_forecast_reference_time: FewsNetCDFFile,
+    datasource_fewsnetcdf_sim_per_forecast_reference_time: FewsNetCDF,
 ) -> None:
     """Check that the imported fewsnetcdf gives an xarray with the expected content."""
     datasource = datasource_fewsnetcdf_sim_per_forecast_reference_time.get_data()

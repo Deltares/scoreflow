@@ -7,8 +7,8 @@ from dpyverification.configuration.default.datasinks import (
     FewsNetCDFOutputConfig,
 )
 from dpyverification.configuration.default.datasources import (
-    FewsWebserviceInputConfig,
-    FileInputFewsNetCDFConfig,
+    FewsNetCDFConfig,
+    FewsWebserviceConfig,
     SimulationRetrievalMethod,
 )
 from dpyverification.configuration.default.scores import (
