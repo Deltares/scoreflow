@@ -31,8 +31,12 @@ class FewsWebserviceClient:
     def __init__(self, url: str | Url, username: str | None, password: str | None) -> None:
         self.url = url
         self.session = requests.Session()
-        if username and password:
+        if username is not None and password is not None:
             self.session.auth = requests.auth.HTTPBasicAuth(username=username, password=password)
+        elif username is None and password is not None or username is not None and password is None:
+            msg = f"Authorization of {FewsWebserviceClient.__name__} requires a valid username and"
+            "password, or no username and password at all. Got only one username or password."
+            raise ValueError(msg)
 
     def format_datetime(self, time: datetime | None) -> str | None:
         """Format datetime to string."""
@@ -48,7 +52,7 @@ class FewsWebserviceClient:
 
     def format_list_of_datetime(
         self,
-        datetime_list: list[datetime] | None,
+        datetime_list: list[datetime | None] | None,
     ) -> list[str | None] | None:
         """Format list of datetime."""
         if datetime_list is not None:
@@ -69,7 +73,7 @@ class FewsWebserviceClient:
         ensemble_id: str | None = None,
         ensemble_member_id: int | None = None,
         forecast_count: int | None = None,
-        external_forecast_times: list[datetime] | None = None,
+        external_forecast_times: list[datetime | None] | None = None,
         timeseries_type: TimeseriesType = TimeseriesType.EXTERNAL_HISTORICAL,
         document_format: DocumentFormat = DocumentFormat.PI_NETCDF,
     ) -> requests.Response:
@@ -99,7 +103,7 @@ class FewsWebserviceClient:
         else:
             headers = {}  # type: ignore[unreachable] # yes, unreachable for now
 
-        response = self.session.get(url=f"{self.url}/timeseries?", params=params, headers=headers)  # type: ignore[arg-type]
+        response = self.session.get(url=f"{self.url}/timeseries", params=params, headers=headers)  # type: ignore[arg-type]
         response.raise_for_status()
         return response
 
@@ -120,7 +124,7 @@ class FewsWebserviceClient:
             "documentFormat": "PI_JSON",
         }
         response = self.session.get(
-            url=f"{self.url}/archive/netcdfstorageforecasts?",
+            url=f"{self.url}/archive/netcdfstorageforecasts",
             params=params,
         )
         response.raise_for_status()
@@ -130,22 +134,23 @@ class FewsWebserviceClient:
             module_instance_ids: list[str],
         ) -> datetime | None:
             """Return the forecastTime when the module instance id matches."""
-            if "attributes" in item:
-                for attr in item["attributes"]:
-                    if any(attr["value"] == mid for mid in module_instance_ids):  # type:ignore[index]
-                        iso_time: str = item["forecastTime"]
-                        return datetime.fromisoformat(iso_time)
+            if "attributes" not in item:
+                return None
+            for attr in item["attributes"]:
+                if attr["value"] in module_instance_ids:  # type:ignore[index]
+                    iso_time: str = item["forecastTime"]
+                    return datetime.fromisoformat(iso_time)
             return None
 
         response_json: dict[str, list[dict[str, str]]] = response.json()
 
-        forecast_reference_time_list = []
+        forecast_reference_times = []
         for json_item in response_json["externalNetCDFStorageForecasts"]:
             value = get_forecast_time_on_matching_module_instance_id(
                 json_item,
                 module_instance_ids=module_instance_ids,
             )
             if value is not None:
-                forecast_reference_time_list.append(value)
+                forecast_reference_times.append(value)
 
-        return forecast_reference_time_list
+        return forecast_reference_times

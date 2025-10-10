@@ -179,8 +179,11 @@ class FewsWebservice(BaseDatasource):
         # Open the zipfile in memory
         with zipfile.ZipFile(zip_bytes) as zf:
             n_files = len(zf.namelist())
-            if n_files != 1:
+            if n_files >= 1:
                 msg = f"Expected exactly one file in .zip, got {n_files}"
+                raise ValueError(msg)
+            if n_files == 0:
+                msg = f"No NetCDF file present in webservice response. Request URL: {response.url}"
                 raise ValueError(msg)
 
             netcdf_filename = next(name for name in zf.namelist() if name.endswith(".nc"))
