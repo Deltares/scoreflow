@@ -21,6 +21,7 @@ class DocumentFormat(StrEnum):
     """The available document formats."""
 
     PI_NETCDF = "PI_NETCDF"
+    PI_JSON = "PI_JSON"
 
 
 class FewsWebserviceClient:
@@ -76,6 +77,7 @@ class FewsWebserviceClient:
         external_forecast_times: list[datetime | None] | None = None,
         timeseries_type: TimeseriesType | None = None,
         document_format: DocumentFormat = DocumentFormat.PI_NETCDF,
+        only_headers: bool | None = None,
     ) -> requests.Response:
         """Get a timeseries from the Delft-FEWS webservice."""
         params = {
@@ -94,6 +96,7 @@ class FewsWebserviceClient:
             "externalForecastTimes": self.format_list_of_datetime(external_forecast_times),
             "timeSeriesType": timeseries_type,
             "documentFormat": document_format,
+            "onlyHeaders": only_headers,
         }
 
         if document_format == DocumentFormat.PI_NETCDF:
@@ -107,7 +110,7 @@ class FewsWebserviceClient:
         response.raise_for_status()
         return response
 
-    def get_netcdf_storage_forecasts_forecast_reference_times(
+    def get_netcdf_storage_forecast_reference_times(
         self,
         start_time: datetime,
         end_time: datetime,
@@ -154,3 +157,35 @@ class FewsWebserviceClient:
                 forecast_reference_times.append(value)
 
         return forecast_reference_times
+
+    @staticmethod
+    def parse_forecast_reference_times_from_json_headers(
+        json_dict: dict,
+        module_instance_id: str,
+    ) -> list[datetime]:
+        """Parse the forecast reference times from timeseries headers."""
+
+        def _parse_forecast_date_from_header(
+            header: dict[str, str],
+            module_instance_id: str,
+        ) -> datetime:
+            """Parse one element."""
+            if "forecastDate" in header:
+                date = header["forecastDate"]["date"]
+                time = header["forecastDate"]["time"]
+                if header["moduleInstanceId"] == module_instance_id:
+                    return datetime.fromisoformat(f"{date}T{time}")
+            return None
+
+        return [
+            _parse_forecast_date_from_header(
+                timeseries["header"],
+                module_instance_id=module_instance_id,
+            )
+            for timeseries in json_dict["timeSeries"]
+            if _parse_forecast_date_from_header(
+                timeseries["header"],
+                module_instance_id=module_instance_id,
+            )
+            is not None
+        ]

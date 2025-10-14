@@ -14,10 +14,7 @@ import numpy as np
 import requests
 import xarray as xr
 
-from dpyverification.api.fewswebservice import (
-    FewsWebserviceClient,
-    TimeseriesType,
-)
+from dpyverification.api.fewswebservice import DocumentFormat, FewsWebserviceClient, TimeseriesType
 from dpyverification.configuration import (
     FewsNetCDFConfig,
     FewsWebserviceConfig,
@@ -273,21 +270,31 @@ class FewsWebservice(BaseDatasource):
             #   period. Start is located at verification period start minus the maximum
             #   forecast period. End is located at verification period end minus the minimum
             #   forecast period.
+            start = self.config.verification_period.start - self.config.forecast_periods.max
+            end = self.config.verification_period.end - self.config.forecast_periods.min
+
             if self.config.archive_kind == ArchiveKind.external_storage_archive:
-                forecast_reference_times = (
-                    self.client.get_netcdf_storage_forecasts_forecast_reference_times(
-                        start_time=(
-                            self.config.verification_period.start - self.config.forecast_periods.max
-                        ),
-                        end_time=(
-                            self.config.verification_period.end - self.config.forecast_periods.min
-                        ),
-                        module_instance_ids=self.config.module_instance_id,
-                    )
+                forecast_reference_times = self.client.get_netcdf_storage_forecast_reference_times(
+                    start_time=start,
+                    end_time=end,
+                    module_instance_ids=self.config.module_instance_id,
                 )
             else:
-                msg = f"Forecast retrieval via the {ArchiveKind.open_archive} is not yet supported."
-                raise NotImplementedError(msg)
+                response = self.client.get_timeseries(
+                    location_ids=self.config.location_ids,
+                    parameter_ids=self.config.parameter_ids,
+                    module_instance_ids=self.config.module_instance_id,
+                    ensemble_id=self.config.ensemble_id,
+                    start_forecast_time=start,
+                    end_forecast_time=end,
+                    document_format=DocumentFormat.PI_JSON,
+                )
+                forecast_reference_times = (
+                    self.client.parse_forecast_reference_times_from_json_headers(
+                        response.json(),
+                        module_instance_id=self.config.module_instance_id,
+                    )
+                )
 
             if len(forecast_reference_times) == 0:
                 msg = (
@@ -410,7 +417,9 @@ class FewsWebservice(BaseDatasource):
                         start_time=self.config.general.verification_period.start,
                         end_time=self.config.general.verification_period.end,
                         lead_time=fp,
-                        timeseries_type=TimeseriesType.EXTERNAL_FORECASTING,
+                        timeseries_type=TimeseriesType.EXTERNAL_FORECASTING
+                        if self.config.archive_kind == ArchiveKind.external_storage_archive
+                        else None,
                     )
 
                     # Write NetCDF response to disk

@@ -2,6 +2,7 @@
 
 # mypy: ignore-errors
 
+import json
 import shutil
 from datetime import datetime, timezone
 from enum import StrEnum
@@ -290,6 +291,14 @@ def fews_netcdf_simulated_forecast_ensemble_frt(
             "id_mapping": id_mapping_config_fewsnetcdf.model_dump(),
         },
     )
+
+
+@pytest.fixture()
+def fews_webservice_timeseries_headers_only() -> xr.Dataset:
+    """Return xarray dataset for FEWS Compliant file."""
+    file_path = Path("tests/data/webservice_responses_netcdf/timeseries_headers.json")
+    with file_path.open(mode="r", encoding="utf8") as f:
+        return json.load(f)
 
 
 @pytest.fixture()
