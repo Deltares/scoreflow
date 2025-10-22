@@ -1,11 +1,12 @@
 """Classes and functions to create a Config object from various types of configuration files."""
 
+# The public interface
+from dpyverification.configuration.base import BaseDatasourceConfig, Config, GeneralInfoConfig
 from typing import Annotated
 
 from pydantic import Field
 
-# The public interface
-from dpyverification.configuration.base import BaseDatasourceConfig, Config, GeneralInfoConfig
+from dpyverification.configuration.base import Config, GeneralInfoConfig
 from dpyverification.configuration.default.datasinks import (
     CFCompliantNetCDFConfig,
     FewsNetCDFOutputConfig,
@@ -15,13 +16,14 @@ from dpyverification.configuration.default.datasources import (
     FewsWebserviceConfig,
     InternalDatasetConfig,
     SimulationRetrievalMethod,
+    ForecastRetrievalMethod,
 )
 from dpyverification.configuration.default.scores import (
     CrpsCDFConfig,
     CrpsForEnsembleConfig,
     RankHistogramConfig,
 )
-from dpyverification.configuration.file import ConfigFile, ConfigType
+from dpyverification.configuration.file import ConfigFile, ConfigKind
 from dpyverification.configuration.utils import FewsWebserviceAuthConfig
 
 DefaultDatasourceConfig = Annotated[
