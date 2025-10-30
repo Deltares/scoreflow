@@ -7,11 +7,18 @@ https://scores.readthedocs.io/en/1.0.0/tutorials/CRPS_for_Ensembles.html
 from typing import ClassVar
 
 import xarray as xr
-from scores.probability import crps_cdf, crps_for_ensemble, isotonic_fit  # type: ignore[import-untyped]
-from scores.categorical import ThresholdEventOperator
+from scores.probability import (  # type: ignore[import-untyped]
+    crps_cdf,
+    crps_for_ensemble,
+)
 from xskillscore import rank_histogram, reliability  # type: ignore[import-untyped]
 
-from dpyverification.configuration import CrpsCDFConfig, CrpsForEnsembleConfig, RankHistogramConfig, ReliabilityForEnsembleConfig
+from dpyverification.configuration import (
+    CrpsCDFConfig,
+    CrpsForEnsembleConfig,
+    RankHistogramConfig,
+    ReliabilityForEnsembleConfig,
+)
 from dpyverification.constants import StandardDim, TimeseriesKind
 from dpyverification.datamodel import InputDataset
 from dpyverification.scores.base import BaseScore
@@ -115,7 +122,15 @@ class RankHistogram(BaseScore):
         )
 
 class ReliabilityForEnsemble(BaseScore):
-    """Implementation for CRPS for an ensemble."""
+    """
+    Implementation for reliability analysis of an ensemble.
+
+    Computes the forecast probability and the matched occurence of events
+     based on thresholds and probability bins
+
+    See for external documentation of the xskillscore 'reliability' function:
+    https://xskillscore.readthedocs.io/en/stable/api/xskillscore.reliability.html
+    """
 
     kind = "reliability_for_ensemble"
     config_class = ReliabilityForEnsembleConfig
@@ -138,14 +153,13 @@ class ReliabilityForEnsemble(BaseScore):
         def _reliability(
                 sim: xr.DataArray,
                 obs: xr.DataArray,
-                **kwargs: object,
         ) -> xr.DataArray:
-            """Call xskillscore.rank_histogram while preserving auxiliary coords."""
+            """Call xskillscore.reliability while preserving auxiliary coords."""
             result: xr.DataArray = reliability(
                 obs,
                 sim,
-                dim = 'time',
-                probability_bin_edges=self.config.get_prob_bins
+                dim = self.config.reduce_dims.values,
+                probability_bin_edges=self.config.get_prob_bins,
             )
             return result
 
@@ -153,23 +167,17 @@ class ReliabilityForEnsemble(BaseScore):
         # Boolean probabilities
         obs_attrs = data.dataset.observations.attrs
         sim_attrs = data.dataset.simulations.attrs
-        # op_converter = ThresholdEventOperator(default_event_threshold=self.config.threshold,
-        #                                       default_op_fn= self.config.get_threshold_operator)
-        # data.dataset['observations'], data.dataset['simulations'] = op_converter.make_event_tables(data.dataset['observations'], data.dataset['simulations'])
-        data.dataset['observations'] = data.dataset['observations'] > self.config.threshold
-        data.dataset['simulations'] = data.dataset['simulations'] > self.config.threshold
+        # Transform to probability
+        data.dataset["observations"] = data.dataset["observations"] > self.config.threshold
+        data.dataset["simulations"] = data.dataset["simulations"] > self.config.threshold
+        data.dataset["simulations"] = data.dataset["simulations"].mean(dim = "realization")
 
-        data.dataset['simulations'] = data.dataset['simulations'].mean(dim = 'realization') # Transform to probability
         data.dataset.observations.attrs.update(obs_attrs)
         data.dataset.simulations.attrs.update(sim_attrs)
-        data.dataset.simulations.attrs.update({'timeseries_kind': 'simulated_forecast_single'})
+        data.dataset.simulations.attrs.update({"timeseries_kind": "simulated_forecast_single"})
 
 
         return (loop_verification_pairs(typed_reliability_for_ensemble)(
             data,
-            dims=self.config.reduce_dims,
-            config = self.config
+            config = self.config,
         ))
-    #functional = 'quantile',
-            # bootstraps = 100,
-            # confidence_level = 0.95

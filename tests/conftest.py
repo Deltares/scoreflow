@@ -612,6 +612,7 @@ def score_config_reliability() -> ReliabilityForEnsembleConfig:
     return ReliabilityForEnsembleConfig(
         kind=ScoreKind.reliability_for_ensemble,
         general=test_data_general_info_config_ensemble.model_dump(),
+        threshold= 250,
     )
 
 

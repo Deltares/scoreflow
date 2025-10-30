@@ -1,10 +1,11 @@
 """A module for default implementation of scores."""
 
+import operator
 from enum import StrEnum
 from typing import Annotated, Literal
-import operator
-from pydantic import Field, RootModel
+
 import numpy as np
+from pydantic import Field, RootModel
 
 from dpyverification.configuration.base import BaseScoreConfig
 from dpyverification.constants import ScoreKind, StandardDim, SupportedContinuousScore
@@ -91,8 +92,9 @@ class ReliabilityForEnsembleConfig(BaseScoreConfig):
     reduce_dims: ReduceDimsWithDefault
     probability_bin_edges: Annotated[list[float],
         Field(description="Definitions of bins for which to compute the reliability diagram. "
-                          "All bins are inclusive of left edge, exclusive of right edge, except for the last bin, "
-                          "which includes both edges.", min_length=2, min=0, max=1)] = np.linspace(0,1,6)
+                          "All bins are inclusive of left edge, exclusive of right edge, "
+                          "except for the last bin, which includes both edges.",
+              min_length=2, min=0, max=1)] = np.linspace(0,1,6)
     # check field validator
     threshold_operator: Literal ["ge", "gt","lt", "le"] = "ge"
     threshold: Annotated[float, Field(description="Value of thresholds for all dimensions")]
@@ -100,11 +102,13 @@ class ReliabilityForEnsembleConfig(BaseScoreConfig):
 
 
     @property
-    def get_prob_bins(self):
+    def get_prob_bins(self)-> np.array:
+        """Transform list to np.array."""
         return np.array(self.probability_bin_edges)
 
     @property
-    def get_threshold_operator(self):
+    def get_threshold_operator(self) -> operator:
+        """Receive operator from config."""
         operator_map = {"ge": operator.ge,
                         "gt": operator.gt,
                         "le": operator.le,

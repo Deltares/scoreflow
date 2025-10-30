@@ -3,6 +3,7 @@
 from copy import deepcopy
 
 import xarray as xr
+from dpyverification.configuration import ReliabilityForEnsembleConfig
 from dpyverification.configuration.default.scores import (
     ContinuousScoresConfig,
     CrpsCDFConfig,
@@ -13,7 +14,12 @@ from dpyverification.constants import TimeseriesKind
 from dpyverification.datamodel.main import InputDataset
 from dpyverification.datasources.fewsnetcdf import FewsNetCDF
 from dpyverification.scores.continuous import ContinuousScores
-from dpyverification.scores.probabilistic import CrpsCDF, CrpsForEnsemble, RankHistogram
+from dpyverification.scores.probabilistic import (
+    CrpsCDF,
+    CrpsForEnsemble,
+    RankHistogram,
+    ReliabilityForEnsemble,
+)
 
 
 def test_ensemble_crps(
@@ -36,6 +42,18 @@ def test_ensemble_rank_histogram(
         data=input_dataset_fews_netcdf_simulated_forecast_ensemble,
     )
     assert result.name == score_config_rank_histogram.kind
+
+def test_ensemble_reliability(
+    score_config_reliability: ReliabilityForEnsembleConfig,
+    input_dataset_fews_netcdf_simulated_forecast_ensemble: InputDataset,
+) -> None:
+    """Test CRPS."""
+    result = ReliabilityForEnsemble(score_config_reliability).compute(
+        data=input_dataset_fews_netcdf_simulated_forecast_ensemble,
+
+    )
+    assert result.name == score_config_reliability.kind
+
 
 
 def test_probabilistic_crps_cdf(
