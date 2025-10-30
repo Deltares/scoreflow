@@ -2,8 +2,9 @@
 
 from enum import StrEnum
 from typing import Annotated, Literal
-
+import operator
 from pydantic import Field, RootModel
+import numpy as np
 
 from dpyverification.configuration.base import BaseScoreConfig
 from dpyverification.constants import ScoreKind, StandardDim, SupportedContinuousScore
@@ -78,6 +79,37 @@ class CrpsForEnsembleConfig(BaseScoreConfig):
         ),
     ]
     reduce_dims: ReduceDimsWithDefault
+
+
+class ReliabilityForEnsembleConfig(BaseScoreConfig):
+    """A reliability for ensemble config element.
+
+    For reference, see: See: https://scores.readthedocs.io/en/stable/api.html#scores.probability.isotonic_fit
+    """
+
+    kind: Literal[ScoreKind.reliability_for_ensemble]
+    reduce_dims: ReduceDimsWithDefault
+    probability_bin_edges: Annotated[list[float],
+        Field(description="Definitions of bins for which to compute the reliability diagram. "
+                          "All bins are inclusive of left edge, exclusive of right edge, except for the last bin, "
+                          "which includes both edges.", min_length=2, min=0, max=1)] = np.linspace(0,1,6)
+    # check field validator
+    threshold_operator: Literal ["ge", "gt","lt", "le"] = "ge"
+    threshold: Annotated[float, Field(description="Value of thresholds for all dimensions")]
+
+
+
+    @property
+    def get_prob_bins(self):
+        return np.array(self.probability_bin_edges)
+
+    @property
+    def get_threshold_operator(self):
+        operator_map = {"ge": operator.ge,
+                        "gt": operator.gt,
+                        "le": operator.le,
+                        "lt": operator.lt}
+        return operator_map[self.threshold_operator]
 
 
 class CrpsCDFConfig(BaseScoreConfig):

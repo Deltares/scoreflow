@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 import pytest
 import xarray as xr
-from dpyverification.configuration import GeneralInfoConfig
+from dpyverification.configuration import GeneralInfoConfig, ReliabilityForEnsembleConfig
 from dpyverification.configuration.base import IdMappingConfig
 from dpyverification.configuration.default.datasinks import CFCompliantNetCDFConfig
 from dpyverification.configuration.default.datasources import (
@@ -603,6 +603,14 @@ def score_config_rank_histogram() -> RankHistogramConfig:
     """Flexible fixture for scores config, sharing general config."""
     return RankHistogramConfig(
         kind=ScoreKind.rank_histogram,
+        general=test_data_general_info_config_ensemble.model_dump(),
+    )
+
+@pytest.fixture()
+def score_config_reliability() -> ReliabilityForEnsembleConfig:
+    """Flexible fixture for scores config, sharing general config."""
+    return ReliabilityForEnsembleConfig(
+        kind=ScoreKind.reliability_for_ensemble,
         general=test_data_general_info_config_ensemble.model_dump(),
     )
 

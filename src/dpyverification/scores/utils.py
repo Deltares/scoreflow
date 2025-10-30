@@ -91,6 +91,8 @@ def loop_verification_pairs(func: ScoreFunc) -> WrappedScoreFunc:
             if simulation_timeseries_kind == TimeseriesKind.simulated_forecast_ensemble:
                 # Broadcast obs like sim
                 obs = obs.broadcast_like(sim.isel({StandardDim.realization: 0}))  # type:ignore[misc]
+            elif simulation_timeseries_kind == TimeseriesKind.simulated_forecast_single:
+                obs = obs.broadcast_like(sim)
 
             # Function call
             result: xr.DataArray | xr.Dataset = func(sim, obs, **kwargs)

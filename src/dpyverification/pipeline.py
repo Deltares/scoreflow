@@ -16,7 +16,7 @@ from dpyverification.datasources.fewsnetcdf import FewsNetCDF
 from dpyverification.datasources.fewswebservice import FewsWebservice
 from dpyverification.datasources.internal_dataset import InternalDataset
 from dpyverification.scores.base import BaseScore
-from dpyverification.scores.probabilistic import CrpsForEnsemble, RankHistogram
+from dpyverification.scores.probabilistic import CrpsForEnsemble, RankHistogram, ReliabilityForEnsemble
 
 TItem = TypeVar("TItem", bound=BaseDatasource | BaseDatasink | BaseScore)
 
@@ -25,7 +25,7 @@ DEFAULT_DATASOURCES: list[type[BaseDatasource]] = [
     FewsWebservice,
     InternalDataset,
 ]
-DEFAULT_SCORES: list[type[BaseScore]] = [RankHistogram, CrpsForEnsemble]
+DEFAULT_SCORES: list[type[BaseScore]] = [RankHistogram, CrpsForEnsemble, ReliabilityForEnsemble]
 DEFAULT_DATASINKS: list[type[BaseDatasink]] = [CFCompliantNetCDF]
 
 
@@ -102,16 +102,18 @@ def execute_pipeline(
 
     # Collect and initialize all datasources
     datasources: list[BaseDatasource] = []
-    for datasource_config in config.datasources:
-        source_kind = find_matching_kind_in_list(
-            items=available_datasources,
-            kind=datasource_config.kind,
-        )
-        datasource = source_kind.from_config(
-            datasource_config.model_dump(),  # type: ignore[misc] # Allow Any
-        )
-        datasources.append(datasource)
-
+    try:
+        for datasource_config in config.datasources:
+            source_kind = find_matching_kind_in_list(
+                items=available_datasources,
+                kind=datasource_config.kind,
+            )
+            datasource = source_kind.from_config(
+                datasource_config.model_dump(),  # type: ignore[misc] # Allow Any
+            )
+            datasources.append(datasource)
+    except Exception as e:
+        print(available_datasources)
     # Get data for each datasource
     for datasource in datasources:
         datasource.get_data()

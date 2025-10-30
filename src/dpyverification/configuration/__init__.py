@@ -22,6 +22,7 @@ from dpyverification.configuration.default.scores import (
     CrpsCDFConfig,
     CrpsForEnsembleConfig,
     RankHistogramConfig,
+    ReliabilityForEnsembleConfig,
 )
 from dpyverification.configuration.file import ConfigFile, ConfigKind
 from dpyverification.configuration.utils import FewsWebserviceAuthConfig

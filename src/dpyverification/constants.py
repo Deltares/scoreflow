@@ -51,6 +51,7 @@ class ScoreKind(StrEnum):
 
     rank_histogram = "rank_histogram"
     crps_for_ensemble = "crps_for_ensemble"
+    reliability_for_ensemble = "reliability_for_ensemble"
     crps_cdf = "crps_cdf"
     continuous_scores = "continuous_scores"
 
