@@ -1,10 +1,13 @@
 """Specification of a pipeline that will collect data and run verification functions on the data."""
 
+import warnings
 from collections.abc import Iterable
 from pathlib import Path
 from typing import TypeVar
 
 import xarray as xr
+from cftime import CFWarning
+from xarray import SerializationWarning
 
 from dpyverification.configuration import Config, ConfigFile
 from dpyverification.configuration.file import ConfigKind
@@ -110,43 +113,61 @@ def execute_pipeline(
         )
         datasources.append(datasource)
 
-    # Get data for each datasource
-    for datasource in datasources:
-        datasource.get_data()
-
-    # Initialize the input dataset
-    input_dataset = InputDataset(
-        [datasource.data_array for datasource in datasources],
-    )
-
-    # Initialize the output dataset
-    output_dataset = OutputDataset(input_dataset=input_dataset)
-
-    # Add score results to the output dataset
-    for score_config in config.scores:
-        score_kind = find_matching_kind_in_list(
-            items=available_scores,
-            kind=score_config.kind,
+    with warnings.catch_warnings():
+        # Filter some known and harmless warnings
+        warnings.filterwarnings(
+            "ignore",
+            category=RuntimeWarning,
+            message="invalid value encountered in cast",
         )
-        score = score_kind.from_config(score_config.model_dump())  # type: ignore[misc] # Allow Any
-        results = score.validate_and_compute(input_dataset)
-        if isinstance(results, xr.DataArray):  # type: ignore[misc]
-            output_dataset.add_score(results)
-        elif isinstance(results, Iterable):
-            for result in results:  # type: ignore[misc]
-                output_dataset.add_score(result)  # type: ignore[misc]
+        warnings.filterwarnings(
+            "ignore",
+            category=CFWarning,  # type:ingore[misc]
+            message="this date/calendar/year zero convention is not supported by CF",
+        )
+        warnings.filterwarnings(
+            "ignore",
+            category=SerializationWarning,
+            message="Unable to decode time axis into full numpy.datetime64 objects",
+        )
 
-    # Write data for each datasink if not None
-    if config.datasinks is not None:
-        for datasink_config in config.datasinks:
-            sink_kind = find_matching_kind_in_list(
-                items=available_datasinks,
-                kind=datasink_config.kind,
+        # Get data for each datasource
+        for datasource in datasources:
+            datasource.get_data()
+
+        # Initialize the input dataset
+        input_dataset = InputDataset(
+            [datasource.data_array for datasource in datasources],
+        )
+
+        # Initialize the output dataset
+        output_dataset = OutputDataset(input_dataset=input_dataset)
+
+        # Add score results to the output dataset
+        for score_config in config.scores:
+            score_kind = find_matching_kind_in_list(
+                items=available_scores,
+                kind=score_config.kind,
             )
-            datasink = sink_kind.from_config(datasink_config.model_dump())  # type: ignore[misc] # Allow Any
-            datasink.write_data(
-                output_dataset.get_output_dataset(),
-            )
+            score = score_kind.from_config(score_config.model_dump())  # type: ignore[misc] # Allow Any
+            results = score.validate_and_compute(input_dataset)
+            if isinstance(results, xr.DataArray):  # type: ignore[misc]
+                output_dataset.add_score(results)
+            elif isinstance(results, Iterable):
+                for result in results:  # type: ignore[misc]
+                    output_dataset.add_score(result)  # type: ignore[misc]
+
+        # Write data for each datasink if not None
+        if config.datasinks is not None:
+            for datasink_config in config.datasinks:
+                sink_kind = find_matching_kind_in_list(
+                    items=available_datasinks,
+                    kind=datasink_config.kind,
+                )
+                datasink = sink_kind.from_config(datasink_config.model_dump())  # type: ignore[misc] # Allow Any
+                datasink.write_data(
+                    output_dataset.get_output_dataset(),
+                )
 
     # Return the output dataset by default
     return output_dataset.get_output_dataset()
