@@ -371,7 +371,7 @@ class Config(BaseModel):
         class ConfigSchema(Config):
             datasources: CombinedDataSourceConfig  # type:ignore[valid-type]
             scores: CombinedScoreConfig  # type:ignore[valid-type]
-            datasinks: CombinedDatasinkConfig  # type:ignore[valid-type]
+            datasinks: CombinedDatasinkConfig | None = None  # type:ignore[valid-type]
 
         schema = ConfigSchema.model_json_schema()  # type:ignore[misc]
 
