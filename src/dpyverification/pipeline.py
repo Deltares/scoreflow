@@ -26,7 +26,7 @@ DEFAULT_DATASOURCES: list[type[BaseDatasource]] = [
     FewsNetCDF,
     FewsWebservice,
 ]
-DEFAULT_SCORES: list[type[BaseScore]] = [RankHistogram, CrpsForEnsemble]
+DEFAULT_SCORES: list[type[BaseScore]] = [RankHistogram, CrpsForEnsemble, ContinuousScores]
 DEFAULT_DATASINKS: list[type[BaseDatasink]] = [CFCompliantNetCDF]
 
 
