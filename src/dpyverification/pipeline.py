@@ -1,5 +1,6 @@
 """Specification of a pipeline that will collect data and run verification functions on the data."""
 
+import logging
 import warnings
 from collections.abc import Iterable
 from pathlib import Path
@@ -18,7 +19,11 @@ from dpyverification.datasources.base import BaseDatasource
 from dpyverification.datasources.fewsnetcdf import FewsNetCDF
 from dpyverification.datasources.fewswebservice import FewsWebservice
 from dpyverification.scores.base import BaseScore
+from dpyverification.scores.continuous import ContinuousScores
 from dpyverification.scores.probabilistic import CrpsForEnsemble, RankHistogram
+
+logger = logging.getLogger(__name__)
+
 
 TItem = TypeVar("TItem", bound=BaseDatasource | BaseDatasink | BaseScore)
 
@@ -101,6 +106,10 @@ def execute_pipeline(
             config_type=config[1],
         ).content
 
+    # Log start message
+    msg = f"Successfully initialized the configuration. \n\t verification_period_start = {config.general.verification_period.start} \n\t verification_period_end = {config.general.verification_period.end}"
+    logger.info(msg)
+
     # Collect and initialize all datasources
     datasources: list[BaseDatasource] = []
     for datasource_config in config.datasources:
@@ -133,12 +142,18 @@ def execute_pipeline(
 
         # Get data for each datasource
         for datasource in datasources:
+            msg = f"Start getting data from {datasource.__class__.__name__}."
+            logger.info(msg)
             datasource.get_data()
+            msg = f"Successfully got data from {datasource.__class__.__name__}."
+            logger.info(msg)
 
         # Initialize the input dataset
         input_dataset = InputDataset(
             [datasource.data_array for datasource in datasources],
         )
+        msg = "Successfully combined all data into verification dataset."
+        logger.info(msg)
 
         # Initialize the output dataset
         output_dataset = OutputDataset(input_dataset=input_dataset)
@@ -151,6 +166,8 @@ def execute_pipeline(
             )
             score = score_kind.from_config(score_config.model_dump())  # type: ignore[misc] # Allow Any
             results = score.validate_and_compute(input_dataset)
+            msg = f"Successfully computed {score.__class__.__name__}."
+            logger.info(msg)
             if isinstance(results, xr.DataArray):  # type: ignore[misc]
                 output_dataset.add_score(results)
             elif isinstance(results, Iterable):
@@ -168,6 +185,11 @@ def execute_pipeline(
                 datasink.write_data(
                     output_dataset.get_output_dataset(),
                 )
+                msg = f"Successfully wrote verification results to {datasink.__class__.__name__}."
+                logger.info(msg)
+
+    msg = "Verification pipeline completed successfully."
+    logger.info(msg)
 
     # Return the output dataset by default
     return output_dataset.get_output_dataset()
