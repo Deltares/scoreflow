@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import TypeVar
 
 import xarray as xr
-from cftime import CFWarning
+from cftime import CFWarning  # type:ignore[import-untyped]
 from xarray import SerializationWarning
 
 from dpyverification.configuration import Config, ConfigFile
@@ -107,7 +107,11 @@ def execute_pipeline(
         ).content
 
     # Log start message
-    msg = f"Successfully initialized the configuration. \n\t verification_period_start = {config.general.verification_period.start} \n\t verification_period_end = {config.general.verification_period.end}"
+    msg = (
+        "Successfully initialized the configuration. \n\t verification_period_start = "
+        f"{config.general.verification_period.start} \n\t verification_period_end = "
+        f"{config.general.verification_period.end}"
+    )
     logger.info(msg)
 
     # Collect and initialize all datasources
@@ -131,7 +135,7 @@ def execute_pipeline(
         )
         warnings.filterwarnings(
             "ignore",
-            category=CFWarning,  # type:ingore[misc]
+            category=CFWarning,  # type:ignore[misc]
             message="this date/calendar/year zero convention is not supported by CF",
         )
         warnings.filterwarnings(

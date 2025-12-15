@@ -339,7 +339,7 @@ class Config(BaseModel):
             models: list[type[TItem]],
         ) -> type:
             union_type = reduce(lambda a, b: a | b, models)  # type:ignore[misc, return-value, arg-type]
-            return list[Annotated[union_type, Field(discriminator="kind")]]  # type:ignore[misc, return-value]
+            return list[Annotated[union_type, Field(discriminator="kind")]]  # type:ignore[valid-type]
 
         merged_datasource_models = (
             default_datasources_config + user_datasources_config
@@ -377,4 +377,4 @@ class Config(BaseModel):
 
         # Write the schema to file
         with output_path.open("w", encoding="utf-8") as f:
-            json.dump(schema, f, indent=2, ensure_ascii=False)
+            json.dump(schema, f, indent=2, ensure_ascii=False)  # type:ignore[misc]
