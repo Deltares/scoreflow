@@ -5,7 +5,7 @@ from abc import abstractmethod
 import xarray as xr
 
 from dpyverification.base import Base
-from dpyverification.configuration.base import BaseDatasinkConfig
+from dpyverification.configuration.config import BaseDatasinkConfig
 
 
 class BaseDatasink(Base):
@@ -19,4 +19,4 @@ class BaseDatasink(Base):
 
     @abstractmethod
     def write_data(self, data: xr.Dataset) -> None:
-        """Write the data in the xarray Dataset to the datasource."""
+        """Write output data for one verification pair to the datasource."""

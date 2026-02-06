@@ -3,7 +3,7 @@
 from abc import ABC
 from typing import Any, Self
 
-from dpyverification.configuration.base import BaseConfig
+from dpyverification.configuration.config import BaseConfig
 
 
 class Base(ABC):

@@ -5,7 +5,7 @@ from enum import StrEnum, unique
 
 import yaml
 
-from .base import (
+from .config import (
     Config,
 )
 

@@ -181,6 +181,7 @@ class FewsWebserviceClient:
     ) -> list[datetime]:
         """Parse the forecast reference times from timeseries headers."""
 
+        # Private helper function
         def _parse_forecast_date_from_header(
             header: dict[str, dict[str, dict[str, str]]],
             module_instance_id: str,
@@ -194,6 +195,8 @@ class FewsWebserviceClient:
             return None
 
         forecast_dates: list[datetime] = []
+
+        # Iterate through each timeseries entry in the json
         for timeseries in json_dict["timeSeries"]:  # type:ignore[union-attr, misc]
             forecast_date = _parse_forecast_date_from_header(
                 timeseries["header"],  # type:ignore[misc, index, call-overload, arg-type]
@@ -201,4 +204,6 @@ class FewsWebserviceClient:
             )
             if forecast_date is not None:
                 forecast_dates.append(forecast_date)
-        return forecast_dates
+
+        # Ensure unique forecast dates
+        return list(set(forecast_dates))

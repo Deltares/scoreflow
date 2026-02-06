@@ -3,7 +3,7 @@
 from collections.abc import Generator
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
 
 import numpy as np
 from pydantic import (
@@ -139,6 +139,19 @@ class TimePeriod(BaseModel):
         return np.datetime64(self.end)
 
 
+class VerificationPeriod(TimePeriod):
+    """Definition of the verification period."""
+
+    dimension: Annotated[
+        Literal["forecast_reference_time", "time"],
+        Field(
+            description="The dimension along which the verification period is defined. Using "
+            "'forecast_reference_time' allows for a forecast-centric verification run, "
+            "whereas 'time' allows for an observation-centric verification run.",
+        ),
+    ] = "forecast_reference_time"
+
+
 class VerificationPair(BaseModel):
     """
     Configuration for a verification pair.
@@ -151,6 +164,20 @@ class VerificationPair(BaseModel):
     id: str
     obs: Source
     sim: Source
+
+    model_config = {
+        "frozen": True,
+    }
+
+    def __eq__(self, other: object) -> bool:
+        """Test equality of id's between pairs."""
+        if not isinstance(other, VerificationPair):
+            return NotImplemented
+        return self.id == other.id
+
+    def __hash__(self) -> int:
+        """Return the hashed id."""
+        return hash(self.id)
 
 
 class LocalFile(BaseModel):

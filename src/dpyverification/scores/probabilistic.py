@@ -12,13 +12,7 @@ from xskillscore import rank_histogram  # type: ignore[import-untyped]
 
 from dpyverification.configuration import CrpsCDFConfig, CrpsForEnsembleConfig, RankHistogramConfig
 from dpyverification.constants import StandardDim, TimeseriesKind
-from dpyverification.datamodel import InputDataset
 from dpyverification.scores.base import BaseScore
-from dpyverification.scores.utils import (
-    ScoreFunc,
-    assign_station_auxiliary_coords,
-    loop_verification_pairs,
-)
 
 
 class CrpsForEnsemble(BaseScore):
@@ -35,16 +29,17 @@ class CrpsForEnsemble(BaseScore):
 
     def compute(
         self,
-        data: InputDataset,
-    ) -> xr.DataArray:
+        obs: xr.DataArray,
+        sim: xr.DataArray,
+    ) -> xr.Dataset | xr.DataArray:
         """Compute the CRPS for an ensemble of forecasts and observations."""
-        typed_crps_for_ensemble: ScoreFunc = crps_for_ensemble
-        return loop_verification_pairs(typed_crps_for_ensemble)(
-            data,
-            self.config,
+        result: xr.DataArray | xr.Dataset = crps_for_ensemble(
+            fcst=sim,
+            obs=obs,
             ensemble_member_dim=StandardDim.realization.value,
-            preserve_dims=self.config.reduce_dims.inverse,
+            preserve_dims=self.config.preserve_dims,
         )
+        return result
 
 
 class CrpsCDF(BaseScore):
@@ -59,17 +54,16 @@ class CrpsCDF(BaseScore):
     def __init__(self, config: CrpsCDFConfig) -> None:
         self.config: CrpsCDFConfig = config
 
-    def compute(
-        self,
-        data: InputDataset,
-    ) -> xr.DataArray:
+    def compute(self, obs: xr.DataArray, sim: xr.DataArray) -> xr.DataArray | xr.Dataset:
         """Compute the CRPS for an ensemble of forecasts and observations."""
-        typed_crps_cdf: ScoreFunc = crps_cdf
-        return loop_verification_pairs(typed_crps_cdf)(
-            data,
-            self.config,
-            preserve_dims=self.config.reduce_dims.inverse,
+        result: xr.DataArray | xr.Dataset = crps_cdf(
+            fcst=sim,
+            obs=obs,
+            preserve_dims=self.config.preserve_dims,
         )
+
+        # crps_cdf outputs a rather ambiguous variable 'total', hence rename to score kind.
+        return result.rename_vars({"total": str(self.config.kind)})  # type:ignore[misc]
 
 
 class RankHistogram(BaseScore):
@@ -88,27 +82,12 @@ class RankHistogram(BaseScore):
     def __init__(self, config: RankHistogramConfig) -> None:
         self.config: RankHistogramConfig = config
 
-    def compute(self, data: InputDataset) -> xr.DataArray:
+    def compute(self, obs: xr.DataArray, sim: xr.DataArray) -> xr.DataArray | xr.Dataset:
         """Compute the histogram of ranks over the specified dimensions."""
-
-        def _rank_histogram(
-            sim: xr.DataArray,
-            obs: xr.DataArray,
-            **kwargs: object,
-        ) -> xr.DataArray:
-            """Call xskillscore.rank_histogram while preserving auxiliary coords."""
-            dims = kwargs.get("dim") or kwargs.get("dims") or [StandardDim.time]
-            result: xr.DataArray = rank_histogram(
-                obs,
-                sim,
-                member_dim=StandardDim.realization.value,
-                dim=dims,
-            )
-            return assign_station_auxiliary_coords(result, sim)
-
-        return loop_verification_pairs(_rank_histogram)(  # type: ignore[arg-type]
-            data,
-            self.config,
-            dims=self.config.reduce_dims.values,
+        result: xr.DataArray | xr.Dataset = rank_histogram(
+            observations=obs,
+            forecasts=sim,
+            dim=self.config.preserve_dims,
             member_dim=StandardDim.realization.value,
         )
+        return result

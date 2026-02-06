@@ -9,7 +9,7 @@ import pytest
 import xarray as xr
 import yaml
 from dpyverification.configuration import Config
-from dpyverification.configuration.base import IdMap, IdMappingConfig
+from dpyverification.configuration.config import IdMap, IdMappingConfig
 from dpyverification.configuration.default.scores import CrpsForEnsembleConfig
 from dpyverification.configuration.utils import (
     FewsWebserviceAuthConfig,
@@ -59,6 +59,9 @@ def test_schema_dump_with_user_models(tmp_path: Path) -> None:
 
     This so we can be sure it will generate correctly for the documentation of our configuration.
     """
+    if not tmp_path.exists():
+        tmp_path.mkdir()
+
     tmpfile = tmp_path / "config.json"
 
     class UserDatasourceConfig(BaseModel):
@@ -141,6 +144,6 @@ def test_score_config_with_invalid_pair_reference(
 ) -> None:
     """Test CRPS."""
     modified_config = deepcopy(score_config_crps.model_dump())  # type:ignore[misc]
-    modified_config["filter_verification_pairs"] = ["invalid_id"]  # type:ignore[misc]
+    modified_config["verification_pair_ids"] = ["invalid_id"]  # type:ignore[misc]
     with pytest.raises(ValueError, match="Pair id"):
         _ = CrpsForEnsembleConfig(**modified_config)  # type:ignore[misc]

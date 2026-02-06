@@ -43,6 +43,10 @@ FORECAST_TIMESERIES_KINDS = (
     TimeseriesKind.simulated_forecast_ensemble,
     TimeseriesKind.simulated_forecast_probabilistic,
 )
+HISTORICAL_TIMESERIES_KINDS = (
+    TimeseriesKind.observed_historical,
+    TimeseriesKind.simulated_historical,
+)
 
 
 @unique
@@ -93,7 +97,6 @@ class StandardDim(StrEnum):
     realization = "realization"
     forecast_reference_time = "forecast_reference_time"
     forecast_period = "forecast_period"
-    source = "source"
     variable = "variable"
     threshold = "threshold"
 
@@ -208,13 +211,6 @@ class StandardCoord:
         (
             ("standard_name", "forecast_period"),
             ("long_name", "forecast_period"),
-        ),
-    )
-    source = CoordinateProperties(
-        StandardDim.source,
-        (
-            ("standard_name", "source"),
-            ("long_name", "source"),
         ),
     )
     variable = CoordinateProperties(

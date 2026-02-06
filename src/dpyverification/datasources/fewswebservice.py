@@ -152,8 +152,8 @@ class FewsWebservice(BaseDatasource):
                     location_ids=self.config.location_ids,
                     parameter_ids=self.config.parameter_ids,
                     module_instance_ids=self.config.module_instance_id,
-                    start_time=self.config.verification_period.start,
-                    end_time=self.config.verification_period.end,
+                    start_time=self.config.verification_period_on_time.start,
+                    end_time=self.config.verification_period_on_time.end,
                     export_id_map=self.config.export_id_map,
                     timeseries_type=TimeseriesType.EXTERNAL_HISTORICAL,
                 )
@@ -177,13 +177,18 @@ class FewsWebservice(BaseDatasource):
                         source=self.config.source,
                     ),
                 )
-                datasource.fetch_data()
+
+                # Call get_data directly, to immediately cache the xr.DataArray and break links to
+                #   to tmpdir. This prevents os.PermissionErrors upon __exit__ of the current
+                #   context manager.
+                datasource.get_data()
 
                 # After this, the context manager will be closed, and tmpdir deleted
                 self.data_array = datasource.data_array
 
                 return self
-        # Get simulations
+
+        # Get forecasts
         if (
             self.config.timeseries_kind
             in [
@@ -194,17 +199,11 @@ class FewsWebservice(BaseDatasource):
             and self.config.forecast_retrieval_method
             == ForecastRetrievalMethod.retrieve_all_forecast_data
         ):
-            # Get all forecast reference times relevant to the configured verification
-            #   period. Start is located at verification period start minus the maximum
-            #   forecast period. End is located at verification period end minus the minimum
-            #   forecast period.
-            start = self.config.verification_period.start - self.config.forecast_periods.max
-            end = self.config.verification_period.end - self.config.forecast_periods.min
-
+            # Get all relevant forecast reference times, based on the configured verification period
             if self.config.archive_kind == ArchiveKind.external_storage_archive:
                 forecast_reference_times = self.client.get_netcdf_storage_forecast_reference_times(
-                    start_time=start,
-                    end_time=end,
+                    start_time=self.config.verification_period_on_frt.start,
+                    end_time=self.config.verification_period_on_frt.end,
                     module_instance_ids=self.config.module_instance_id,
                 )
 
@@ -215,8 +214,8 @@ class FewsWebservice(BaseDatasource):
                     parameter_ids=self.config.parameter_ids,
                     module_instance_ids=self.config.module_instance_id,
                     ensemble_id=self.config.ensemble_id,
-                    start_forecast_time=start,
-                    end_forecast_time=end,
+                    start_forecast_time=self.config.verification_period_on_frt.start,
+                    end_forecast_time=self.config.verification_period_on_frt.end,
                     document_format=DocumentFormat.PI_JSON,
                     forecast_count=FORECAST_COUNT_WHEN_SEARCHING_FOR_FORECAST_REFERENCE_TIMES,
                 )
@@ -229,8 +228,8 @@ class FewsWebservice(BaseDatasource):
 
             if len(forecast_reference_times) == 0:
                 msg = (
-                    f"No forecasts found between {self.config.verification_period.start} "
-                    f"and {self.config.verification_period.end} and module instance ids "
+                    f"No forecasts found between {self.config.verification_period_on_frt.start} "
+                    f"and {self.config.verification_period_on_frt.end} and module instance ids "
                     f"{self.config.module_instance_id}."
                 )
                 raise ValueError(msg)
@@ -339,7 +338,11 @@ class FewsWebservice(BaseDatasource):
                         source=self.config.source,
                     ),
                 )
-                datasource.fetch_data()
+
+                # Call get_data directly, to immediately cache the xr.DataArray and break links to
+                #   to tmpdir. This prevents os.PermissionErrors upon __exit__ of the current
+                #   context manager.
+                datasource.get_data()
 
                 # After this, the context manager will be closed and tmpdir deleted
                 self.data_array = datasource.data_array
@@ -364,8 +367,8 @@ class FewsWebservice(BaseDatasource):
                         parameter_ids=self.config.parameter_ids,
                         module_instance_ids=self.config.module_instance_id,
                         ensemble_id=self.config.ensemble_id,
-                        start_time=self.config.general.verification_period.start,
-                        end_time=self.config.general.verification_period.end,
+                        start_time=self.config.verification_period_on_time.start,
+                        end_time=self.config.verification_period_on_time.end,
                         lead_time=fp,
                         export_id_map=self.config.export_id_map,
                         timeseries_type=TimeseriesType.EXTERNAL_FORECASTING
@@ -396,8 +399,13 @@ class FewsWebservice(BaseDatasource):
                     ),
                 )
 
+                # Call get_data directly, to immediately cache the xr.DataArray and break links to
+                #   to tmpdir. This prevents os.PermissionErrors upon __exit__ of the current
+                #   context manager.
+                datasource.get_data()
+
                 # Assign to self
-                self.data_array = datasource.get_data().data_array
+                self.data_array = datasource.data_array
 
                 return self
 
