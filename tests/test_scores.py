@@ -18,24 +18,36 @@ from dpyverification.scores.probabilistic import CrpsCDF, CrpsForEnsemble, RankH
 
 def test_ensemble_crps(
     score_config_crps: CrpsForEnsembleConfig,
-    input_dataset_fews_netcdf_simulated_forecast_ensemble: InputDataset,
+    xarray_observed_historical: xr.DataArray,
+    xarray_simulated_forecast_ensemble: xr.DataArray,
 ) -> None:
     """Test CRPS."""
-    result = CrpsForEnsemble(score_config_crps).compute(
-        data=input_dataset_fews_netcdf_simulated_forecast_ensemble,
+    obs = xarray_observed_historical
+    sim = xarray_simulated_forecast_ensemble
+    obs_reprojected = InputDataset.map_historical_into_forecast_space(obs, sim)
+
+    result = CrpsForEnsemble(score_config_crps).validate_and_compute(
+        obs=obs_reprojected,
+        sim=sim,
     )
-    assert result.name == score_config_crps.kind
+    assert result.name == score_config_crps.kind  # type:ignore[misc]
 
 
 def test_ensemble_rank_histogram(
     score_config_rank_histogram: RankHistogramConfig,
-    input_dataset_fews_netcdf_simulated_forecast_ensemble: InputDataset,
+    xarray_observed_historical: xr.DataArray,
+    xarray_simulated_forecast_ensemble: xr.DataArray,
 ) -> None:
     """Test CRPS."""
-    result = RankHistogram(score_config_rank_histogram).compute(
-        data=input_dataset_fews_netcdf_simulated_forecast_ensemble,
+    obs = xarray_observed_historical
+    sim = xarray_simulated_forecast_ensemble
+    obs_reprojected = InputDataset.map_historical_into_forecast_space(obs, sim)
+
+    result = RankHistogram(score_config_rank_histogram).validate_and_compute(
+        obs=obs_reprojected,
+        sim=sim,
     )
-    assert result.name == score_config_rank_histogram.kind
+    assert result.name == "histogram_rank"  # type:ignore[misc]
 
 
 def test_probabilistic_crps_cdf(
@@ -51,35 +63,31 @@ def test_probabilistic_crps_cdf(
     obs_dummy.name = "source_observation"
     obs_dummy.attrs.update({"timeseries_kind": TimeseriesKind.observed_historical})  # type:ignore[misc]
 
-    input_dataset = InputDataset([obs_dummy, sim])
-
     config_instance = deepcopy(score_config_crps_cdf.model_dump())  # type:ignore[misc]
     conf = config_instance  # type:ignore[misc]
     conf["general"]["verification_pairs"][0].update(  # type:ignore[misc]
         {"id": "pair1", "obs": "source_observation", "sim": "source_probabilistic"},
     )
 
-    result = CrpsCDF(CrpsCDFConfig(**conf)).compute(  # type:ignore[misc]
-        data=input_dataset,
-    )
-    assert result.name == score_config_crps_cdf.kind
+    score = CrpsCDF(CrpsCDFConfig(**conf))  # type:ignore[misc]
+    result = score.validate_and_compute(obs=obs_dummy, sim=sim)
+    assert score_config_crps_cdf.kind in result
 
 
 def test_single_continuous_scores(
     score_config_continuous: ContinuousScoresConfig,
-    fews_netcdf_simulated_forecast_single_fp: FewsNetCDF,
+    xarray_observed_historical: xr.DataArray,
+    xarray_simulated_forecast_single: xr.DataArray,
 ) -> None:
     """Test CRPS."""
-    sim = fews_netcdf_simulated_forecast_single_fp.get_data().data_array
+    obs = xarray_observed_historical
+    sim = xarray_simulated_forecast_single
+    obs_reprojected = InputDataset.map_historical_into_forecast_space(obs, sim)
 
-    # Synthetic obs
-    obs = sim.isel(forecast_period=0)
-    obs.name = "observed"
-    obs.attrs.update({"timeseries_kind": TimeseriesKind.observed_historical})  # type:ignore[misc]
-
-    input_dataset = InputDataset([obs, sim])
-
-    result = ContinuousScores(score_config_continuous).compute(
-        data=input_dataset,
+    result = ContinuousScores(score_config_continuous).validate_and_compute(
+        obs=obs_reprojected,
+        sim=sim,
     )
-    assert isinstance(result, list)
+    assert isinstance(result, xr.Dataset)  # type:ignore[misc]
+    assert "mae" in result
+    assert "rmse" in result

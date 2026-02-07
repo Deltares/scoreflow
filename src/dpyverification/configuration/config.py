@@ -33,14 +33,14 @@ import xarray as xr
 from pydantic import BaseModel, ConfigDict, Field, RootModel, model_validator
 from pydantic.json_schema import SkipJsonSchema
 
-from dpyverification.constants import StandardDim, TimeseriesKind
+from dpyverification.constants import StandardDim, TimeseriesKind, TimeUnits
 
-from .utils import ForecastPeriods, Source, TimePeriod, VerificationPair
+from .utils import ForecastPeriods, Source, TimePeriod, VerificationPair, VerificationPeriod
 
 
 class GeneralInfoConfig(BaseModel):
     verification_period: Annotated[
-        TimePeriod,
+        VerificationPeriod,
         Field(description="The start and end of the verification period."),
     ]
     verification_pairs: Annotated[
@@ -80,6 +80,24 @@ class GeneralInfoConfig(BaseModel):
         #   we already validated all pair_ids are present during config initialization.
         msg = f"Pair with id '{pair_id}' not found in general verification_pairs configuration."
         raise ValueError(msg)
+
+    @property
+    def verification_period_on_time(self) -> TimePeriod:
+        """The verification period along the time dimension."""
+        if self.verification_period.dimension == "forecast_reference_time":
+            start = self.verification_period.start + self.forecast_periods.min
+            end = self.verification_period.end + self.forecast_periods.max
+            return TimePeriod(start=start, end=end)
+        return self.verification_period
+
+    @property
+    def verification_period_on_frt(self) -> TimePeriod:
+        """The verification period along the forecast reference time dimension."""
+        if self.verification_period.dimension == "time":
+            start = self.verification_period.start - self.forecast_periods.max
+            end = self.verification_period.end - self.forecast_periods.min
+            return TimePeriod(start=start, end=end)
+        return self.verification_period
 
 
 class IdMap(RootModel[dict[str, dict[str, str]]]):
@@ -178,6 +196,7 @@ class BaseDatasourceConfig(BaseConfig):
 
     source: Source
     timeseries_kind: TimeseriesKind
+    timestep: TimeUnits = TimeUnits.HOUR
     general: SkipJsonSchema[GeneralInfoConfig]  # Do not serialize to json schema, since general
     # config is propagated from the general config section in the main config. This will prevent
     # users that use the json-schema for making config having to explicitly set a duplicate general
@@ -192,6 +211,14 @@ class BaseDatasourceConfig(BaseConfig):
     @property
     def verification_period(self) -> TimePeriod:
         return self.general.verification_period
+
+    @property
+    def verification_period_on_frt(self) -> TimePeriod:
+        return self.general.verification_period_on_frt
+
+    @property
+    def verification_period_on_time(self) -> TimePeriod:
+        return self.general.verification_period_on_time
 
 
 class BaseDatasinkConfig(BaseConfig):
@@ -227,14 +254,14 @@ class BaseScoreConfig(BaseConfig):
     # users that use the json-schema for making config having to explicitly set a duplicate general
     # configuration section for each datasource.
 
-    filter_verification_pairs: Annotated[
-        list[str] | None,
+    verification_pair_ids: Annotated[
+        list[str],
         Field(
-            description="Optional field to filter verification_pairs from the general "
+            description="Optional field to select verification_pairs from the general "
             "configuration, by providing a list of verification pair ids from the general config. "
-            "Only the pair ids will be used in the computation of this score.",
+            "Only these pair ids will be used in the computation of this score.",
         ),
-    ] = None
+    ] = []
 
     @property
     def verification_pairs(self) -> list[VerificationPair]:
@@ -243,11 +270,10 @@ class BaseScoreConfig(BaseConfig):
         If the verification_pairs element is configured for the score, filter only these ids
         from the verification_pairs defined in general config.
         """
-        if self.filter_verification_pairs is None:
+        if self.verification_pair_ids == []:
             return self.general.verification_pairs
         return [
-            self.general.get_verification_pair(pair_id)
-            for pair_id in self.filter_verification_pairs
+            self.general.get_verification_pair(pair_id) for pair_id in self.verification_pair_ids
         ]
 
     @property
@@ -255,12 +281,11 @@ class BaseScoreConfig(BaseConfig):
         return self.general.forecast_periods
 
     @model_validator(mode="after")
-    def filter_verification_pairs_valid(self) -> Self:
+    def verification_pair_ids_valid(self) -> Self:
         """Check provided filter for verification pairs contains valid ids."""
         valid_pair_ids: Generator[str] = (pair.id for pair in self.general.verification_pairs)
-        if self.filter_verification_pairs is None:
-            return self
-        for pair_id in self.filter_verification_pairs:
+
+        for pair_id in self.verification_pair_ids:
             if pair_id not in valid_pair_ids:
                 msg = (
                     f"Pair id '{pair_id}' in filter_verification_pairs is not present in "

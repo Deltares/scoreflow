@@ -6,8 +6,8 @@
 import pytest
 import xarray as xr
 from dpyverification.datasources.inputschemas import (
+    HistoricalTimeCoord,
     ObservedHistorical,
-    TimeCoord,
     input_schemas,
 )
 from pydantic import ValidationError
@@ -18,7 +18,7 @@ def test_time_coord_good() -> None:
         "dtype": "datetime64[ns]",
         "dims": ("time",),
     }
-    TimeCoord(**good)
+    HistoricalTimeCoord(**good)
 
 
 def test_time_coord_bad() -> None:
@@ -27,7 +27,7 @@ def test_time_coord_bad() -> None:
         "dims": ("a_bad_time",),
     }
     with pytest.raises(ValidationError):
-        TimeCoord(**bad)
+        HistoricalTimeCoord(**bad)
 
 
 def test_xarray_observations(xarray_observed_historical: xr.DataArray) -> None:

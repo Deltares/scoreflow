@@ -1,27 +1,65 @@
 """Module with the dpyverification internal DataModel."""
 
 from collections.abc import Iterable
-from enum import Enum
-from typing import Literal
 
 import xarray as xr
+from pydantic import ValidationError
 
 from dpyverification.configuration.utils import VerificationPair
-from dpyverification.constants import StandardDim, TimeseriesKind
+from dpyverification.constants import (
+    FORECAST_TIMESERIES_KINDS,
+    HISTORICAL_TIMESERIES_KINDS,
+    StandardDim,
+    TimeseriesKind,
+)
 from dpyverification.datasources.inputschemas import input_schemas
 
 
-class DatasetKind(Enum):
-    """Supported types of input data."""
+@xr.register_dataarray_accessor("verification")  # type:ignore[no-untyped-call, misc]
+class InputDataArrayExtension:
+    """xr.DataArray representing specific timeseries kind.
 
-    SIMULATION = "SIMULATION"
-    OBSERVATION = "OBSERVATION"
+    xr.register_dataset_accessor is the recommended way to extend xr.DataArray.
+    see: https://docs.xarray.dev/en/stable/internals/extending-xarray.html. It's used there to
+    extend the input data arrays so we can directly access properties (like timeseries kind and
+    source) and the validation method that checks the input array against a schema.
+    """
 
+    def __init__(self, xarray_obj: xr.DataArray) -> None:
+        self._obj = xarray_obj
 
-def validate_data_array(data_array: xr.DataArray) -> None:
-    """Validate a datasource by validating the data to a Pydantic schema."""
-    schema = input_schemas[data_array.attrs["timeseries_kind"]]  # type:ignore[misc]
-    schema.model_validate(data_array.to_dict(data=False))  # type:ignore[misc]
+    @property
+    def timeseries_kind(self) -> str:
+        """The timeseries kind of the array."""
+        if "timeseries_kind" not in self._obj.attrs:  # type:ignore[misc]
+            msg = f"No timeseries kind set on {self._obj} attrs."
+            raise ValueError(msg)
+        return TimeseriesKind(self._obj.attrs["timeseries_kind"])  # type:ignore[misc]
+
+    @property
+    def is_historical(self) -> bool:
+        """Boolean indicating this array is a historical."""
+        return self.timeseries_kind in HISTORICAL_TIMESERIES_KINDS
+
+    @property
+    def is_forecast(self) -> bool:
+        """Boolean indicating this array is a forecast."""
+        return self.timeseries_kind in FORECAST_TIMESERIES_KINDS
+
+    @property
+    def source(self) -> str:
+        """The source name."""
+        return str(self._obj.name)
+
+    def validate(self) -> None:
+        """Validate the data according to schema."""
+        schema = input_schemas[self.timeseries_kind]  # type:ignore[index] # str is compatible with StrEnum index
+
+        try:
+            schema.model_validate(self._obj.to_dict(data=False))  # type:ignore[misc]
+        except ValidationError as exc:
+            msg = (f"Validation failed for timeseries_kind '{self.timeseries_kind}'.\n{exc}",)
+            raise ValueError(msg) from exc
 
 
 class InputDataset:
@@ -36,90 +74,91 @@ class InputDataset:
         self,
         data: Iterable[xr.DataArray],
     ) -> None:
-        """Initialize the SimObsDataset.
+        """Initialize the InputDataset.
 
-        Parameters
-        ----------
-        data : Sequence[xr.DataArray]
-            A sequence of xr.DataArrays, representing either simulations
-            or observations. The structure (dims, coords) of the array
-            must be valid against pre-defined Pydantic schemas in
-            :module:`dpyverification.datasources.inputschemas`
+        Validates each input data array against a schema and collects all input data into a
+        dictionary, keyed by the source and valued by the xr.DataArray.
         """
-        # Validate input data
+        self.datastore: dict[str, xr.DataArray] = {}
+
+        # Validate, and add to datastore
         for data_array in data:
-            validate_data_array(data_array)
-
-        # Merge input data with outer join as a first validation
-        #   in matching
-        dataset = xr.merge(
-            data,
-            compat="override",
-        )
-
-        # The xarray.merge leaves the attributes of an arbitrary xr.DataArray as global attrs. We
-        # clear the attribute dict to keep the internal global attrs clean.
-        dataset.attrs.clear()  # type:ignore[misc]
-
-        # Because we merged multiple xr.DataArrays, from different sources into one xr.Dataset,
-        #   transpose the xr.Dataset so that all dimensions of the data variables are aligned.
-        self.dataset = dataset.transpose("variable", "time", "station", ...)
+            data_array.verification.validate()  # type:ignore[misc]
+            self.datastore[data_array.verification.source] = data_array  # type:ignore[misc]
 
     @staticmethod
-    def inner_join_on_time(
+    def map_historical_into_forecast_space(
         obs: xr.DataArray,
         sim: xr.DataArray,
-    ) -> tuple[xr.DataArray, xr.DataArray]:
-        """Align obs and sim along time dimension, keeping all other dims intact."""
-        obs_aligned, sim_aligned = xr.align(obs, sim, join="outer")
+    ) -> xr.DataArray:
+        """
+        Transform array of historical data into forecast structure.
 
-        # Stack all dims except time to check for NaNs
-        dims_to_check_obs = [d for d in obs_aligned.dims if d != StandardDim.time]
-        dims_to_check_sim = [d for d in sim_aligned.dims if d != StandardDim.time]
+        Given an observation array with dimension 'time' and a simulation array with
+        dimensions 'forecast_reference_time' and 'forecast_period', project the observed
+        values onto the simulation array.
 
-        # True where there is at least one valid value along stacked dims
-        obs_has_data = ~obs_aligned.stack(all_other=dims_to_check_obs).isnull().all("all_other")  # noqa: PD003, PD013
-        sim_has_data = ~sim_aligned.stack(all_other=dims_to_check_sim).isnull().all("all_other")  # noqa: PD003, PD013
-
-        # Determine masks
-        valid_time = obs_has_data & sim_has_data
-
-        # TODO(JB): Include statistics for missing values # noqa: FIX002
-        # https://github.com/Deltares-research/DPyVerification/issues/82
-        _ = obs_has_data & (~sim_has_data)
-        _ = sim_has_data & (~obs_has_data)
-
-        if len(valid_time) == 0:
-            msg = (
-                "Simulations and observations do not share any times.",
-                f"For observed source: '{obs[StandardDim.source]}' and simulated source:",
-                f"'{sim[StandardDim.source]}'.",
-            )
-            raise ValueError(msg)
-        obs_valid = obs_aligned.sel({StandardDim.time: valid_time})  # type:ignore[misc]
-        sim_valid = sim_aligned.sel({StandardDim.time: valid_time})  # type:ignore[misc]
-
-        return obs_valid, sim_valid
-
-    def get_verification_pair(
-        self,
-        verification_pair: VerificationPair,
-    ) -> tuple[xr.DataArray, xr.DataArray]:
-        """Return observations and simulations for a given verification pair."""
-        obs = self.dataset[verification_pair.obs]
-        sim = self.dataset[verification_pair.sim]
-
-        # Only return time indexes for which both obs and sim are available not nan
-        return self.inner_join_on_time(obs, sim)
-
-    def get_simulated_timeseries_kind_from_pair(
-        self,
-        verification_pair: VerificationPair,
-    ) -> TimeseriesKind:
-        """Return the timeseries kinds for a verification pair."""
-        return TimeseriesKind(
-            self.dataset[verification_pair.sim].attrs["timeseries_kind"],  # type:ignore[misc]
+        This method is called at runtime when the pipeline starts a score computation on forecast
+        data. On the fly, the observation array is mapped to the forecast structure, so data are
+        aligned along the same dimensions.
+        """
+        # Stack forecast time axes
+        stacked_time = sim[StandardDim.time].stack(  # noqa: PD013
+            z=(StandardDim.forecast_reference_time, StandardDim.forecast_period),
         )
+
+        # Reindex observations onto stacked forecast times
+        obs_aligned = obs.reindex(
+            time=stacked_time.to_numpy(),  # type:ignore[misc]
+        )
+
+        # Attach forecast coordinates explicitly (from the MultiIndex)
+        z_index = stacked_time.indexes["z"]  # type:ignore[misc]
+
+        obs_aligned = obs_aligned.assign_coords(
+            forecast_reference_time=(  # type:ignore[misc]
+                StandardDim.time,
+                z_index.get_level_values(StandardDim.forecast_reference_time),  # type:ignore[misc]
+            ),
+            forecast_period=(  # type:ignore[misc]
+                StandardDim.time,
+                z_index.get_level_values(StandardDim.forecast_period),  # type:ignore[misc]
+            ),
+        )
+
+        # Create a MultiIndex on time
+        obs_indexed = obs_aligned.set_index(
+            time=(StandardDim.forecast_reference_time, StandardDim.forecast_period),
+        )
+
+        # Unstack into forecast space
+        obs_projected = obs_indexed.unstack(StandardDim.time)  # noqa: PD010
+
+        # Preserve attrs
+        obs_projected.attrs = obs.attrs
+
+        return obs_projected
+
+    def get_pair(
+        self,
+        verification_pair: VerificationPair,
+    ) -> tuple[xr.DataArray, xr.DataArray]:
+        """Return observations and simulations for a given verification pair.
+
+        This method is called by the verification pipeline at runtime to retrieve the correct data
+        for one of the configured verification pairs.
+        """
+        obs = self.datastore[verification_pair.obs]
+        sim = self.datastore[verification_pair.sim]
+
+        if sim.verification.is_forecast:  # type:ignore[misc]
+            # Map historical into forecast space upon score computation
+            return self.map_historical_into_forecast_space(obs, sim), sim
+
+        # If the simulation is not a forecast, it is a historical timeseries kind (an observation or
+        #   historical simulation). In this case: verify along dimension 'time' instead of mapping
+        #   data into forecast space.
+        return obs, sim
 
 
 class OutputDataset:
@@ -133,38 +172,47 @@ class OutputDataset:
         input_dataset: InputDataset,
     ) -> None:
         self.input_dataset = input_dataset
-        self.scores: xr.Dataset = xr.Dataset()
 
-    def add_score(self, score: xr.DataArray) -> None:
-        """Add a score to the scores list."""
-        if score.name in self.scores:
-            msg = f"Cannot add score to OutputDataset. Score ({score}) is already present."
-            raise ValueError(msg)
-        self.scores[score.name] = score
+        # Internal datastore that stores results of score computation in a dictionary where the
+        #   key represent the pair_id of the VerificationPair and the value is an xr.Dataset that
+        #   contains all results from varying scores for that pair.
+        self.datastore: dict[str, xr.Dataset] = {}
 
-    def _get_score(self, kind: str) -> xr.DataArray:
-        try:
-            return self.scores[kind]
-        except KeyError as e:
-            msg = (
-                f"Score kind ({kind}) not added to OutputDataset.",
-                f"Available scores: ({self.scores.keys()})",
+    def add_score(self, score: xr.DataArray | xr.Dataset, verification_pair_id: str) -> None:
+        """Add a score results to the datastore."""
+        # Convert to xr.Dataset
+        if isinstance(score, xr.DataArray):  # type:ignore[misc]
+            score = score.to_dataset()
+
+        # Add to the store, if not added before
+        if verification_pair_id not in self.datastore:
+            self.datastore[verification_pair_id] = score
+
+        # Pair has added data to the datastore before, so merge
+        else:
+            self.datastore[verification_pair_id] = xr.merge(
+                [self.datastore[verification_pair_id], score],  # type:ignore[misc]
             )
-            raise KeyError(msg) from e
 
     def get_output_dataset(
         self,
-        scores: list[str] | Literal["all"] = "all",
+        verification_pair: VerificationPair,
         *,
-        include_input_dataset: bool = True,
+        include_input_data: bool = True,
     ) -> xr.Dataset:
-        """Get the output dataset."""
-        scores_selection: xr.Dataset = (
-            self.scores[scores] if isinstance(scores, list) else self.scores
-        )
+        """Get the output dataset for a given verification pair."""
+        if verification_pair.id in self.datastore:
+            # Get the results for this pair
+            dataset = self.datastore[verification_pair.id]
 
-        return (
-            xr.merge([scores_selection, self.input_dataset.dataset], combine_attrs="drop")  # type:ignore[misc]
-            if include_input_dataset
-            else scores_selection
-        )
+            if include_input_data:
+                # Return results, include the input dataset
+                obs, sim = self.input_dataset.get_pair(verification_pair)
+                return xr.merge([obs, sim, dataset])  # type:ignore[misc]
+
+            # Return results, exclude input dataset
+            return dataset
+
+        # Return only input dataset (no results found in datastore)
+        obs, sim = self.input_dataset.get_pair(verification_pair)
+        return xr.merge([obs, sim])  # type:ignore[misc]

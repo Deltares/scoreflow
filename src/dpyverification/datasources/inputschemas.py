@@ -64,8 +64,18 @@ def check_dims(
     return validator
 
 
-class TimeCoord(BaseModel):
+class HistoricalTimeCoord(BaseModel):
     dims: Annotated[tuple[str, ...], AfterValidator(check_dims({StandardDim.time}))]
+    dtype: AllowedDTypeDateTime
+
+
+class ForecastTimeCoord(BaseModel):
+    dims: Annotated[
+        tuple[str, ...],
+        AfterValidator(
+            check_dims({StandardDim.forecast_reference_time, StandardDim.forecast_period}),
+        ),
+    ]
     dtype: AllowedDTypeDateTime
 
 
@@ -94,8 +104,22 @@ class UnitsCoord(BaseModel):
     dims: Annotated[tuple[str, ...], AfterValidator(check_dims({StandardDim.variable}))]
 
 
+class ForecastPeriodCoord(BaseModel):
+    dims: Annotated[tuple[str, ...], AfterValidator(check_dims({StandardDim.forecast_period}))]
+    dtype: AllowedDTypeTimeDelta
+
+
+class RealizationCoord(BaseModel):
+    dims: Annotated[tuple[str, ...], AfterValidator(check_dims({StandardDim.realization}))]
+    dtype: AllowedDTypeInt
+
+
+class ThresholdCoord(BaseModel):
+    dims: Annotated[tuple[str, ...], AfterValidator(check_dims({StandardDim.threshold}))]
+    dtype: AllowedDTypeFloat
+
+
 class BaseCoords(BaseModel):
-    time: TimeCoord
     station: StationCoord
     station_name: StationCoord | None = None  # Optional station name coordinate
     variable: VariableCoord
@@ -105,6 +129,30 @@ class BaseCoords(BaseModel):
     x: XYZCoord | None = None  # Optional x, y, z
     y: XYZCoord | None = None
     z: XYZCoord | None = None
+
+
+class BaseHistoricalCoords(BaseCoords):
+    time: HistoricalTimeCoord
+
+
+class SimulatedForecastSingleCoords(BaseCoords):
+    forecast_reference_time: ForecastReferenceTimeCoord
+    forecast_period: ForecastPeriodCoord
+    time: ForecastTimeCoord
+
+
+class SimulatedForecastEnsembleCoords(BaseCoords):
+    forecast_reference_time: ForecastReferenceTimeCoord
+    forecast_period: ForecastPeriodCoord
+    realization: RealizationCoord
+    time: ForecastTimeCoord
+
+
+class SimulatedForecastProbabilisticCoords(BaseCoords):
+    forecast_reference_time: ForecastReferenceTimeCoord
+    forecast_period: ForecastPeriodCoord
+    threshold: ThresholdCoord
+    time: ForecastTimeCoord
 
 
 CFCompliantName = Annotated[
@@ -118,26 +166,6 @@ CFCompliantName = Annotated[
         ),
     ),
 ]
-
-
-class RealizationCoord(BaseModel):
-    dims: Annotated[tuple[str, ...], AfterValidator(check_dims({StandardDim.realization}))]
-    dtype: AllowedDTypeInt
-
-
-class ForecastPeriodCoord(BaseModel):
-    dims: Annotated[tuple[str, ...], AfterValidator(check_dims({StandardDim.forecast_period}))]
-    dtype: AllowedDTypeTimeDelta
-
-
-class ThresholdCoord(BaseModel):
-    dims: Annotated[tuple[str, ...], AfterValidator(check_dims({StandardDim.threshold}))]
-    dtype: AllowedDTypeFloat
-
-
-class BaseSimulationCoords(BaseCoords):
-    forecast_period: ForecastPeriodCoord
-    realization: RealizationCoord
 
 
 class BaseAttrs(BaseModel):
@@ -157,7 +185,7 @@ class Base(BaseModel):
             ),
         ),
     ]
-    coords: BaseCoords
+    coords: BaseHistoricalCoords
     attrs: BaseAttrs
 
 
@@ -170,10 +198,6 @@ class SimulatedHistorical(Base):
     pass
 
 
-class SimulatedForecastSingleCoords(BaseCoords):
-    forecast_period: ForecastPeriodCoord
-
-
 class SimulatedForecastSingle(Base):
     dims: Annotated[
         tuple[str, ...],
@@ -181,19 +205,14 @@ class SimulatedForecastSingle(Base):
             check_dims(
                 {
                     StandardDim.variable,
-                    StandardDim.time,
-                    StandardDim.station,
+                    StandardDim.forecast_reference_time,
                     StandardDim.forecast_period,
+                    StandardDim.station,
                 },
             ),
         ),
     ]
     coords: SimulatedForecastSingleCoords
-
-
-class SimulatedForecastEnsembleCoords(BaseCoords):
-    realization: RealizationCoord
-    forecast_period: ForecastPeriodCoord
 
 
 class SimulatedForecastEnsemble(Base):
@@ -203,20 +222,15 @@ class SimulatedForecastEnsemble(Base):
             check_dims(
                 {
                     StandardDim.variable,
-                    StandardDim.time,
-                    StandardDim.station,
+                    StandardDim.forecast_reference_time,
                     StandardDim.forecast_period,
+                    StandardDim.station,
                     StandardDim.realization,
                 },
             ),
         ),
     ]
     coords: SimulatedForecastEnsembleCoords
-
-
-class SimulatedForecastProbabilisticCoords(BaseCoords):
-    forecast_period: ForecastPeriodCoord
-    threshold: ThresholdCoord
 
 
 class SimulatedForecastProbabilistic(Base):
@@ -226,9 +240,9 @@ class SimulatedForecastProbabilistic(Base):
             check_dims(
                 {
                     StandardDim.variable,
-                    StandardDim.time,
-                    StandardDim.station,
+                    StandardDim.forecast_reference_time,
                     StandardDim.forecast_period,
+                    StandardDim.station,
                     StandardDim.threshold,
                 },
             ),

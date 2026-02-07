@@ -11,7 +11,12 @@ from numpy.typing import NDArray
 
 from dpyverification.configuration import FewsNetCDFConfig
 from dpyverification.configuration.default.datasources import FewsNetCDFKind
-from dpyverification.constants import StandardCoord, StandardDim, TimeseriesKind
+from dpyverification.constants import (
+    FORECAST_TIMESERIES_KINDS,
+    StandardCoord,
+    StandardDim,
+    TimeseriesKind,
+)
 from dpyverification.datasources.base import BaseDatasource
 
 
@@ -61,7 +66,7 @@ class Preprocessor:
         return dataset
 
     @staticmethod
-    def rename_dims_coords_to_internal(
+    def rename_to_internal(
         dataset: xr.Dataset,
     ) -> xr.Dataset:
         """Rename dims, coords to internal definition."""
@@ -72,14 +77,25 @@ class Preprocessor:
                 FewsNetcdfCoord.station_id: StandardCoord.station.name,
             },  # type:ignore[misc]
         )
+        # Swap stations dim and drop stations dim.
         dataset = dataset.swap_dims(
             {FewsNetcdfDims.stations: StandardDim.station},  # type:ignore[misc]
         )
+
+        if FewsNetcdfDims.stations in dataset:
+            dataset = dataset.drop(FewsNetcdfDims.stations)
 
         # Only the case when retrieving full forecasts (per forecast reference time)
         if StandardCoord.station_name.name in dataset:
             dataset = dataset.set_coords(StandardCoord.station_name.name)
 
+        # Rename analysis_time for simulations
+        if FewsNetcdfDims.analysis_time in dataset:
+            dataset = dataset.rename(
+                {
+                    FewsNetcdfDims.analysis_time: StandardDim.forecast_reference_time,  # type:ignore[misc]
+                },
+            )
         return dataset
 
     @staticmethod
@@ -96,10 +112,10 @@ class Preprocessor:
         )
 
     @staticmethod
-    def transform_full_simulation_to_full_info_sim_dataset(
+    def set_internal_time_dims_on_forecast(
         dataset: xr.Dataset,
     ) -> xr.Dataset:
-        """Transform the dataset to full-information dataset."""
+        """Transform the FEWS NetCDF time dims/coords to internal."""
         forecast_periods = (
             (dataset[StandardDim.time] - dataset[StandardDim.forecast_reference_time])
             # type:ignore[misc]
@@ -149,19 +165,13 @@ class Preprocessor:
         )
 
         # Rename dims/coords to internal definitions
-        dataset = Preprocessor.rename_dims_coords_to_internal(
+        dataset = Preprocessor.rename_to_internal(
             dataset,
         )
 
         if self.fews_netcdf_kind == FewsNetCDFKind.simulated_forecast_per_forecast_reference_time:
-            # Rename analysis_time for simulations
-            dataset = dataset.rename(
-                {
-                    FewsNetcdfDims.analysis_time: StandardDim.forecast_reference_time,  # type:ignore[misc]
-                },
-            )
             # Transform to full info sim dataset
-            dataset = self.transform_full_simulation_to_full_info_sim_dataset(
+            dataset = self.set_internal_time_dims_on_forecast(
                 dataset,
             )
 
@@ -186,11 +196,12 @@ class Preprocessor:
         return dataset
 
 
-def create_cdf_data_array_from_probabilistic_forecast(
+def quantiles_to_cdf_data_array(
     sim: xr.DataArray,
-    threshold_resampling_step_size: float = 0.1,
+    n_thresholds: int = 3000,
+    padding_percentage: int = 5,
 ) -> xr.DataArray:
-    """Create a cdf data array from Delft-FEWS NetCDF simulations.
+    """Create a cdf data array from Delft-FEWS NetCDF with quantiles.
 
     Verification metrics for CDFs may require a 'threshold' dimension to represent an array of
     thresholds of a continuous variable (like the crps_for_cdf function in the scores package).
@@ -207,20 +218,26 @@ def create_cdf_data_array_from_probabilistic_forecast(
     specific forecast (i.e. with discharges between 100-200). Because the input to this function
     is a set of FEWS NetCDFs, we need to resample the thresholds so that we can keep an accurate
     representation of each individual forecast CDF in a set of forecasts, but not completely blow
-    up the matrix. Given the min and max value found in the dataset (with multiple forecasts)
-    and threshold_resampling_step_size, we will create a new coordinate for the threshold dimension.
-
+    up the matrix. Given the min and max value found in the dataset (with multiple forecasts),
+    n_thresholds will be created by interpolating between min and max. For the set of forecasts, a
+    new coordinate will then be created given the interpolated values. In this way, a new threshold
+    dimension is created that can represent all values of the continuous variable found in the set
+    of forecasts.
 
     Parameters
     ----------
     sim : xr.DataArray
-        The simulation with a realization dimension.
-    preserve_dims : list[str] | None, optional
-        Dimensions to preserve in the output, by default None
-    threshold_resampling_step_size : float, optional
-        Set the step size of the interpolation of the threshold coordinate. The step size will be
-        used to create a range of values from the minium to the maximum value of the continuous
-        variable.
+        Forecast with realization dimension representing quantiles
+    n_thresholds : int, optional
+        Number of thresholds to use, by default 3000. Given the range of values found in the
+        variable, interpolate between min-max with n_thresholds steps. For example if the range of
+        discharge [m3/s] values found in the data is between 0-3000, the resolution of the threshold
+        coordinate will correspond to 1 m3/s. Should be tuned according to the variable.
+    padding_percentage : int, optional
+        The % of padding to apply to the threshold coordinate, by default 5. This padding is applied
+        so that the new threshold dimension (containing the variable values) has a wide enough range
+        to also capture observed values during verification.
+
 
     Returns
     -------
@@ -258,13 +275,21 @@ def create_cdf_data_array_from_probabilistic_forecast(
     min_probability = min_probability / scaling_factor  # i.e. 99 > 0.99 and 0.99 > 0.99
     max_probability = max_probability / scaling_factor
 
+    if not (0 <= min_probability <= max_probability <= 1):
+        msg = "Probabilities must lie in [0, 1] after scaling."
+        raise ValueError(msg)
+
     # Get the min / max values
     vmin = float(sim.min())
     vmax = float(sim.max())
 
+    # Apply padding to min / max
+    width = vmax - vmin
+    padded_vmin = vmin - (padding_percentage * 0.01 * width)
+    padded_vmax = vmax + (padding_percentage * 0.01 * width)
+
     # Define the steps and threshold index, for new shared coordinate
-    nsteps = int(np.ceil((vmax - vmin) / threshold_resampling_step_size)) + 1  # type:ignore[misc]
-    thresholds = np.linspace(vmin, vmax, nsteps)  # type:ignore[misc]
+    thresholds = np.linspace(padded_vmin, padded_vmax, n_thresholds)  # type:ignore[misc]
 
     def interpolate_cdf(cdf: NDArray[np.floating]) -> NDArray:
         # If all NaN, return a NaN array
@@ -274,7 +299,13 @@ def create_cdf_data_array_from_probabilistic_forecast(
         # If non all are Nan, require all not Nan and non-decreasing
         check_non_decreasing_and_not_nan(cdf)  # type:ignore[misc]
         probs = np.linspace(min_probability, max_probability, len(cdf))  # type:ignore[misc]
-        return np.interp(thresholds, cdf, probs)  # type:ignore[misc]
+        return np.interp(
+            thresholds,  # type:ignore[misc]
+            cdf,  # type:ignore[misc]
+            probs,  # type:ignore[misc]
+            left=0.0,
+            right=1.0,
+        )
 
     result: xr.DataArray = xr.apply_ufunc(
         interpolate_cdf,  # type:ignore[misc]
@@ -282,6 +313,7 @@ def create_cdf_data_array_from_probabilistic_forecast(
         input_core_dims=[["realization"]],  # type:ignore[misc]
         output_core_dims=[["threshold"]],  # type:ignore[misc]
         vectorize=True,
+        dask="parallelized",
         output_sizes={"threshold": len(thresholds)},  # type:ignore[misc]
     )
 
@@ -299,7 +331,7 @@ def parse_forecast_period_netcdf_files(
 ) -> xr.Dataset:
     """Parse NetCDF responses from get timeseries with leadTimes parameter."""
 
-    def _preprocess(dataset: xr.Dataset) -> xr.Dataset:
+    def preprocess(dataset: xr.Dataset) -> xr.Dataset:
         """
         Preprocess individual files, set forecast_period based on filename.
 
@@ -319,12 +351,29 @@ def parse_forecast_period_netcdf_files(
             raise ValueError(msg)
 
         forecast_period = np.timedelta64(int(forecast_period_millis), "ms")
+        forecast_reference_times = dataset[StandardDim.time] - forecast_period
 
         # Set the station_name as coord instead of variable
         if FewsNetcdfCoord.station_names in dataset:
             dataset = dataset.set_coords(FewsNetcdfCoord.station_names)
 
-        # Now assign forecast period as coordinate
+        # Set forecast_reference_time dim / coord
+        dataset = dataset.rename({StandardDim.time: StandardDim.forecast_reference_time})  # type:ignore[misc]
+        dataset = dataset.assign_coords(
+            {
+                StandardDim.forecast_reference_time: (  # type:ignore[misc]
+                    StandardDim.forecast_reference_time,
+                    forecast_reference_times.to_numpy(),  # type:ignore[misc]
+                ),
+            },
+        )
+
+        # Set coord (expected for alignment of individual arrays)
+        dataset = dataset.assign_coords(
+            {FewsNetcdfDims.stations: dataset[FewsNetcdfCoord.station_id].to_numpy()},  # type:ignore[misc]
+        )
+        # Assign forecast_period as a dim/coord
+        dataset = dataset.expand_dims(StandardDim.forecast_period)
         return dataset.assign_coords(
             {
                 StandardCoord.forecast_period.name: (
@@ -334,13 +383,9 @@ def parse_forecast_period_netcdf_files(
             },
         )
 
-    with xr.open_mfdataset(
-        paths,  # type:ignore[arg-type] # generator is acceptable argument
-        preprocess=_preprocess,
-        coords="minimal",
-        compat="override",
-    ) as dataset:
-        dataset.load()
+    # Create one object
+    dataset_list = [preprocess(xr.open_dataset(path)) for path in paths]
+    dataset = xr.merge(dataset_list)
 
     # Sort forecast_period index
     dataset = dataset.sortby(StandardDim.forecast_period)
@@ -352,16 +397,19 @@ def parse_forecast_period_netcdf_files(
     )
 
     # Rename dims/coords to internal definitions
-    dataset = Preprocessor.rename_dims_coords_to_internal(
+    dataset = Preprocessor.rename_to_internal(
         dataset,
     )
 
     # On resulting object, assign forecast_reference_time as coordinate
     return dataset.assign_coords(
         {  # type:ignore[misc]
-            StandardDim.forecast_reference_time: (  # type:ignore[misc]
-                (StandardDim.time, StandardDim.forecast_period),
-                (dataset[StandardDim.time] - dataset[StandardDim.forecast_period]).to_numpy(),  # type:ignore[misc]
+            StandardDim.time: (  # type:ignore[misc]
+                (StandardDim.forecast_reference_time, StandardDim.forecast_period),
+                (
+                    dataset[StandardDim.forecast_reference_time]
+                    + dataset[StandardDim.forecast_period]
+                ).to_numpy(),  # type:ignore[misc]
             ),
         },
     )
@@ -381,57 +429,7 @@ class FewsNetCDF(BaseDatasource):
         self.config: FewsNetCDFConfig = config
 
     @staticmethod
-    def transform_frt_simulation_to_internal_datamodel(
-        dataset: xr.Dataset,
-    ) -> xr.Dataset:
-        """
-        Transform dataset for pipeline ingestion.
-
-        Transform so that 'forecast_period' is a dimension and 'time' remains
-        a coordinate for explicit timestamps. This allows slicing by forecast_period
-        while keeping the timestamp available.
-        """
-        data_arrays = []
-        for data_var in dataset.data_vars:
-            da = dataset[data_var]
-
-            forecast_period_arrays = []
-            for forecast_period in da[StandardDim.forecast_period]:  # type:ignore[misc]
-                da_fp = da.sel({StandardDim.forecast_period: forecast_period})  # type:ignore[misc]
-                da_fp = da_fp.expand_dims({StandardDim.forecast_period: 1})
-                da_fp = da_fp.assign_coords(
-                    {
-                        StandardDim.forecast_period: (  # type:ignore[misc]
-                            StandardDim.forecast_period,
-                            forecast_period.to_numpy().reshape(1),  # type:ignore[misc]
-                        ),
-                    },
-                )
-                da_fp = da_fp.swap_dims({StandardDim.forecast_reference_time: StandardDim.time})  # type:ignore[misc]
-                forecast_period_arrays.append(da_fp)
-
-            data_arrays.append(
-                xr.combine_nested(
-                    forecast_period_arrays,
-                    concat_dim=StandardDim.forecast_period,
-                    combine_attrs="drop_conflicts",
-                ),
-            )
-
-        dataset = xr.merge(data_arrays)
-
-        # Reset and re-compute the forecast_reference_time to have no missing values on coord
-        return dataset.assign_coords(
-            {  # type:ignore[misc]
-                StandardDim.forecast_reference_time: (  # type:ignore[misc]
-                    (StandardDim.time, StandardDim.forecast_period),
-                    (dataset[StandardDim.time] - dataset[StandardDim.forecast_period]).to_numpy(),  # type:ignore[misc]
-                ),
-            },
-        )
-
-    @staticmethod
-    def convert_to_data_array_and_set_variable_and_units_coords(
+    def convert_dataset_to_dataarray(
         dataset: xr.Dataset,
         source: str,
         timeseries_kind: TimeseriesKind,
@@ -454,9 +452,20 @@ class FewsNetCDF(BaseDatasource):
             },
         )
         # Set the units as auxillary coordinate on new dimension variable
-        return da.assign_coords(
+        da = da.assign_coords(
             {StandardCoord.units.name: (StandardDim.variable, units)},  # type:ignore[misc]
         )
+
+        if timeseries_kind in FORECAST_TIMESERIES_KINDS:
+            return da.transpose(
+                StandardDim.variable,
+                StandardDim.station,
+                StandardDim.forecast_reference_time,
+                StandardDim.forecast_period,
+                ...,
+            )
+        # Historical simulations or observations
+        return da.transpose(StandardDim.variable, StandardDim.station, StandardDim.time, ...)
 
     def fetch_data(self) -> Self:
         """Retrieve fewsnetcdf content as an xarray DataArray."""
@@ -469,37 +478,19 @@ class FewsNetCDF(BaseDatasource):
 
         # Observations
         if self.config.timeseries_kind == TimeseriesKind.observed_historical:
-            with xr.open_mfdataset(
+            dataset = xr.open_mfdataset(
                 self.config.paths,  # type:ignore[arg-type] # generator is acceptable argument
                 preprocess=preprocessor,
-            ) as dataset:
-                dataset.load()
+            )
 
         # Simulations - per forecast reference time
         if self.config.netcdf_kind == FewsNetCDFKind.simulated_forecast_per_forecast_reference_time:
-            with xr.open_mfdataset(
+            dataset = xr.open_mfdataset(
                 self.config.paths,  # type:ignore[arg-type] # generator is acceptable argument
                 combine="by_coords",
                 preprocess=preprocessor,
                 coords="minimal",
                 compat="override",
-            ) as dataset:
-                # Load the dataset into memory
-                #   for now, we assume the dataset with lead time filtering fits into memory
-                dataset.load()
-
-            # Transform forecast reference time simulation to internal datamodel based on
-            #   forecast_period
-            dataset = FewsNetCDF.transform_frt_simulation_to_internal_datamodel(
-                dataset,
-            )
-
-            # Select time stamps within verification period
-            dataset = dataset.sel(
-                time=slice(
-                    self.config.verification_period.start,
-                    self.config.verification_period.end,
-                ),
             )
 
         # Simulations - per forecast period
@@ -508,11 +499,33 @@ class FewsNetCDF(BaseDatasource):
                 self.config.paths,
             )
 
-        # Final transformation for all data
-        data_array = FewsNetCDF.convert_to_data_array_and_set_variable_and_units_coords(
+        if self.config.timeseries_kind in FORECAST_TIMESERIES_KINDS:
+            # After loading data into xr.Dataset, apply a filter on forecast reference time, based
+            #   on the configured verification period
+            dataset = dataset.sel(
+                {
+                    StandardDim.forecast_reference_time: slice(  # type:ignore[misc]
+                        self.config.verification_period_on_frt.start,
+                        self.config.verification_period_on_frt.end,
+                    ),
+                },
+            )
+        else:
+            # Filter historical data on time dim
+            dataset = dataset.sel(
+                {
+                    StandardDim.time: slice(  # type:ignore[misc]
+                        self.config.verification_period_on_time.start,
+                        self.config.verification_period_on_time.end,
+                    ),
+                },
+            )
+
+        # Convert datasets to data_array
+        data_array = self.convert_dataset_to_dataarray(
             dataset,
-            source=self.config.source,
-            timeseries_kind=self.config.timeseries_kind,
+            self.config.source,
+            self.config.timeseries_kind,
         )
 
         # For probabilistic timeseries kinds, transform the data array so that
@@ -521,7 +534,7 @@ class FewsNetCDF(BaseDatasource):
             if len(data_array[StandardDim.variable]) > 1:
                 msg = "Multiple variables for simulated_forecast_probabilistic not yet supported"
                 raise NotImplementedError(msg)
-            data_array = create_cdf_data_array_from_probabilistic_forecast(data_array)
+            data_array = quantiles_to_cdf_data_array(data_array)
 
         # Assign to self
         self.data_array = data_array

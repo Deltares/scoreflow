@@ -17,11 +17,14 @@ def test_write_data_cf_compliant_netcdf_no_scores(
     # Initialize output dataset
     output_dataset = OutputDataset(input_dataset_fews_netcdf_simulated_forecast_ensemble)
 
-    # Write data from the output dataset
-    datasink_cf_compliant_netcdf.write_data(
-        output_dataset.get_output_dataset(),
-    )
-    assert (tmp_path / "test.nc").exists()
+    for verification_pair in datasink_cf_compliant_netcdf.config.general.verification_pairs:
+        # Write data from the output dataset
+        fn = f"test_{verification_pair.id}"
+        datasink_cf_compliant_netcdf.config.filename = fn
+        datasink_cf_compliant_netcdf.write_data(
+            output_dataset.get_output_dataset(verification_pair),
+        )
+        assert (tmp_path / fn).exists()
 
 
 def test_write_data_cf_compliant_netcdf_crps(
@@ -34,16 +37,21 @@ def test_write_data_cf_compliant_netcdf_crps(
     # Initialize output dataset
     output_dataset = OutputDataset(input_dataset_fews_netcdf_simulated_forecast_ensemble)
 
-    # Add a crps computation to the output dataset
-    score = CrpsForEnsemble(score_config_crps)
-    crps_result = score.compute(
-        data=input_dataset_fews_netcdf_simulated_forecast_ensemble,
-    )
-    # Write data from the output dataset
-    output_dataset.add_score(crps_result)
+    for verification_pair in score_config_crps.general.verification_pairs:
+        # Add a crps computation to the output dataset
+        score = CrpsForEnsemble(score_config_crps)
+        obs, sim = input_dataset_fews_netcdf_simulated_forecast_ensemble.get_pair(verification_pair)
+        crps_result = score.validate_and_compute(
+            obs,
+            sim,
+        )
+        # Write data from the output dataset
+        output_dataset.add_score(score=crps_result, verification_pair_id=verification_pair.id)
 
-    # Write the data
-    datasink_cf_compliant_netcdf.write_data(
-        output_dataset.get_output_dataset(),
-    )
-    assert (tmp_path / "test.nc").exists()
+        # Write the data
+        fn = f"test_{verification_pair.id}"
+        datasink_cf_compliant_netcdf.config.filename = fn
+        datasink_cf_compliant_netcdf.write_data(
+            output_dataset.get_output_dataset(verification_pair),
+        )
+        assert (tmp_path / fn).exists()

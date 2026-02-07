@@ -1,7 +1,7 @@
 """Module for continuous scores."""
 
 from collections.abc import Callable
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
 import xarray as xr
 from scores.continuous import (  # type:ignore[import-untyped]
@@ -15,9 +15,10 @@ from scores.continuous import (  # type:ignore[import-untyped]
 
 from dpyverification.configuration.default.scores import ContinuousScoresConfig
 from dpyverification.constants import SupportedContinuousScore, TimeseriesKind
-from dpyverification.datamodel.main import InputDataset
 from dpyverification.scores.base import BaseScore
-from dpyverification.scores.utils import ScoreFunc, loop_verification_pairs
+
+if TYPE_CHECKING:
+    from dpyverification.scores.utils import ScoreFunc
 
 score_funcs: dict[SupportedContinuousScore, Callable] = {
     SupportedContinuousScore.additive_bias: additive_bias,  # type:ignore[misc]
@@ -43,18 +44,14 @@ class ContinuousScores(BaseScore):
 
     def compute(
         self,
-        data: InputDataset,
-    ) -> list[xr.DataArray]:
-        """Compute the CRPS for an ensemble of forecasts and observations."""
-        results = []
+        obs: xr.DataArray,
+        sim: xr.DataArray,
+    ) -> xr.Dataset:
+        """Compute any number of continous scores."""
+        results: list[xr.DataArray | xr.Dataset] = []
         for score in self.config.scores:
-            typed_score_func: ScoreFunc = score_funcs[score]  # type:ignore[misc]
-
-            results.append(
-                loop_verification_pairs(typed_score_func)(
-                    data,
-                    self.config,
-                    preserve_dims=self.config.reduce_dims.inverse,
-                ),
-            )
-        return list(results)
+            func: ScoreFunc = score_funcs[score]  # type:ignore[misc]
+            result = func(fcst=sim, obs=obs, reduce_dims=self.config.reduce_dims)
+            result.name = func.__qualname__  # type:ignore[attr-defined]
+            results.append(result)
+        return xr.merge(results)

@@ -1,49 +1,40 @@
 """A module for default implementation of scores."""
 
-from enum import StrEnum
 from typing import Annotated, Literal
 
-from pydantic import Field, RootModel
+from pydantic import BaseModel, Field, RootModel
 
-from dpyverification.configuration.base import BaseScoreConfig
+from dpyverification.configuration.config import BaseScoreConfig
 from dpyverification.constants import ScoreKind, StandardDim, SupportedContinuousScore
 
 
-class ComputableDim(StrEnum):
-    """List of dimensions that can be used for preservation or reduction in computations."""
+class ReduceDimsForecast(BaseModel):
+    """The dimensions over which a forecast can be reduced."""
 
-    time = "time"
-    station = "station"
-    forecast_period = "forecast_period"
-
-
-class ReduceDims(RootModel[list[ComputableDim]]):
-    """A list of dimensions over which to compute a score."""
-
-    @property
-    def values(self) -> list[ComputableDim]:
-        """Return a list of values."""
-        return self.root
-
-    @property
-    def inverse(self) -> list[StandardDim]:
-        """Get the preservable dims as inverse of reduce dims."""
-        return [
-            dim
-            for dim in [
-                StandardDim.variable,
-                StandardDim.time,
+    reduce_dims: Annotated[
+        list[
+            Literal[
                 StandardDim.station,
+                StandardDim.forecast_reference_time,
                 StandardDim.forecast_period,
             ]
-            if dim not in self.root
+        ],
+        Field(default_factory=list),
+    ]
+
+    @property
+    def preserve_dims(self) -> list[StandardDim]:
+        """The dimensions to preserve."""
+        return [
+            k
+            for k in [
+                StandardDim.variable,
+                StandardDim.station,
+                StandardDim.forecast_reference_time,
+                StandardDim.forecast_period,
+            ]
+            if k not in self.reduce_dims
         ]
-
-
-ReduceDimsWithDefault = Annotated[
-    ReduceDims,
-    Field(default_factory=lambda: ReduceDims([])),
-]
 
 
 class IdMap(RootModel[dict[str, dict[str, str]]]):
@@ -54,14 +45,13 @@ class IdMap(RootModel[dict[str, dict[str, str]]]):
         return {v[data_source]: k for k, v in self.root.items()}
 
 
-class RankHistogramConfig(BaseScoreConfig):
+class RankHistogramConfig(BaseScoreConfig, ReduceDimsForecast):
     """A rank histogram config element."""
 
     kind: Literal[ScoreKind.rank_histogram]
-    reduce_dims: ReduceDimsWithDefault
 
 
-class CrpsForEnsembleConfig(BaseScoreConfig):
+class CrpsForEnsembleConfig(BaseScoreConfig, ReduceDimsForecast):
     """Configuration for CRPS for ensemble.
 
     For reference, see: See: https://scores.readthedocs.io/en/stable/api.html#scores.probability.crps_for_ensemble
@@ -77,17 +67,15 @@ class CrpsForEnsembleConfig(BaseScoreConfig):
             default="ecdf",
         ),
     ]
-    reduce_dims: ReduceDimsWithDefault
 
 
-class CrpsCDFConfig(BaseScoreConfig):
+class CrpsCDFConfig(BaseScoreConfig, ReduceDimsForecast):
     """Configuration for CRPS for CDF.
 
     For reference, see: https://scores.readthedocs.io/en/stable/api.html#scores.probability.crps_cdf
     """
 
     kind: Literal[ScoreKind.crps_cdf]
-    reduce_dims: ReduceDimsWithDefault
     integration_method: Annotated[
         Literal["exact", "trapz"],
         Field(
@@ -97,9 +85,8 @@ class CrpsCDFConfig(BaseScoreConfig):
     ] = "exact"
 
 
-class ContinuousScoresConfig(BaseScoreConfig):
+class ContinuousScoresConfig(BaseScoreConfig, ReduceDimsForecast):
     """Configure multiple continuous scores."""
 
     kind: Literal[ScoreKind.continuous_scores]
-    reduce_dims: ReduceDimsWithDefault
     scores: list[SupportedContinuousScore]

@@ -9,11 +9,9 @@ import xarray
 import xarray as xr
 
 from dpyverification.base import Base
-from dpyverification.configuration.base import BaseDatasourceConfig
-from dpyverification.constants import (
-    FORECAST_TIMESERIES_KINDS,
-    TimeseriesKind,
-)
+from dpyverification.configuration.config import BaseDatasourceConfig
+from dpyverification.configuration.utils import TimePeriod
+from dpyverification.constants import FORECAST_TIMESERIES_KINDS, StandardDim, TimeseriesKind
 
 
 class BaseDatasource(Base):
@@ -48,6 +46,23 @@ class BaseDatasource(Base):
     def fetch_data(self) -> Self:
         """Fetch data from datasource."""
 
+    @staticmethod
+    def _drop_times_outside_vp(
+        da: xr.DataArray,
+        verification_period_on_time: TimePeriod,
+    ) -> xr.DataArray:
+        """Mask times outside of verification period with inclusive endpoints."""
+        # Mask values outside of verification period
+        filtered = da.where(
+            (da[StandardDim.time] >= verification_period_on_time.start_datetime64)
+            & (da[StandardDim.time] <= verification_period_on_time.end_datetime64),
+        )
+        # Drop NaN values along frt and fp dims, if all values are NaN
+        return filtered.dropna(dim=StandardDim.forecast_reference_time, how="all").dropna(
+            dim=StandardDim.forecast_period,
+            how="all",
+        )
+
     def get_data(self) -> Self:
         """Get cached data, or fetch and cache."""
         config_json = self.config.model_dump_json().encode("utf-8")
@@ -60,38 +75,61 @@ class BaseDatasource(Base):
             cache_dir.mkdir(parents=True)
 
         # If it exists, check it's an accessible dir
-        elif not cache_dir.is_dir() & access(cache_dir, R_OK):
+        elif not cache_dir.is_dir() and access(cache_dir, R_OK):
             msg = "Cache directory is not an accessible directory."
             raise NotADirectoryError(msg)
 
         # Define file path for caching
-        cached_dataset_path = cache_dir / f"{self.__class__.__name__}_{config_hash}.nc"
+        cached_data_array_path = cache_dir / f"{self.__class__.__name__}_{config_hash}.nc"
 
-        if cached_dataset_path.exists():
-            self.data_array = xr.open_dataarray(cached_dataset_path)
+        if cached_data_array_path.exists():
+            self.data_array = xr.open_dataarray(cached_data_array_path)
             return self
 
         # Go fetch and cache
         self.fetch_data()
+        data_array_original = self.data_array
 
         # Make sure the name of the array is set to the configured source
-        self.data_array.name = self.config.source
+        data_array_original.name = self.config.source
 
         # Apply re-naming based on configured id mapping, if not None
         if self.config.id_mapping is not None:
-            self.data_array = self.config.id_mapping.rename_data_array(self.data_array)
+            data_array_original = self.config.id_mapping.rename_data_array(data_array_original)
 
-        # Select only relevant time stamps
-        self.data_array = self.data_array.sel(
-            time=slice(self.config.verification_period.start, self.config.verification_period.end),
-        )
-
-        # Select only relevant forecast periods for simulations
-        if self.data_array.attrs["timeseries_kind"] in FORECAST_TIMESERIES_KINDS:  # type:ignore[misc]
-            self.data_array = self.data_array.sel(
+        # Additional layer to filter time, frt and fp properly according to config.
+        if data_array_original.attrs["timeseries_kind"] in FORECAST_TIMESERIES_KINDS:  # type:ignore[misc]
+            # Select only relevant forecast periods for simulations
+            data_array_original = data_array_original.sel(
                 forecast_period=self.config.forecast_periods.timedelta64,
             )
-        # Write to cache
-        self.data_array.to_netcdf(cached_dataset_path)
+            # Mask and drop time values outside of the configured vp
+            data_array_original = self._drop_times_outside_vp(
+                da=data_array_original,
+                verification_period_on_time=self.config.verification_period_on_time,
+            )
+        else:
+            # Historical timeseries kind
+            data_array_original = data_array_original.sel(
+                {
+                    StandardDim.time: slice(  # type:ignore[misc]
+                        self.config.verification_period_on_time.start,
+                        self.config.verification_period_on_time.end,
+                    ),
+                },
+            )
 
+        # Cache
+        data_array_original.to_netcdf(cached_data_array_path)
+
+        # Re-open to read from cache and prevent links to original files from which the dataarray
+        #   was loaded
+        data_array_reloaded = xr.open_dataarray(cached_data_array_path)
+
+        # Explicitly close original backing files
+        if hasattr(data_array_original, "close"):
+            data_array_original.close()
+
+        # Re-assign from cache
+        self.data_array = data_array_reloaded
         return self

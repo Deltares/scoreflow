@@ -2,11 +2,9 @@
 
 import logging
 import warnings
-from collections.abc import Iterable
 from pathlib import Path
 from typing import TypeVar
 
-import xarray as xr
 from cftime import CFWarning  # type:ignore[import-untyped]
 from xarray import SerializationWarning
 
@@ -62,7 +60,7 @@ def execute_pipeline(
     user_datasources: list[type[BaseDatasource]] | None = None,
     user_scores: list[type[BaseScore]] | None = None,
     user_datasinks: list[type[BaseDatasink]] | None = None,
-) -> xr.Dataset:
+) -> OutputDataset:
     """Execute a verification pipeline as defined in the configuration.
 
     Parameters
@@ -156,7 +154,8 @@ def execute_pipeline(
         input_dataset = InputDataset(
             [datasource.data_array for datasource in datasources],
         )
-        msg = "Successfully combined all data into verification dataset."
+
+        msg = "Successfully loaded all data from sources."
         logger.info(msg)
 
         # Initialize the output dataset
@@ -169,14 +168,16 @@ def execute_pipeline(
                 kind=score_config.kind,
             )
             score = score_kind.from_config(score_config.model_dump())  # type: ignore[misc] # Allow Any
-            results = score.validate_and_compute(input_dataset)
-            msg = f"Successfully computed {score.__class__.__name__}."
-            logger.info(msg)
-            if isinstance(results, xr.DataArray):  # type: ignore[misc]
-                output_dataset.add_score(results)
-            elif isinstance(results, Iterable):
-                for result in results:  # type: ignore[misc]
-                    output_dataset.add_score(result)  # type: ignore[misc]
+            for verification_pair in score.config.verification_pairs:
+                obs, sim = input_dataset.get_pair(verification_pair)
+                result = score.validate_and_compute(obs=obs, sim=sim)
+                output_dataset.add_score(verification_pair_id=verification_pair.id, score=result)
+
+                msg = (
+                    f"Successfully computed {score.__class__.__name__} for verification pair "
+                    "{pair_id}."
+                )
+                logger.info(msg)
 
         # Write data for each datasink if not None
         if config.datasinks is not None:
@@ -186,14 +187,21 @@ def execute_pipeline(
                     kind=datasink_config.kind,
                 )
                 datasink = sink_kind.from_config(datasink_config.model_dump())  # type: ignore[misc] # Allow Any
-                datasink.write_data(
-                    output_dataset.get_output_dataset(),
-                )
-                msg = f"Successfully wrote verification results to {datasink.__class__.__name__}."
-                logger.info(msg)
+
+                # We write results for each verification pair separately to the datasink. The
+                #   datasink determines what the output will ook like.
+                for verification_pair in config.general.verification_pairs:
+                    datasink.write_data(
+                        output_dataset.get_output_dataset(verification_pair),
+                    )
+                    msg = (
+                        f"Successfully wrote results of verification pair {verification_pair.id} "
+                        f"to {datasink.__class__.__name__}."
+                    )
+                    logger.info(msg)
 
     msg = "Verification pipeline completed successfully."
     logger.info(msg)
 
     # Return the output dataset by default
-    return output_dataset.get_output_dataset()
+    return output_dataset

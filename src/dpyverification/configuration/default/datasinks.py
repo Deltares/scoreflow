@@ -4,7 +4,7 @@ from typing import Annotated, Literal
 
 from pydantic import Field
 
-from dpyverification.configuration.base import BaseDatasinkConfig
+from dpyverification.configuration.config import BaseDatasinkConfig
 from dpyverification.configuration.utils import LocalFile
 from dpyverification.constants import NAME, DataSinkKind
 
