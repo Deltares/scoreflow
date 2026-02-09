@@ -1,31 +1,58 @@
-# Contributing to DPyVerification
+# 🤝 Contributing to the project 
+We warmly welcome contributions! The guideline below aims to support you in the process.
 
-## How to contribute
+Currently, we have guidelines for the following types of contributions:
 
-### Code contributions
+[Code contributions](#code-contributions)
 
-#### Local development
 
-DPyVerification's development toolchain requires Python 3.11 or newer.
+## Code contributions
 
-DPyVerification is developed using Poetry. Refer to the [Poetry documentation](https://python-poetry.org) to install Poetry.
+DPyVerification requires Python 3.11 or newer.
 
-You should first fork the DPyVerification repository and then clone it locally, so that you can make pull requests against the
-project. If you are new to Git and pull request based development, GitHub provides a
+### GitHub
+ If you are new to Git and pull request based development, GitHub provides a
 [guide](https://docs.github.com/en/get-started/quickstart/contributing-to-projects) you will find helpful.
 
-Next, you should tell Poetry to use a correct python installation (only if python 3.11+ is not the default python), install DPyVerification's dependencies, and run the test suite to make sure everything is working as expected. Within the main directory of the local checkout of DPyVerification:
+### Fork the project
+1. Create your own fork of the project using the GitHub web user interface.
+2. Clone your fork. Avoid cloning (https://github.com/Deltares-research/DPyVerification).
+3. Immediately create a new local branch, with a command such as git checkout -b branch_name.
 
-```bash
-poetry env use PATH_TO_THE_PYTHON_EXECUTABLE
-poetry install
-poetry run pytest
-```
+### Create a GitHub issue
+Prior to developing a pull request, considering creating a GitHub issue to capture what the pull request is trying to achieve. Otherwise, please explain this in the pull request.
 
-When you contribute to DPyVerification, automated tools will be run to make sure your code is suitable to be merged. All of these are included in the pytest checks. However, it may be useful during development to run them separately to automatically fix problems. And to integrate them in your development environment. 
+### Set up for local development
 
-Tools that are included are ruff for formatting, ruff for linting, mypy for type checking.
+DPyVerification is developed using uv. Refer to the [uv documentation](https://docs.astral.sh/uv/getting-started/installation/#installation-methods) to install uv.
 
-TODO: info on how to run these manually, including autofix options
-TODO: actually include these in the pytest suite, so no need for pre-commit for now.
-TODO: Later on, might want to also support pre-commit, for auto-fixing things without need for dev manual action. Create github issue for this.
+#### Create a virtual environment and install the project.
+
+`uv sync --dev`
+
+#### Activate the virtual environment
+- Linux / macOS -> `source .venv/bin/activate`
+- Windows ->  `.venv/Scripts/activate`
+
+
+#### Make your changes
+You're ready to make changes. Please try to write clear code, use short and functional names for functions and classes and document using docstrings. Where needed, provide line comments for clarity.
+
+#### Run the development tools
+We use pytest for testing, ruff for linting and code formatting and mypy for type checking.
+
+- `uv run pytest` 
+- `uv run ruff check` 
+- `uv run mypy`
+
+Ruff formatting and linting is also part of the pre-commit hook.
+
+
+#### Commit your changes to your branch
+Please use separate commits for separate topics or actions. Use the commit message to concisely describe what the commit is about. Always start with a capital letter and use a reference to an issue number when applicable.
+
+#### Push your branch 
+Push your work to the remote. Please make sure all tests are green.
+
+#### Request a review by assigning a reviewer
+Each PR will be reviewed by the development team, before merging to main. Please request a review by assigning the PR to a member of the team. 
