@@ -271,7 +271,7 @@ def quantiles_to_cdf_data_array(
     #   a different scale, such as between 0-100. Scale any given array to the desired
     #   range, by finding base 10 logarithm and taking the ceiling, so we always scale by
     #   an integer.
-    scaling_factor: int = 10 ** np.ceil(np.log10(max_probability))  # type:ignore[misc]
+    scaling_factor: int = 10 ** np.ceil(np.log10(max_probability))
     min_probability = min_probability / scaling_factor  # i.e. 99 > 0.99 and 0.99 > 0.99
     max_probability = max_probability / scaling_factor
 
@@ -289,9 +289,9 @@ def quantiles_to_cdf_data_array(
     padded_vmax = vmax + (padding_percentage * 0.01 * width)
 
     # Define the steps and threshold index, for new shared coordinate
-    thresholds = np.linspace(padded_vmin, padded_vmax, n_thresholds)  # type:ignore[misc]
+    thresholds = np.linspace(padded_vmin, padded_vmax, n_thresholds)
 
-    def interpolate_cdf(cdf: NDArray[np.floating]) -> NDArray:
+    def interpolate_cdf(cdf: NDArray[np.floating]) -> NDArray:  # type:ignore[misc]
         # If all NaN, return a NaN array
         if np.all(np.isnan(cdf)):  # type:ignore[misc]
             return np.full_like(thresholds, np.nan, dtype=float)  # type:ignore[misc]
@@ -300,9 +300,9 @@ def quantiles_to_cdf_data_array(
         check_non_decreasing_and_not_nan(cdf)  # type:ignore[misc]
         probs = np.linspace(min_probability, max_probability, len(cdf))  # type:ignore[misc]
         return np.interp(
-            thresholds,  # type:ignore[misc]
+            thresholds,
             cdf,  # type:ignore[misc]
-            probs,  # type:ignore[misc]
+            probs,
             left=0.0,
             right=1.0,
         )
@@ -317,7 +317,7 @@ def quantiles_to_cdf_data_array(
         output_sizes={"threshold": len(thresholds)},  # type:ignore[misc]
     )
 
-    result = result.assign_coords(threshold=("threshold", thresholds))  # type:ignore[misc]
+    result = result.assign_coords(threshold=("threshold", thresholds))
     result.attrs.update(  # type:ignore[misc]
         {"timeseries_kind": TimeseriesKind.simulated_forecast_probabilistic},  # type:ignore[misc]
     )
@@ -327,7 +327,7 @@ def quantiles_to_cdf_data_array(
 
 
 def parse_forecast_period_netcdf_files(
-    paths: Generator[Path],
+    paths: Generator[Path, None, None],
 ) -> xr.Dataset:
     """Parse NetCDF responses from get timeseries with leadTimes parameter."""
 

@@ -103,7 +103,7 @@ class InputDataset:
         aligned along the same dimensions.
         """
         # Stack forecast time axes
-        stacked_time = sim[StandardDim.time].stack(  # noqa: PD013
+        stacked_time = sim[StandardDim.time].stack(  # type:ignore[misc] # noqa: PD013
             z=(StandardDim.forecast_reference_time, StandardDim.forecast_period),
         )
 
