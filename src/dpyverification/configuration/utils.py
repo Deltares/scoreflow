@@ -204,7 +204,7 @@ class LocalFiles(BaseModel):
         return Path(self.directory).rglob(self.filename_glob)
 
 
-class FewsWebserviceAuthConfig(BaseSettings):  # type: ignore  # noqa: PGH003
+class FewsWebserviceAuthConfig(BaseSettings):
     """
     Get url, username and password safely from environment variables.
 

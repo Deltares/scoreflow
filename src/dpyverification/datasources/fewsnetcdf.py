@@ -350,8 +350,10 @@ def parse_forecast_period_netcdf_files(
             "numeric and cannot be converted to a valid forecast period."
             raise ValueError(msg)
 
-        forecast_period = np.timedelta64(int(forecast_period_millis), "ms")
-        forecast_reference_times = dataset[StandardDim.time] - forecast_period
+        forecast_period = np.timedelta64(int(forecast_period_millis), "ms").astype(
+            "timedelta64[ns]",
+        )
+        forecast_reference_times = dataset[StandardDim.time] - forecast_period  # type:ignore[misc]
 
         # Set the station_name as coord instead of variable
         if FewsNetcdfCoord.station_names in dataset:
@@ -378,8 +380,8 @@ def parse_forecast_period_netcdf_files(
             {
                 StandardCoord.forecast_period.name: (
                     StandardDim.forecast_period,
-                    [forecast_period],
-                ),  # type:ignore[misc]
+                    [forecast_period],  # type:ignore[misc]
+                ),
             },
         )
 
