@@ -76,14 +76,14 @@ class ForecastPeriods(BaseModel):
     @property
     def timedelta64(self) -> list[np.timedelta64]:
         """As numpy timedelta64."""
-        return [np.timedelta64(v, self.unit) for v in self.values]  # type:ignore[arg-type] # BeforeValidator takes care of conversion to list
+        return [np.timedelta64(v, self.unit) for v in self.values]  # type:ignore[call-overload, misc] # BeforeValidator takes care of conversion to list
 
     @property
     def stdlib_timedelta(self) -> list[timedelta]:
         """As datetime timedelta."""
 
         def convert_to_timedelta(value: int) -> timedelta:
-            return np.timedelta64(value, self.unit).astype(timedelta)  # type: ignore[no-any-return, misc]
+            return np.timedelta64(value, self.unit).astype(timedelta)  # type: ignore[no-any-return, misc, call-overload]
 
         return [convert_to_timedelta(v) for v in self.values]  # type:ignore[arg-type]
 
@@ -199,12 +199,12 @@ class LocalFiles(BaseModel):
     ]
 
     @property
-    def paths(self) -> Generator[Path]:
+    def paths(self) -> Generator[Path, None, None]:
         """Return all filepaths as Path objects."""
         return Path(self.directory).rglob(self.filename_glob)
 
 
-class FewsWebserviceAuthConfig(BaseSettings):  # type: ignore  # noqa: PGH003
+class FewsWebserviceAuthConfig(BaseSettings):
     """
     Get url, username and password safely from environment variables.
 

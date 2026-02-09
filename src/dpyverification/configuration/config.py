@@ -283,7 +283,9 @@ class BaseScoreConfig(BaseConfig):
     @model_validator(mode="after")
     def verification_pair_ids_valid(self) -> Self:
         """Check provided filter for verification pairs contains valid ids."""
-        valid_pair_ids: Generator[str] = (pair.id for pair in self.general.verification_pairs)
+        valid_pair_ids: Generator[str, None, None] = (
+            pair.id for pair in self.general.verification_pairs
+        )
 
         for pair_id in self.verification_pair_ids:
             if pair_id not in valid_pair_ids:

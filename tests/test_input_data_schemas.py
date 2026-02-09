@@ -1,7 +1,7 @@
 """Test input data is valid according to schema."""
 
 # mypy: ignore-errors
-# ruff: noqa: D100, D101, D102, D103, D104, D105, D106, D107
+# ruff: noqa: D103
 
 import pytest
 import xarray as xr

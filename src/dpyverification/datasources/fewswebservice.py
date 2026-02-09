@@ -112,7 +112,7 @@ class FewsWebservice(BaseDatasource):
         we need to store it in the filename, so that we can internally assign it later
         as a proper coordinate on the internal xr.DataArray.
         """
-        zip_bytes = io.BytesIO(response.content)
+        zip_bytes = io.BytesIO(response.content)  # type:ignore[misc]
 
         if not write_dir.is_dir():
             msg = "Provided path is not a directory."

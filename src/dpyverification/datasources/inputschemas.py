@@ -23,7 +23,7 @@ On the following input datasets:
 # TODO(jb): remove mypy ignore errors  # noqa: FIX002, TD003
 
 # mypy: ignore-errors
-# ruff: noqa: D100, D101, D102, D103, D104, D105, D106, D107
+# ruff: noqa: D101
 
 from typing import Annotated, Literal
 

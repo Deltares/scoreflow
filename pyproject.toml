@@ -1,32 +1,27 @@
-[tool.poetry]
+[project]
 name = "dpyverification"
 version = "0.1.0"
 description = ""
-authors = ["Aljen Uitbeijerse <aljen.uitbeijerse@vortech.nl>"]
+authors = [
+    {name = "Jurian Beunk", email = "jurian.beunk@deltares.nl"},
+    {name = "Aljen Uitbeijerse", email = "aljen.uitbeijerse@vortech.nl"},
+    {name = "Cees Voesenek", email = "cees.voesenek@vortech.nl"}
+]
 readme = "README.md"
-packages = [{include = "dpyverification", from = "src"}]
+requires-python = ">=3.11"
 
-[tool.poetry.dependencies]
-python = "^3.11"
-xarray = "^2024.6.0" # for now NOT with the io extra, since only want netcdf4 support, not all the other packages that are part of io like scipy
-pyyaml = "^6.0.1"
-pydantic = "^2.8.2"
-netcdf4 = "^1.7.1.post1" # explicitly use this package, instead of through xarray with extras = io
-importlib-metadata = ">7, <9"
-fews-io = "^0.0.3"
-requests = "^2.32.3"
-xskillscore = "^0.0.26"
-scores = "^2.0.0"
-pydantic-settings = "^2.9.1"
-
-[tool.poetry.group.dev.dependencies]
-pytest = "^8.2.2"
-ruff = "^0.5.0"
-mypy = "^1.10.1"
-types-pyyaml = "^6.0.12.20240311" # types definitions needed for mypy
-pandas-stubs = "^2.2.2.240603" # types definitions needed for mypy
-types-requests = "^2.32.0.20240712" # types definitions needed for requests 
-pytest-lazy-fixtures = "^1.3.2" # lazy fixtures for testing pipeline
+dependencies = [
+    "xarray==2026.1.0",
+    "pyyaml==6.0.1",
+    "pydantic==2.12.5",
+    "netcdf4==1.7.4",
+    "importlib-metadata>=7,<9",
+    "requests==2.32.3",
+    "xskillscore==0.0.26",
+    "scores==2.4.0",
+    "pydantic-settings==2.12.0",
+    "ruff>=0.5.0",
+]
 
 [tool.mypy]
 mypy_path = "$MYPY_CONFIG_FILE_DIR/src"
@@ -88,7 +83,19 @@ known-first-party = ["my-project-name"]  # again, not needed with a 'flat' proje
     "SLF001",  # Private member access
 ]
 
-
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[dependency-groups]
+dev = [
+    "mypy==1.10.1",
+    "pandas-stubs==2.2.2.240603",
+    "pre-commit>=4.5.1",
+    "pytest==8.2.2",
+    "pytest-cov>=7.0.0",
+    "pytest-lazy-fixtures==1.3.2",
+    "ruff==0.5.0",
+    "types-pyyaml==6.0.12.20240311",
+    "types-requests==2.32.0.20240712",
+]
