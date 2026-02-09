@@ -7,8 +7,11 @@ Did the developer run all the tools, and fix all the errors that were reported.
 import pathlib
 import subprocess
 
+import pytest
 from mypy import api
 from ruff.__main__ import find_ruff_bin  # type: ignore[import-untyped]
+
+from tests import IN_GITHUB_ACTIONS
 
 # Ignore import untyped since no type stub available for ruff.__main__
 
@@ -16,6 +19,7 @@ RUFF_ASSERT_CODE = 1
 RUFF_ERROR_CODE = 2
 
 
+@pytest.mark.skipif(IN_GITHUB_ACTIONS, reason="Skipped in CI")
 def test_ruff_format() -> None:
     """Whether ruff format would reformat a file."""
     ruff: str = find_ruff_bin()
@@ -33,6 +37,7 @@ def test_ruff_format() -> None:
         raise RuntimeError("Ruff format encountered an error.\n" + stderr)
 
 
+@pytest.mark.skipif(IN_GITHUB_ACTIONS, reason="Skipped in CI")
 def test_ruff_linting() -> None:
     """Whether ruff check would report any issues."""
     ruff: str = find_ruff_bin()
@@ -48,6 +53,7 @@ def test_ruff_linting() -> None:
         raise RuntimeError("Ruff check encountered an error.\n" + stderr)
 
 
+@pytest.mark.skipif(IN_GITHUB_ACTIONS, reason="Skipped in CI")
 def test_mypy() -> None:
     """Run mypy through pytest, raise error when problem."""
     # NOTE: Does not check the contents of stdout yet.
