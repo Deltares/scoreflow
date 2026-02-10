@@ -78,20 +78,16 @@ class FewsWebserviceConfig(BaseDatasourceConfig):
             "which is the Delft-FEWS standard.",
         ),
     ] = ArchiveKind.open_archive
-    forecast_retrieval_method: (
-        Annotated[
-            ForecastRetrievalMethod,
-            Field(
-                default=ForecastRetrievalMethod.retrieve_all_forecast_data,
-                description="Since Delft-FEWS 2025.01, the Delft-FEWS Webservice can"
-                "retrieve forecasts for specific forecast periods (lead times). This avoid having "
-                "to retrieve all forecast data outside of the configured forecast periods "
-                "(lead times) for the verification pipeline. If not provided, the method will be "
-                "automatically determined based on the configured webservice version.",
-            ),
-        ]
-        | None
-    ) = None
+    forecast_retrieval_method: Annotated[
+        ForecastRetrievalMethod,
+        Field(
+            description="Since Delft-FEWS 2025.01, the Delft-FEWS Webservice can"
+            "retrieve forecasts for specific forecast periods (lead times). This avoid having "
+            "to retrieve all forecast data outside of the configured forecast periods "
+            "(lead times) for the verification pipeline. If not provided, the method will be "
+            "automatically determined based on the configured webservice version.",
+        ),
+    ] = ForecastRetrievalMethod.retrieve_all_forecast_data
     max_workers_in_thread_pool: Annotated[
         int,
         Field(
