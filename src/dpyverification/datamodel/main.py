@@ -103,7 +103,7 @@ class InputDataset:
         aligned along the same dimensions.
         """
         # Stack forecast time axes
-        stacked_time = sim[StandardDim.time].stack(  # type:ignore[misc] # noqa: PD013
+        stacked_time = sim[StandardDim.time].stack(  # type:ignore[misc]
             z=(StandardDim.forecast_reference_time, StandardDim.forecast_period),
         )
 
@@ -132,7 +132,7 @@ class InputDataset:
         )
 
         # Unstack into forecast space
-        obs_projected = obs_indexed.unstack(StandardDim.time)  # noqa: PD010
+        obs_projected = obs_indexed.unstack(StandardDim.time)
 
         # Preserve attrs
         obs_projected.attrs = obs.attrs

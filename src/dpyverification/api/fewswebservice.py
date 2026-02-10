@@ -88,7 +88,7 @@ class FewsWebserviceClient:
         export_id_map: str | None = None,
         timeseries_type: TimeseriesType | None = None,
         document_format: DocumentFormat = DocumentFormat.PI_NETCDF,
-        only_headers: bool | None = None,
+        only_headers: bool | None = None,  # noqa: FBT001
     ) -> requests.Response:
         """Get a timeseries from the Delft-FEWS webservice."""
         params = {

@@ -5,12 +5,13 @@
 
 import pytest
 import xarray as xr
+from pydantic import ValidationError
+
 from dpyverification.datasources.inputschemas import (
     HistoricalTimeCoord,
     ObservedHistorical,
     input_schemas,
 )
-from pydantic import ValidationError
 
 
 def test_time_coord_good() -> None:

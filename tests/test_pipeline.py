@@ -1,12 +1,13 @@
 """Test the functions in the pipeline module."""
 
 import pytest
+from pytest_lazy_fixtures import lf
+
 from dpyverification.configuration.default.scores import BaseScoreConfig
 from dpyverification.configuration.file import Config
 from dpyverification.datasinks.cf_compliant_netdf import CFCompliantNetCDF
 from dpyverification.datasources.fewsnetcdf import FewsNetCDF
 from dpyverification.pipeline import execute_pipeline
-from pytest_lazy_fixtures import lf
 
 
 @pytest.mark.parametrize(

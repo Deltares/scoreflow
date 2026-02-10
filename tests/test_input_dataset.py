@@ -1,6 +1,7 @@
 """Test the dpyverification.datamodel package."""
 
 import xarray as xr
+
 from dpyverification.datamodel.main import InputDataset
 from dpyverification.datasources.fewsnetcdf import FewsNetCDF
 

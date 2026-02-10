@@ -8,6 +8,8 @@ from typing import Literal
 import pytest
 import xarray as xr
 import yaml
+from pydantic import BaseModel
+
 from dpyverification.configuration import Config
 from dpyverification.configuration.config import IdMap, IdMappingConfig
 from dpyverification.configuration.default.scores import CrpsForEnsembleConfig
@@ -17,10 +19,9 @@ from dpyverification.configuration.utils import (
     Range,
     TimeUnits,
 )
-from pydantic import BaseModel
 
 
-@pytest.fixture()
+@pytest.fixture
 def _mock_env(monkeypatch: Generator[pytest.MonkeyPatch, None, None]) -> None:
     """Create a mock environment for testing secret env vars."""
     monkeypatch.setenv("FEWSWEBSERVICE_URL", "https://fixture_url.test")  # type: ignore  # noqa: PGH003

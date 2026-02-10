@@ -3,6 +3,7 @@
 from copy import deepcopy
 
 import xarray as xr
+
 from dpyverification.configuration.default.scores import (
     ContinuousScoresConfig,
     CrpsCDFConfig,

@@ -1,6 +1,7 @@
 """Module for reading from and writing to a fews webservice."""
 
 import asyncio
+import concurrent.futures
 import io
 import tempfile
 import zipfile
@@ -43,7 +44,6 @@ def run_async_in_compatible_environment(coro: Awaitable[T]) -> T:
         _ = asyncio.get_running_loop()
         # If we get here, there's already a running event loop (e.g., in Jupyter)
         # Create a new event loop in a separate thread
-        import concurrent.futures
 
         def run_in_new_loop() -> T:
             new_loop = asyncio.new_event_loop()

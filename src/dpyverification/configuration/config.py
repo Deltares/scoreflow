@@ -341,12 +341,14 @@ class Config(BaseModel):
             Option to provide user-implemented config classes, by default None
 
         """
-        from dpyverification.configuration.default.datasinks import CFCompliantNetCDFConfig
-        from dpyverification.configuration.default.datasources import (
+        from dpyverification.configuration.default.datasinks import (  # noqa: PLC0415 # importing at the top of module leads to circular import
+            CFCompliantNetCDFConfig,
+        )
+        from dpyverification.configuration.default.datasources import (  # noqa: PLC0415
             FewsNetCDFConfig,
             FewsWebserviceConfig,
         )
-        from dpyverification.configuration.default.scores import (
+        from dpyverification.configuration.default.scores import (  # noqa: PLC0415
             ContinuousScoresConfig,
             CrpsCDFConfig,
             CrpsForEnsembleConfig,

@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 import pytest
 import xarray as xr
+
 from dpyverification.configuration import GeneralInfoConfig
 from dpyverification.configuration.config import IdMappingConfig
 from dpyverification.configuration.default.datasinks import CFCompliantNetCDFConfig
@@ -88,7 +89,7 @@ realization = np.arange(1, realization_n + 1)
 variables = [f"var_{x}" for x in range(variable_n)]
 
 
-@pytest.fixture()
+@pytest.fixture
 def cache_dir(tmp_path: Path) -> Path:
     """Pytest cache directory."""
     return tmp_path / "sub"
@@ -111,13 +112,13 @@ class DummySource(StrEnum):
     simulation_single_source = "simulation_single_source"
 
 
-@pytest.fixture()
+@pytest.fixture
 def xarray_dataset_fews_compliant() -> xr.Dataset:
     """Return xarray dataset for FEWS Compliant file."""
     return xr.open_dataset(TESTS_DATA_DIR / "fews_compliant_test_file.nc")
 
 
-@pytest.fixture()
+@pytest.fixture
 def xarray_observed_historical() -> xr.DataArray:
     """Return example observations."""
     # Create observation data
@@ -144,7 +145,7 @@ def xarray_observed_historical() -> xr.DataArray:
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def xarray_simulated_forecast_ensemble() -> xr.DataArray:
     """Return example simulations compatible with the internal datamodel.
 
@@ -186,7 +187,7 @@ def xarray_simulated_forecast_ensemble() -> xr.DataArray:
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def xarray_simulated_forecast_single() -> xr.DataArray:
     """Return example simulations compatible with the internal datamodel.
 
@@ -226,7 +227,7 @@ def xarray_simulated_forecast_single() -> xr.DataArray:
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def fews_webservice_auth_config() -> FewsWebserviceAuthConfig:
     """Read authorization config from environment."""
     return FewsWebserviceAuthConfig()
@@ -245,7 +246,7 @@ test_data_meuse_module_instance_ids = {
 }
 
 
-@pytest.fixture()
+@pytest.fixture
 def general_info_config_single(cache_dir: Path) -> GeneralInfoConfig:
     """GeneralInfoConfig for a single forecast."""
     return GeneralInfoConfig(
@@ -265,7 +266,7 @@ def general_info_config_single(cache_dir: Path) -> GeneralInfoConfig:
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def general_info_config_ensemble(cache_dir: Path) -> GeneralInfoConfig:
     """GeneralInfoConfig for an ensemble."""
     return GeneralInfoConfig(
@@ -285,7 +286,7 @@ def general_info_config_ensemble(cache_dir: Path) -> GeneralInfoConfig:
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def general_info_config_probabilistic(cache_dir: Path) -> GeneralInfoConfig:
     """GeneralInfoConfig for probabilistic forecast."""
     return GeneralInfoConfig(
@@ -305,7 +306,7 @@ def general_info_config_probabilistic(cache_dir: Path) -> GeneralInfoConfig:
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def id_mapping_config_fewsnetcdf() -> IdMappingConfig:
     """Id mapping config to be used across tests."""
     return IdMappingConfig(
@@ -325,7 +326,7 @@ def id_mapping_config_fewsnetcdf() -> IdMappingConfig:
 # Datasource fixtures - FewsWebservice
 
 
-@pytest.fixture()
+@pytest.fixture
 def fews_webservice_observed_historical(
     fews_webservice_auth_config: FewsWebserviceAuthConfig,
     id_mapping_config_fewsnetcdf: IdMappingConfig,
@@ -347,7 +348,7 @@ def fews_webservice_observed_historical(
     return FewsWebservice(config)
 
 
-@pytest.fixture()
+@pytest.fixture
 def fews_webservice_simulated_forecast_ensemble_frt(
     fews_webservice_auth_config: FewsWebserviceAuthConfig,
     id_mapping_config_fewsnetcdf: IdMappingConfig,
@@ -372,7 +373,7 @@ def fews_webservice_simulated_forecast_ensemble_frt(
     return FewsWebservice(config)
 
 
-@pytest.fixture()
+@pytest.fixture
 def fews_webservice_simulated_forecast_ensemble_fp(
     fews_webservice_simulated_forecast_ensemble_frt: FewsWebservice,
 ) -> FewsWebservice:
@@ -386,7 +387,7 @@ def fews_webservice_simulated_forecast_ensemble_fp(
     return instance
 
 
-@pytest.fixture()
+@pytest.fixture
 def fews_webservice_simulated_forecast_single_frt(
     fews_webservice_auth_config: FewsWebserviceAuthConfig,
     general_info_config_single: GeneralInfoConfig,
@@ -410,7 +411,7 @@ def fews_webservice_simulated_forecast_single_frt(
     return FewsWebservice(config)
 
 
-@pytest.fixture()
+@pytest.fixture
 def fews_webservice_simulated_forecast_single_fp(
     fews_webservice_simulated_forecast_single_frt: FewsWebservice,
 ) -> FewsWebservice:
@@ -424,7 +425,7 @@ def fews_webservice_simulated_forecast_single_fp(
     return instance
 
 
-@pytest.fixture()
+@pytest.fixture
 def fews_webservice_simulated_forecast_probabilistic_frt(
     fews_webservice_auth_config: FewsWebserviceAuthConfig,
     general_info_config_probabilistic: GeneralInfoConfig,
@@ -449,7 +450,7 @@ def fews_webservice_simulated_forecast_probabilistic_frt(
     return FewsWebservice(config)
 
 
-@pytest.fixture()
+@pytest.fixture
 def fews_webservice_simulated_forecast_probabilistic_fp(
     fews_webservice_simulated_forecast_probabilistic_frt: FewsWebservice,
 ) -> FewsWebservice:
@@ -463,7 +464,7 @@ def fews_webservice_simulated_forecast_probabilistic_fp(
     return instance
 
 
-@pytest.fixture()
+@pytest.fixture
 def fews_webservice_timeseries_headers_only() -> xr.Dataset:
     """Return xarray dataset for FEWS Compliant file."""
     file_path = Path("tests/data/webservice_responses_netcdf/timeseries_headers.json")
@@ -474,7 +475,7 @@ def fews_webservice_timeseries_headers_only() -> xr.Dataset:
 # Datasource fixtures - FewsNetCDF
 
 
-@pytest.fixture()
+@pytest.fixture
 def fews_netcdf_observed_historical(
     id_mapping_config_fewsnetcdf: IdMappingConfig,
     general_info_config_ensemble: GeneralInfoConfig,
@@ -495,7 +496,7 @@ def fews_netcdf_observed_historical(
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def fews_netcdf_simulated_forecast_ensemble_frt(
     id_mapping_config_fewsnetcdf: IdMappingConfig,
     general_info_config_ensemble: GeneralInfoConfig,
@@ -515,7 +516,7 @@ def fews_netcdf_simulated_forecast_ensemble_frt(
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def fews_netcdf_simulated_forecast_ensemble_fp(
     fews_netcdf_simulated_forecast_ensemble_frt: FewsNetCDF,
 ) -> FewsNetCDF:
@@ -528,7 +529,7 @@ def fews_netcdf_simulated_forecast_ensemble_fp(
     return instance
 
 
-@pytest.fixture()
+@pytest.fixture
 def fews_netcdf_simulated_forecast_single_frt(
     id_mapping_config_fewsnetcdf: IdMappingConfig,
     general_info_config_single: GeneralInfoConfig,
@@ -548,7 +549,7 @@ def fews_netcdf_simulated_forecast_single_frt(
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def fews_netcdf_simulated_forecast_single_fp(
     fews_netcdf_simulated_forecast_single_frt: FewsNetCDF,
 ) -> FewsNetCDF:
@@ -561,7 +562,7 @@ def fews_netcdf_simulated_forecast_single_fp(
     return instance
 
 
-@pytest.fixture()
+@pytest.fixture
 def fews_netcdf_simulated_forecast_probabilistic_frt(
     general_info_config_probabilistic: GeneralInfoConfig,
 ) -> FewsNetCDF:
@@ -579,7 +580,7 @@ def fews_netcdf_simulated_forecast_probabilistic_frt(
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def fews_netcdf_simulated_forecast_probabilistic_fp(
     fews_netcdf_simulated_forecast_probabilistic_frt: FewsNetCDF,
 ) -> FewsNetCDF:
@@ -592,7 +593,7 @@ def fews_netcdf_simulated_forecast_probabilistic_fp(
     return instance
 
 
-@pytest.fixture()
+@pytest.fixture
 def fews_netcdf_compliant_file(
     fews_netcdf_observed_historical: dict[
         str,
@@ -609,7 +610,7 @@ def fews_netcdf_compliant_file(
 # Input dataset fixtures
 
 
-@pytest.fixture()
+@pytest.fixture
 def input_dataset_dummy_data_forecast_reference_time(
     xarray_data_array_observation: xr.DataArray,
     xarray_dataset_simulations_forecast_reference_time: xr.DataArray,
@@ -620,7 +621,7 @@ def input_dataset_dummy_data_forecast_reference_time(
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def input_dataset_fews_netcdf_simulated_forecast_ensemble(
     fews_netcdf_observed_historical: FewsNetCDF,
     fews_netcdf_simulated_forecast_ensemble_frt: FewsNetCDF,
@@ -637,7 +638,7 @@ def input_dataset_fews_netcdf_simulated_forecast_ensemble(
 # Score fixtures
 
 
-@pytest.fixture()
+@pytest.fixture
 def score_config_crps(
     general_info_config_ensemble: GeneralInfoConfig,
 ) -> CrpsForEnsembleConfig:
@@ -648,7 +649,7 @@ def score_config_crps(
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def score_config_rank_histogram(
     general_info_config_ensemble: GeneralInfoConfig,
 ) -> RankHistogramConfig:
@@ -659,7 +660,7 @@ def score_config_rank_histogram(
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def score_config_crps_cdf(
     general_info_config_probabilistic: GeneralInfoConfig,
 ) -> CrpsCDFConfig:
@@ -670,7 +671,7 @@ def score_config_crps_cdf(
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def score_config_continuous(
     general_info_config_single: GeneralInfoConfig,
 ) -> ContinuousScoresConfig:
@@ -685,7 +686,7 @@ def score_config_continuous(
 # Datasink fixtures
 
 
-@pytest.fixture()
+@pytest.fixture
 def datasink_cf_compliant_netcdf(
     tmp_path: Path,
     general_info_config_ensemble: GeneralInfoConfig,
