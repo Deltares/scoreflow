@@ -9,20 +9,20 @@ import xarray
 import xarray as xr
 
 from dpyverification.base import Base
-from dpyverification.configuration.config import BaseDatasourceConfig
+from dpyverification.configuration.config import BaseTimeseriesDatasourceConfig
 from dpyverification.configuration.utils import TimePeriod
 from dpyverification.constants import FORECAST_TIMESERIES_KINDS, StandardDim, TimeseriesKind
 
 
-class BaseDatasource(Base):
+class BaseTimeseriesDatasource(Base):
     """Class to inherit from, defines the required methods and attributes."""
 
     kind: str = ""
-    config_class: type[BaseDatasourceConfig] = BaseDatasourceConfig
+    config_class: type[BaseTimeseriesDatasourceConfig] = BaseTimeseriesDatasourceConfig
     supported_timeseries_kinds: ClassVar[set[TimeseriesKind]] = set()
 
-    def __init__(self, config: BaseDatasourceConfig) -> None:
-        self.config: BaseDatasourceConfig = config
+    def __init__(self, config: BaseTimeseriesDatasourceConfig) -> None:
+        self.config: BaseTimeseriesDatasourceConfig = config
         self.timeseries_kind = config.timeseries_kind
         self.data_array = xarray.DataArray()
 

@@ -22,7 +22,7 @@ from dpyverification.configuration import (
 )
 from dpyverification.configuration.default.datasources import ArchiveKind
 from dpyverification.constants import DataSourceKind, TimeseriesKind
-from dpyverification.datasources.base import BaseDatasource
+from dpyverification.datasources.base import BaseTimeseriesDatasource
 from dpyverification.datasources.fewsnetcdf import (
     FewsNetCDF,
     FewsNetCDFKind,
@@ -63,7 +63,7 @@ def run_async_in_compatible_environment(coro: Awaitable[T]) -> T:
         return result
 
 
-class FewsWebservice(BaseDatasource):
+class FewsWebservice(BaseTimeseriesDatasource):
     """For downloading data using a Delft-FEWS webservice."""
 
     # TODO(AU): Fix and document timezone information in fewswebservice requests # noqa: FIX002

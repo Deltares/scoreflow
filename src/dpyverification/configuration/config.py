@@ -186,7 +186,7 @@ class BaseConfig(BaseModel):
     model_config = ConfigDict(extra="allow")
 
 
-class BaseDatasourceConfig(BaseConfig):
+class BaseTimeseriesDatasourceConfig(BaseConfig):
     """
     Base config for a datasource config.
 
@@ -298,7 +298,10 @@ class BaseScoreConfig(BaseConfig):
         return self
 
 
-TItem = TypeVar("TItem", bound=BaseDatasourceConfig | BaseDatasinkConfig | BaseScoreConfig)
+TItem = TypeVar(
+    "TItem",
+    bound=BaseTimeseriesDatasourceConfig | BaseDatasinkConfig | BaseScoreConfig,
+)
 
 
 class Config(BaseModel):
@@ -306,7 +309,7 @@ class Config(BaseModel):
 
     fileversion: str
     general: GeneralInfoConfig
-    datasources: Annotated[Sequence[BaseDatasourceConfig], Field(min_length=1)]
+    datasources: Annotated[Sequence[BaseTimeseriesDatasourceConfig], Field(min_length=1)]
     scores: Annotated[Sequence[BaseScoreConfig], Field(min_length=1)]
     datasinks: Annotated[Sequence[BaseDatasinkConfig] | None, Field(min_length=1)] = None
     id_mapping: IdMappingConfig | None = None
@@ -314,7 +317,7 @@ class Config(BaseModel):
     @staticmethod
     def write_schema(
         output_path: Path,
-        user_datasources_config: list[type[BaseDatasourceConfig]] | None = None,
+        user_datasources_config: list[type[BaseTimeseriesDatasourceConfig]] | None = None,
         users_scores_config: list[type[BaseScoreConfig]] | None = None,
         user_datasinks_config: list[type[BaseDatasinkConfig]] | None = None,
     ) -> None:
@@ -341,14 +344,14 @@ class Config(BaseModel):
             Option to provide user-implemented config classes, by default None
 
         """
-        from dpyverification.configuration.default.datasinks import (  # noqa: PLC0415 # importing at the top of module leads to circular import
+        from dpyverification.configuration.default.datasinks import (  # importing at the top of module leads to circular import
             CFCompliantNetCDFConfig,
         )
-        from dpyverification.configuration.default.datasources import (  # noqa: PLC0415
+        from dpyverification.configuration.default.datasources import (
             FewsNetCDFConfig,
             FewsWebserviceConfig,
         )
-        from dpyverification.configuration.default.scores import (  # noqa: PLC0415
+        from dpyverification.configuration.default.scores import (
             ContinuousScoresConfig,
             CrpsCDFConfig,
             CrpsForEnsembleConfig,

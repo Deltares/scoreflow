@@ -5,7 +5,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, StringConstraints, model_validator
 
-from dpyverification.configuration.config import BaseDatasourceConfig
+from dpyverification.configuration.config import BaseTimeseriesDatasourceConfig
 from dpyverification.configuration.utils import (
     FewsWebserviceAuthConfig,
     LocalFiles,
@@ -57,7 +57,7 @@ class FewsWebserviceVersion(BaseModel):
         return self.year >= year_of_implementation
 
 
-class FewsWebserviceConfig(BaseDatasourceConfig):
+class FewsWebserviceConfig(BaseTimeseriesDatasourceConfig):
     """A fews webservice input config element."""
 
     kind: Literal[DataSourceKind.FEWSWEBSERVICE]
@@ -126,7 +126,7 @@ class FewsWebserviceConfig(BaseDatasourceConfig):
         return self
 
 
-class FewsNetCDFConfig(BaseDatasourceConfig, LocalFiles):
+class FewsNetCDFConfig(BaseTimeseriesDatasourceConfig, LocalFiles):
     """A file input fewsnetcdf config element."""
 
     kind: Literal[DataSourceKind.FEWSNETCDF]
