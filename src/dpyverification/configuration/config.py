@@ -221,6 +221,10 @@ class BaseTimeseriesDatasourceConfig(BaseConfig):
         return self.general.verification_period_on_time
 
 
+class BaseThresholdsDatasourceConfig(BaseConfig):
+    """Base config for threshold datasources."""
+
+
 class BaseDatasinkConfig(BaseConfig):
     """
     Base config for a datasink config.
@@ -344,14 +348,15 @@ class Config(BaseModel):
             Option to provide user-implemented config classes, by default None
 
         """
-        from dpyverification.configuration.default.datasinks import (  # importing at the top of module leads to circular import
+        # importing at the top of module leads to circular import
+        from dpyverification.configuration.default.datasinks import (  # noqa: PLC0415
             CFCompliantNetCDFConfig,
         )
-        from dpyverification.configuration.default.datasources import (
+        from dpyverification.configuration.default.datasources import (  # noqa: PLC0415
             FewsNetCDFConfig,
             FewsWebserviceConfig,
         )
-        from dpyverification.configuration.default.scores import (
+        from dpyverification.configuration.default.scores import (  # noqa: PLC0415
             ContinuousScoresConfig,
             CrpsCDFConfig,
             CrpsForEnsembleConfig,

@@ -1,11 +1,73 @@
 """A module for default implementation of scores."""
 
+import operator
+from enum import Enum
 from typing import Annotated, Literal
 
+import xarray as xr
 from pydantic import BaseModel, Field, RootModel
+from scores.categorical import (  # type:ignore[import-untyped]
+    BasicContingencyManager,
+)
 
 from dpyverification.configuration.config import BaseScoreConfig
 from dpyverification.constants import ScoreKind, StandardDim, SupportedContinuousScore
+
+
+class EventOperator(Enum):
+    """Enumerator for even operators."""
+
+    GREATER_THAN = operator.gt  # type:ignore[misc]
+    LESS_THAN = operator.lt  # type:ignore[misc]
+    GREATER_THAN_OR_EQUAL_TO = operator.ge  # type:ignore[misc]
+    LESS_THAN_OR_EQUAL_TO = operator.le  # type:ignore[misc]
+
+
+class SupportedCategoricalScores(Enum):
+    """The supported categorical scores.
+
+    Explicitly excluded scores
+    - gilberts_skill_score              (identical to equitable_threat_score)
+    - threat_score                      (identical to critical_success_index)
+    - heidke_skill_score                (identical to cohens_kappa)
+    - frequency_bias                    (identical to bias score)
+    - fraction_correct                  (identical to accuracy)
+    - hanssen_and_kuipers_discriminant  (identical to peirce_skill_score)
+    - true_skill_statistic              (identical to peirce_skill_score)
+    - yules_q                           (identical to odds_ratio_skill_score)
+    - positive_predictive_value         (identical to precision)
+    - success_ratio                     (identical to precision)
+    - probability_of_detection          (identical to hit_rate)
+    - true_positive_rate                (identical to hit rate)
+    - sensitivity                       (identical to hit rate)
+    - recall                            (identical to hit rate)
+    - true_negative_rate                (identical to specificity)
+    - probability of false detection    (identical to false alarm rate)
+    """
+
+    ACCURACY = "accuracy"
+    BASE_RATE = "base_rate"
+    BIAS_SCORE = "bias_score"
+    COHENS_KAPPA = "cohens_kappa"
+    CRITICAL_SUCCESS_INDEX = "critical_success_index"
+    EQUITABLE_THREAT_SCORE = "equitable_threat_score"
+    F1_SCORE = "f1_score"
+    FALSE_ALARM_RATE = "false_alarm_rate"
+    FALSE_ALARM_RATIO = "false_alarm_ratio"
+    FORECAST_RATE = "forecast_rate"
+    PEIRCE_SKILL_SCORE = "peirce_skill_score"
+    HIT_RATE = "hit_rate"
+    NEGATIVE_PREDICTIVE_VALUE = "negative_predictive_value"
+    ODDS_RATIO = "odds_ratio"
+    ODDS_RATIO_SKILL_SCORE = "odds_ratio_skill_score"
+    PRECISION = "precision"
+    SPECIFICITY = "specificity"
+    SYMMETRIC_EXTREMAL_DEPENDENCE_INDEX = "symmetric_extremal_dependence_index"
+
+    def __call__(self, contingency_manager: BasicContingencyManager) -> xr.DataArray:
+        """Compute the score on the contingency manager."""
+        method = getattr(contingency_manager, self.value)  # type:ignore[misc]
+        return method()  # type:ignore[misc, no-any-return]
 
 
 class ReduceDimsForecast(BaseModel):
@@ -90,3 +152,34 @@ class ContinuousScoresConfig(BaseScoreConfig, ReduceDimsForecast):
 
     kind: Literal[ScoreKind.continuous_scores]
     scores: list[SupportedContinuousScore]
+
+
+class ThresholdOperator(BaseModel):
+    """An event definition."""
+
+    threshold: Annotated[
+        str,
+        Field(description="Threshold id to use in event definition."),
+    ]
+    operator: Annotated[
+        EventOperator,
+        Field(description="The operator to use for creating the events."),
+    ]
+
+
+class CategoricalScoresConfig(BaseScoreConfig, ReduceDimsForecast):
+    """Config to compute categorical scores, based on an event definition."""
+
+    scores: Annotated[
+        list[SupportedCategoricalScores],
+        Field(
+            description="For reference, see: https://scores.readthedocs.io/en/stable/api.html#module-scores.continuous.",
+        ),
+    ]
+    events: Annotated[
+        list[ThresholdOperator],
+        Field(
+            description="List of events. Events are a combination of threshold(s) and operators. "
+            "Events are used to compute the 2x2 contingency tables can categorical scores.",
+        ),
+    ]

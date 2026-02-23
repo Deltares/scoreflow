@@ -9,7 +9,10 @@ import xarray
 import xarray as xr
 
 from dpyverification.base import Base
-from dpyverification.configuration.config import BaseTimeseriesDatasourceConfig
+from dpyverification.configuration.config import (
+    BaseThresholdsDatasourceConfig,
+    BaseTimeseriesDatasourceConfig,
+)
 from dpyverification.configuration.utils import TimePeriod
 from dpyverification.constants import FORECAST_TIMESERIES_KINDS, StandardDim, TimeseriesKind
 
@@ -133,3 +136,18 @@ class BaseTimeseriesDatasource(Base):
         # Re-assign from cache
         self.data_array = data_array_reloaded
         return self
+
+
+class BaseThresholdsDatasource(Base):
+    """Class to inherit from, defines the required methods and attributes."""
+
+    kind: str = ""
+    config_class: type[BaseThresholdsDatasourceConfig] = BaseThresholdsDatasourceConfig
+
+    def __init__(self, config: BaseThresholdsDatasourceConfig) -> None:
+        self.config: BaseThresholdsDatasourceConfig = config
+        self.data_array = xarray.DataArray()
+
+    @abstractmethod
+    def fetch_data(self) -> Self:
+        """Fetch data from datasource."""

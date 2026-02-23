@@ -23,11 +23,15 @@ from dpyverification.configuration.default.datasources import (
     FewsWebserviceConfig,
 )
 from dpyverification.configuration.default.scores import (
+    CategoricalScoresConfig,
     ContinuousScoresConfig,
     CrpsCDFConfig,
     CrpsForEnsembleConfig,
+    EventOperator,
     RankHistogramConfig,
+    ThresholdOperator,
 )
+from dpyverification.configuration.default.thresholds import CsvFileConfig
 from dpyverification.configuration.utils import (
     ForecastPeriods,
     TimeUnits,
@@ -45,6 +49,7 @@ from dpyverification.datamodel.main import InputDataset
 from dpyverification.datasinks.cf_compliant_netdf import CFCompliantNetCDF
 from dpyverification.datasources.fewsnetcdf import FewsNetCDF, FewsNetCDFKind
 from dpyverification.datasources.fewswebservice import FewsWebservice, ForecastRetrievalMethod
+from dpyverification.datasources.thresholds import CsvFile
 
 TESTS_DATA_DIR = Path(__file__).parent / "data"
 
@@ -68,7 +73,8 @@ frt_n = day_multiplier
 fp_n = 96
 realization_n = 10
 station_n = 3
-variable_n = 1
+variable_n = 2
+threshold_n = 4
 
 # Coords
 times = pd.date_range(time_start, periods=time_n, freq=time_step)
@@ -79,7 +85,7 @@ forecast_reference_times = pd.date_range(
 )
 forecast_periods = pd.timedelta_range(0, periods=fp_n, freq=fp_step)
 forecast_times = forecast_reference_times.to_numpy()[:, None] + forecast_periods.to_numpy()[None, :]
-stations = [f"station{n}" for n in range(station_n)]
+stations = [f"station_{n}" for n in range(station_n)]
 x = rng.uniform(0, 100, size=station_n)
 y = rng.uniform(0, 100, size=station_n)
 z = rng.uniform(0, 10, size=station_n)
@@ -87,6 +93,7 @@ lat = y
 lon = x
 realization = np.arange(1, realization_n + 1)
 variables = [f"var_{x}" for x in range(variable_n)]
+thresholds = [f"warn_{x}" for x in range(threshold_n)]
 
 
 @pytest.fixture
@@ -132,7 +139,10 @@ def xarray_observed_historical() -> xr.DataArray:
         coords={
             StandardCoord.time.name: times,
             StandardCoord.variable.name: variables,
-            StandardCoord.units.name: (StandardDim.variable, ["dummy_unit"]),
+            StandardCoord.units.name: (
+                StandardDim.variable,
+                [f"dummy_unit_{x}" for x in range(variable_n)],
+            ),
             StandardDim.station: (StandardDim.station, stations),
             StandardCoord.station.name: (StandardDim.station, stations),
             StandardCoord.lat.name: (StandardDim.station, lat),
@@ -175,7 +185,10 @@ def xarray_simulated_forecast_ensemble() -> xr.DataArray:
                 (StandardDim.forecast_reference_time, StandardDim.forecast_period),
                 forecast_times,
             ),
-            StandardCoord.units.name: (StandardDim.variable, ["dummy_unit"]),
+            StandardCoord.units.name: (
+                StandardDim.variable,
+                [f"dummy_unit_{x}" for x in range(variable_n)],
+            ),
             StandardCoord.station.name: (StandardDim.station, stations),
             StandardCoord.lat.name: (StandardDim.station, lat),
             StandardCoord.lon.name: (StandardDim.station, lon),
@@ -215,7 +228,10 @@ def xarray_simulated_forecast_single() -> xr.DataArray:
                 (StandardDim.forecast_reference_time, StandardDim.forecast_period),
                 forecast_times,
             ),
-            StandardCoord.units.name: (StandardDim.variable, ["dummy_unit"]),
+            StandardCoord.units.name: (
+                StandardDim.variable,
+                [f"dummy_unit_{x}" for x in range(variable_n)],
+            ),
             StandardCoord.station.name: (StandardDim.station, stations),
             StandardCoord.lat.name: (StandardDim.station, lat),
             StandardCoord.lon.name: (StandardDim.station, lon),
@@ -683,6 +699,21 @@ def score_config_continuous(
     )
 
 
+@pytest.fixture
+def score_config_categorical(
+    general_info_config_single: GeneralInfoConfig,
+) -> ContinuousScoresConfig:
+    """Flexible fixture for scores config, sharing general config."""
+    return CategoricalScoresConfig(
+        kind=ScoreKind.categorical_scores,
+        general=general_info_config_single.model_dump(),
+        scores=["accuracy", "false_alarm_rate"],
+        events=[ThresholdOperator(threshold="warn_2", operator=EventOperator.GREATER_THAN)],
+        verification_pair_ids=["pair1"],
+        reduce_dims=[StandardDim.forecast_reference_time],
+    )
+
+
 # Datasink fixtures
 
 
@@ -701,3 +732,44 @@ def datasink_cf_compliant_netcdf(
             institution="Deltares",
         ),
     )
+
+
+@pytest.fixture
+def dummy_threshold_df() -> pd.DataFrame:
+    """Get dummy thresholds."""
+    station_ids = np.array(stations)
+    threshold_ids = np.array(thresholds)
+    variable_ids = np.array(variables)
+
+    station_idx, threshold_idx, variable_idx = np.meshgrid(
+        station_ids,
+        threshold_ids,
+        variable_ids,
+        indexing="ij",
+    )
+    data = rng.random(size=(station_n, threshold_n, variable_n))
+
+    return pd.DataFrame(
+        {
+            "station": station_idx.ravel(),
+            "variable": variable_idx.ravel(),
+            "threshold": threshold_idx.ravel(),
+            "value": data.ravel(),
+        },
+    )
+
+
+@pytest.fixture
+def xarray_thresholds(dummy_threshold_df: pd.DataFrame, tmp_path: Path) -> CsvFile:
+    """Get threshold datasource from csv file."""
+    file_path = tmp_path / "thresholds.csv"
+    dummy_threshold_df.to_csv(file_path, index=False)
+    config = CsvFileConfig(
+        kind="csv",
+        directory=file_path.parent,
+        filename=file_path.name,
+        stations=["station_2"],
+        variables=["variable_1"],
+        thresholds=["warn_1"],
+    )
+    return CsvFile(config).fetch_data().data_array

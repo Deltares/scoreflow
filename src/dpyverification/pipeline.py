@@ -17,6 +17,7 @@ from dpyverification.datasources.base import BaseTimeseriesDatasource
 from dpyverification.datasources.fewsnetcdf import FewsNetCDF
 from dpyverification.datasources.fewswebservice import FewsWebservice
 from dpyverification.scores.base import BaseScore
+from dpyverification.scores.categorical import CategoricalScores
 from dpyverification.scores.continuous import ContinuousScores
 from dpyverification.scores.probabilistic import CrpsForEnsemble, RankHistogram
 
@@ -29,7 +30,12 @@ DEFAULT_DATASOURCES: list[type[BaseTimeseriesDatasource]] = [
     FewsNetCDF,
     FewsWebservice,
 ]
-DEFAULT_SCORES: list[type[BaseScore]] = [RankHistogram, CrpsForEnsemble, ContinuousScores]
+DEFAULT_SCORES: list[type[BaseScore]] = [
+    RankHistogram,
+    CrpsForEnsemble,
+    ContinuousScores,
+    CategoricalScores,
+]
 DEFAULT_DATASINKS: list[type[BaseDatasink]] = [CFCompliantNetCDF]
 
 

@@ -57,6 +57,7 @@ class ScoreKind(StrEnum):
     crps_for_ensemble = "crps_for_ensemble"
     crps_cdf = "crps_cdf"
     continuous_scores = "continuous_scores"
+    categorical_scores = "categorical_scores"
 
 
 @unique

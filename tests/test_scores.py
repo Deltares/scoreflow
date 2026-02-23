@@ -5,6 +5,7 @@ from copy import deepcopy
 import xarray as xr
 
 from dpyverification.configuration.default.scores import (
+    CategoricalScoresConfig,
     ContinuousScoresConfig,
     CrpsCDFConfig,
     CrpsForEnsembleConfig,
@@ -13,6 +14,7 @@ from dpyverification.configuration.default.scores import (
 from dpyverification.constants import TimeseriesKind
 from dpyverification.datamodel.main import InputDataset
 from dpyverification.datasources.fewsnetcdf import FewsNetCDF
+from dpyverification.scores.categorical import CategoricalScores
 from dpyverification.scores.continuous import ContinuousScores
 from dpyverification.scores.probabilistic import CrpsCDF, CrpsForEnsemble, RankHistogram
 
@@ -92,3 +94,18 @@ def test_single_continuous_scores(
     assert isinstance(result, xr.Dataset)  # type:ignore[misc]
     assert "mae" in result
     assert "rmse" in result
+
+
+def test_categorical_scores(
+    score_config_categorical: CategoricalScoresConfig,
+    xarray_observed_historical: xr.DataArray,
+    xarray_simulated_forecast_single: xr.DataArray,
+    xarray_thresholds: xr.DataArray,
+) -> None:
+    """Test the categorical scores config."""
+    instance = CategoricalScores(config=score_config_categorical)
+    instance.compute(
+        obs=xarray_observed_historical,
+        sim=xarray_simulated_forecast_single,
+        thresholds=xarray_thresholds,
+    )
