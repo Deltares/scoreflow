@@ -523,6 +523,9 @@ class FewsNetCDF(BaseTimeseriesDatasource):
                 },
             )
 
+        # Load into memory, in the future support dask
+        dataset.load()
+
         # Convert datasets to data_array
         data_array = self.convert_dataset_to_dataarray(
             dataset,
