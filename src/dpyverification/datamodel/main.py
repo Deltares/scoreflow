@@ -7,21 +7,21 @@ from pydantic import ValidationError
 
 from dpyverification.configuration.utils import VerificationPair
 from dpyverification.constants import (
-    FORECAST_TIMESERIES_KINDS,
-    HISTORICAL_TIMESERIES_KINDS,
+    FORECAST_DATA_TYPES,
+    HISTORICAL_DATA_TYPES,
+    DataType,
     StandardDim,
-    TimeseriesKind,
 )
 from dpyverification.datasources.inputschemas import input_schemas
 
 
 @xr.register_dataarray_accessor("verification")  # type:ignore[no-untyped-call, misc]
 class InputDataArrayExtension:
-    """xr.DataArray representing specific timeseries kind.
+    """xr.DataArray representing specific data type.
 
     xr.register_dataset_accessor is the recommended way to extend xr.DataArray.
     see: https://docs.xarray.dev/en/stable/internals/extending-xarray.html. It's used there to
-    extend the input data arrays so we can directly access properties (like timeseries kind and
+    extend the input data arrays so we can directly access properties (like data type and
     source) and the validation method that checks the input array against a schema.
     """
 
@@ -29,22 +29,22 @@ class InputDataArrayExtension:
         self._obj = xarray_obj
 
     @property
-    def timeseries_kind(self) -> str:
-        """The timeseries kind of the array."""
-        if "timeseries_kind" not in self._obj.attrs:  # type:ignore[misc]
-            msg = f"No timeseries kind set on {self._obj} attrs."
+    def data_type(self) -> str:
+        """The data type of the array."""
+        if "data_type" not in self._obj.attrs:  # type:ignore[misc]
+            msg = f"No data type set on {self._obj} attrs."
             raise ValueError(msg)
-        return TimeseriesKind(self._obj.attrs["timeseries_kind"])  # type:ignore[misc]
+        return DataType(self._obj.attrs["data_type"])  # type:ignore[misc]
 
     @property
     def is_historical(self) -> bool:
         """Boolean indicating this array is a historical."""
-        return self.timeseries_kind in HISTORICAL_TIMESERIES_KINDS
+        return self.data_type in HISTORICAL_DATA_TYPES
 
     @property
     def is_forecast(self) -> bool:
         """Boolean indicating this array is a forecast."""
-        return self.timeseries_kind in FORECAST_TIMESERIES_KINDS
+        return self.data_type in FORECAST_DATA_TYPES
 
     @property
     def source(self) -> str:
@@ -53,12 +53,12 @@ class InputDataArrayExtension:
 
     def validate(self) -> None:
         """Validate the data according to schema."""
-        schema = input_schemas[self.timeseries_kind]  # type:ignore[index] # str is compatible with StrEnum index
+        schema = input_schemas[self.data_type]  # type:ignore[index] # str is compatible with StrEnum index
 
         try:
             schema.model_validate(self._obj.to_dict(data=False))  # type:ignore[misc]
         except ValidationError as exc:
-            msg = (f"Validation failed for timeseries_kind '{self.timeseries_kind}'.\n{exc}",)
+            msg = (f"Validation failed for data_type '{self.data_type}'.\n{exc}",)
             raise ValueError(msg) from exc
 
 
@@ -155,7 +155,7 @@ class InputDataset:
             # Map historical into forecast space upon score computation
             return self.map_historical_into_forecast_space(obs, sim), sim
 
-        # If the simulation is not a forecast, it is a historical timeseries kind (an observation or
+        # If the simulation is not a forecast, it is a historical data type (an observation or
         #   historical simulation). In this case: verify along dimension 'time' instead of mapping
         #   data into forecast space.
         return obs, sim

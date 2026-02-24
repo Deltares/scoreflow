@@ -33,7 +33,7 @@ import xarray as xr
 from pydantic import BaseModel, ConfigDict, Field, RootModel, model_validator
 from pydantic.json_schema import SkipJsonSchema
 
-from dpyverification.constants import StandardDim, TimeseriesKind, TimeUnits
+from dpyverification.constants import DataType, StandardDim, TimeUnits
 
 from .utils import ForecastPeriods, Source, TimePeriod, VerificationPair, VerificationPeriod
 
@@ -195,7 +195,7 @@ class BaseTimeseriesDatasourceConfig(BaseConfig):
     """
 
     source: Source
-    timeseries_kind: TimeseriesKind
+    data_type: DataType
     time_step: TimeUnits = TimeUnits.HOUR
     general: SkipJsonSchema[GeneralInfoConfig]  # Do not serialize to json schema, since general
     # config is propagated from the general config section in the main config. This will prevent

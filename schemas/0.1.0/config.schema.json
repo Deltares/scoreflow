@@ -24,6 +24,7 @@
           "type": "boolean"
         },
         "directory": {
+          "format": "path",
           "title": "Directory",
           "type": "string"
         },
@@ -203,6 +204,19 @@
       "title": "CrpsForEnsembleConfig",
       "type": "object"
     },
+    "DataType": {
+      "description": "Input timeseries data kind.",
+      "enum": [
+        "observed_historical",
+        "simulated_historical",
+        "simulated_forecast_single",
+        "simulated_forecast_ensemble",
+        "simulated_forecast_probabilistic",
+        "threshold"
+      ],
+      "title": "DataType",
+      "type": "string"
+    },
     "FewsNetCDFConfig": {
       "additionalProperties": true,
       "description": "A file input fewsnetcdf config element.",
@@ -228,10 +242,10 @@
           "title": "Source",
           "type": "string"
         },
-        "timeseries_kind": {
-          "$ref": "#/$defs/TimeseriesKind"
+        "data_type": {
+          "$ref": "#/$defs/DataType"
         },
-        "timestep": {
+        "time_step": {
           "$ref": "#/$defs/TimeUnits",
           "default": "h"
         },
@@ -276,7 +290,7 @@
         "filename_glob",
         "kind",
         "source",
-        "timeseries_kind",
+        "data_type",
         "netcdf_kind"
       ],
       "title": "FewsNetCDFConfig",
@@ -339,10 +353,10 @@
           "title": "Source",
           "type": "string"
         },
-        "timeseries_kind": {
-          "$ref": "#/$defs/TimeseriesKind"
+        "data_type": {
+          "$ref": "#/$defs/DataType"
         },
-        "timestep": {
+        "time_step": {
           "$ref": "#/$defs/TimeUnits",
           "default": "h"
         },
@@ -424,17 +438,9 @@
           "description": "Archive kind. Defaults to a Delft-FEWS Open Archive, which is the Delft-FEWS standard."
         },
         "forecast_retrieval_method": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/ForecastRetrievalMethod",
-              "default": "retrieve_all_forecast_data",
-              "description": "Since Delft-FEWS 2025.01, the Delft-FEWS Webservice canretrieve forecasts for specific forecast periods (lead times). This avoid having to retrieve all forecast data outside of the configured forecast periods (lead times) for the verification pipeline. If not provided, the method will be automatically determined based on the configured webservice version."
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
+          "$ref": "#/$defs/ForecastRetrievalMethod",
+          "default": "retrieve_all_forecast_data",
+          "description": "Since Delft-FEWS 2025.01, the Delft-FEWS Webservice canretrieve forecasts for specific forecast periods (lead times). This avoid having to retrieve all forecast data outside of the configured forecast periods (lead times) for the verification pipeline. If not provided, the method will be automatically determined based on the configured webservice version."
         },
         "max_workers_in_thread_pool": {
           "default": 2,
@@ -446,7 +452,7 @@
       "required": [
         "kind",
         "source",
-        "timeseries_kind",
+        "data_type",
         "location_ids",
         "parameter_ids",
         "module_instance_id",
@@ -656,18 +662,6 @@
         "s"
       ],
       "title": "TimeUnits",
-      "type": "string"
-    },
-    "TimeseriesKind": {
-      "description": "Input timeseries data kind.",
-      "enum": [
-        "observed_historical",
-        "simulated_historical",
-        "simulated_forecast_single",
-        "simulated_forecast_ensemble",
-        "simulated_forecast_probabilistic"
-      ],
-      "title": "TimeseriesKind",
       "type": "string"
     },
     "VerificationPair": {

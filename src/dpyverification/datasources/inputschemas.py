@@ -29,7 +29,7 @@ from typing import Annotated, Literal
 
 from pydantic import AfterValidator, BaseModel, Field
 
-from dpyverification.constants import StandardDim, TimeseriesKind
+from dpyverification.constants import DataType, StandardDim
 
 AllowedDTypeInt = Literal["int8", "int16", "int32", "int64", "uint8", "uint16", "uint32", "uint64"]
 AllowedDTypeFloat = Literal["float16", "float32", "float64"]
@@ -155,6 +155,21 @@ class SimulatedForecastProbabilisticCoords(BaseCoords):
     time: ForecastTimeCoord
 
 
+class ThresholdCoords(BaseModel):
+    """The structure of a threshold array."""
+
+    station: StationCoord
+    station_name: StationCoord | None = None  # Optional station name coordinate
+    variable: VariableCoord
+    units: UnitsCoord
+    lat: XYZCoord  # Always required lat, lon
+    lon: XYZCoord
+    x: XYZCoord | None = None  # Optional x, y, z
+    y: XYZCoord | None = None
+    z: XYZCoord | None = None
+    threshold: ThresholdCoord
+
+
 CFCompliantName = Annotated[
     str,
     Field(
@@ -169,7 +184,7 @@ CFCompliantName = Annotated[
 
 
 class BaseAttrs(BaseModel):
-    timeseries_kind: str
+    data_type: str
 
 
 class Base(BaseModel):
@@ -251,11 +266,27 @@ class SimulatedForecastProbabilistic(Base):
     coords: SimulatedForecastProbabilisticCoords
 
 
-# All input schemas, keyed by the corresponding timeseries kind
-input_schemas: dict[TimeseriesKind, BaseModel] = {
-    TimeseriesKind.observed_historical: ObservedHistorical,
-    TimeseriesKind.simulated_historical: SimulatedHistorical,
-    TimeseriesKind.simulated_forecast_single: SimulatedForecastSingle,
-    TimeseriesKind.simulated_forecast_ensemble: SimulatedForecastEnsemble,
-    TimeseriesKind.simulated_forecast_probabilistic: SimulatedForecastProbabilistic,
+class Thresholds(Base):
+    dims: Annotated[
+        tuple[str, ...],
+        AfterValidator(
+            check_dims(
+                {
+                    StandardDim.variable,
+                    StandardDim.station,
+                    StandardDim.threshold,
+                },
+            ),
+        ),
+    ]
+    coords: SimulatedForecastProbabilisticCoords
+
+
+# All input schemas, keyed by the corresponding data type
+input_schemas: dict[DataType, BaseModel] = {
+    DataType.observed_historical: ObservedHistorical,
+    DataType.simulated_historical: SimulatedHistorical,
+    DataType.simulated_forecast_single: SimulatedForecastSingle,
+    DataType.simulated_forecast_ensemble: SimulatedForecastEnsemble,
+    DataType.simulated_forecast_probabilistic: SimulatedForecastProbabilistic,
 }

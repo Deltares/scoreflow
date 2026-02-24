@@ -8,7 +8,7 @@ import xarray as xr
 from scores.categorical import BinaryContingencyManager  # type:ignore[import-untyped]
 
 from dpyverification.configuration.default.scores import CategoricalScoresConfig, EventOperator
-from dpyverification.constants import TimeseriesKind
+from dpyverification.constants import DataType
 from dpyverification.datamodel import InputDataset
 from dpyverification.scores.base import BaseScore
 
@@ -57,8 +57,8 @@ class CategoricalScores(BaseScore):
 
     kind = "categorical_scores"
     config_class = CategoricalScoresConfig
-    supported_timeseries_kinds: ClassVar[set[TimeseriesKind]] = {
-        TimeseriesKind.simulated_forecast_single,
+    supported_data_types: ClassVar[set[DataType]] = {
+        DataType.simulated_forecast_single,
     }
 
     def __init__(self, config: CategoricalScoresConfig) -> None:

@@ -21,7 +21,7 @@ from dpyverification.configuration import (
     ForecastRetrievalMethod,
 )
 from dpyverification.configuration.default.datasources import ArchiveKind
-from dpyverification.constants import DataSourceKind, TimeseriesKind
+from dpyverification.constants import DataSourceKind, DataType
 from dpyverification.datasources.base import BaseTimeseriesDatasource
 from dpyverification.datasources.fewsnetcdf import (
     FewsNetCDF,
@@ -73,11 +73,11 @@ class FewsWebservice(BaseTimeseriesDatasource):
 
     kind = "fewswebservice"
     config_class = FewsWebserviceConfig
-    supported_timeseries_kinds: ClassVar[set[TimeseriesKind]] = {
-        TimeseriesKind.observed_historical,
-        TimeseriesKind.simulated_forecast_ensemble,
-        TimeseriesKind.simulated_forecast_single,
-        TimeseriesKind.simulated_forecast_probabilistic,
+    supported_data_types: ClassVar[set[DataType]] = {
+        DataType.observed_historical,
+        DataType.simulated_forecast_ensemble,
+        DataType.simulated_forecast_single,
+        DataType.simulated_forecast_probabilistic,
     }
 
     # Annotate the correct type, otherwise mypy will infer from baseclass
@@ -88,7 +88,7 @@ class FewsWebservice(BaseTimeseriesDatasource):
 
     def __init__(self, config: FewsWebserviceConfig) -> None:
         self.config = config
-        self.timeseries_kind = config.timeseries_kind
+        self.data_type = config.data_type
         self.dataset = xr.Dataset()
 
         # Initialize the webservice client
@@ -145,7 +145,7 @@ class FewsWebservice(BaseTimeseriesDatasource):
     def fetch_data(self) -> Self:
         """Retrieve :py::class`~xarray.Dataset` from Delft-FEWS Webservice."""
         # Get observations
-        if self.config.timeseries_kind == TimeseriesKind.observed_historical:
+        if self.config.data_type == DataType.observed_historical:
             with tempfile.TemporaryDirectory() as tmpdir:
                 # Download data to temporary folder
                 response = self.client.get_timeseries(
@@ -167,7 +167,7 @@ class FewsWebservice(BaseTimeseriesDatasource):
                 # Load all downloaded data into one object
                 datasource = FewsNetCDF(
                     FewsNetCDFConfig(
-                        timeseries_kind=TimeseriesKind.observed_historical,
+                        data_type=DataType.observed_historical,
                         directory=tmpdir,
                         filename_glob="*.nc",
                         kind=DataSourceKind.FEWSNETCDF,
@@ -190,11 +190,11 @@ class FewsWebservice(BaseTimeseriesDatasource):
 
         # Get forecasts
         if (
-            self.config.timeseries_kind
+            self.config.data_type
             in [
-                TimeseriesKind.simulated_forecast_ensemble,
-                TimeseriesKind.simulated_forecast_single,
-                TimeseriesKind.simulated_forecast_probabilistic,
+                DataType.simulated_forecast_ensemble,
+                DataType.simulated_forecast_single,
+                DataType.simulated_forecast_probabilistic,
             ]
             and self.config.forecast_retrieval_method
             == ForecastRetrievalMethod.retrieve_all_forecast_data
@@ -328,7 +328,7 @@ class FewsWebservice(BaseTimeseriesDatasource):
                 # Load all downloaded data into one object
                 datasource = FewsNetCDF(
                     FewsNetCDFConfig(
-                        timeseries_kind=self.config.timeseries_kind,
+                        data_type=self.config.data_type,
                         directory=tmpdir,
                         filename_glob="*.nc",
                         kind=DataSourceKind.FEWSNETCDF,
@@ -350,11 +350,11 @@ class FewsWebservice(BaseTimeseriesDatasource):
                 return self
 
         elif (
-            self.config.timeseries_kind
+            self.config.data_type
             in [
-                TimeseriesKind.simulated_forecast_ensemble,
-                TimeseriesKind.simulated_forecast_single,
-                TimeseriesKind.simulated_forecast_probabilistic,
+                DataType.simulated_forecast_ensemble,
+                DataType.simulated_forecast_single,
+                DataType.simulated_forecast_probabilistic,
             ]
             and self.config.forecast_retrieval_method
             == ForecastRetrievalMethod.retrieve_forecast_data_per_lead_time
@@ -389,7 +389,7 @@ class FewsWebservice(BaseTimeseriesDatasource):
                 datasource = FewsNetCDF(
                     FewsNetCDFConfig(
                         kind=DataSourceKind.FEWSNETCDF,
-                        timeseries_kind=self.config.timeseries_kind,
+                        data_type=self.config.data_type,
                         directory=tmpdir,
                         filename_glob="*.nc",
                         general=self.config.general,
@@ -410,5 +410,5 @@ class FewsWebservice(BaseTimeseriesDatasource):
                 return self
 
         # Other simobs kinds are not supported (yet)
-        msg3 = f"Timeseries kind {self.timeseries_kind} not implemented yet."
+        msg3 = f"Data type {self.data_type} not implemented yet."
         raise NotImplementedError(msg3)

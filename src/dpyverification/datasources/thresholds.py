@@ -41,6 +41,6 @@ class CsvFile(BaseThresholdsDatasource):
         data_array = threshold_df.set_index(
             [StandardDim.station, StandardDim.variable, StandardDim.threshold],
         ).to_xarray()["value"]
-        data_array.attrs["timeseries_kind"] = "thresholds"  # type:ignore[misc]
+        data_array.attrs["data_type"] = "threshold"  # type:ignore[misc]
         self.data_array = data_array
         return self

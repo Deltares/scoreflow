@@ -14,7 +14,7 @@ from dpyverification.configuration.config import (
     BaseTimeseriesDatasourceConfig,
 )
 from dpyverification.configuration.utils import TimePeriod
-from dpyverification.constants import FORECAST_TIMESERIES_KINDS, StandardDim, TimeseriesKind
+from dpyverification.constants import FORECAST_DATA_TYPES, DataType, StandardDim
 
 
 class BaseTimeseriesDatasource(Base):
@@ -22,28 +22,28 @@ class BaseTimeseriesDatasource(Base):
 
     kind: str = ""
     config_class: type[BaseTimeseriesDatasourceConfig] = BaseTimeseriesDatasourceConfig
-    supported_timeseries_kinds: ClassVar[set[TimeseriesKind]] = set()
+    supported_data_types: ClassVar[set[DataType]] = set()
 
     def __init__(self, config: BaseTimeseriesDatasourceConfig) -> None:
         self.config: BaseTimeseriesDatasourceConfig = config
-        self.timeseries_kind = config.timeseries_kind
+        self.data_type = config.data_type
         self.data_array = xarray.DataArray()
 
     @property
-    def timeseries_kind(self) -> str:
+    def data_type(self) -> str:
         """Whether the instance represents sim or obs data."""
-        return self.config.timeseries_kind
+        return self.config.data_type
 
-    @timeseries_kind.setter
-    def timeseries_kind(self, new_timeseries_kind: TimeseriesKind) -> None:
-        if new_timeseries_kind not in self.supported_timeseries_kinds:
+    @data_type.setter
+    def data_type(self, new_data_type: DataType) -> None:
+        if new_data_type not in self.supported_data_types:
             msg = (
-                f"Timeseries kind '{new_timeseries_kind}' is not supported ",
+                f"Data type '{new_data_type}' is not supported ",
                 f"by {self.__class__.__name__}",
             )
             raise NotImplementedError(msg)
 
-        self._timeseries_kind = new_timeseries_kind
+        self._data_type = new_data_type
 
     @abstractmethod
     def fetch_data(self) -> Self:
@@ -101,7 +101,7 @@ class BaseTimeseriesDatasource(Base):
             data_array_original = self.config.id_mapping.rename_data_array(data_array_original)
 
         # Additional layer to filter time, frt and fp properly according to config.
-        if data_array_original.attrs["timeseries_kind"] in FORECAST_TIMESERIES_KINDS:  # type:ignore[misc]
+        if data_array_original.attrs["data_type"] in FORECAST_DATA_TYPES:  # type:ignore[misc]
             # Select only relevant forecast periods for simulations
             data_array_original = data_array_original.sel(
                 forecast_period=self.config.forecast_periods.timedelta64,
@@ -112,7 +112,7 @@ class BaseTimeseriesDatasource(Base):
                 verification_period_on_time=self.config.verification_period_on_time,
             )
         else:
-            # Historical timeseries kind
+            # Historical data type
             data_array_original = data_array_original.sel(
                 {
                     StandardDim.time: slice(  # type:ignore[misc]

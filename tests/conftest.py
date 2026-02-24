@@ -40,10 +40,10 @@ from dpyverification.configuration.utils import (
 )
 from dpyverification.constants import (
     DataSinkKind,
+    DataType,
     ScoreKind,
     StandardCoord,
     StandardDim,
-    TimeseriesKind,
 )
 from dpyverification.datamodel.main import InputDataset
 from dpyverification.datasinks.cf_compliant_netdf import CFCompliantNetCDF
@@ -151,7 +151,7 @@ def xarray_observed_historical() -> xr.DataArray:
             StandardCoord.y.name: (StandardDim.station, y),
             StandardCoord.z.name: (StandardDim.station, z),
         },
-        attrs={"timeseries_kind": TimeseriesKind.observed_historical},
+        attrs={"data_type": DataType.observed_historical},
     )
 
 
@@ -196,7 +196,7 @@ def xarray_simulated_forecast_ensemble() -> xr.DataArray:
             StandardCoord.y.name: (StandardDim.station, y),
             StandardCoord.z.name: (StandardDim.station, z),
         },
-        attrs={"timeseries_kind": TimeseriesKind.simulated_forecast_ensemble},
+        attrs={"data_type": DataType.simulated_forecast_ensemble},
     )
 
 
@@ -239,7 +239,7 @@ def xarray_simulated_forecast_single() -> xr.DataArray:
             StandardCoord.y.name: (StandardDim.station, y),
             StandardCoord.z.name: (StandardDim.station, z),
         },
-        attrs={"timeseries_kind": TimeseriesKind.simulated_forecast_single},
+        attrs={"data_type": DataType.simulated_forecast_single},
     )
 
 
@@ -257,8 +257,8 @@ def fews_webservice_auth_config() -> FewsWebserviceAuthConfig:
 test_data_meuse_locations = ["H-MS-SINT"]
 test_data_meuse_parameters = ["waterlevel", "discharge"]
 test_data_meuse_module_instance_ids = {
-    TimeseriesKind.simulated_forecast_single: "fews_riv_ecmwf_hres_sobek3_choozkeiz_bias",
-    TimeseriesKind.simulated_forecast_probabilistic: "fews_riv_ecmwf_ens_sobek3_choozkeiz_ens_dres",
+    DataType.simulated_forecast_single: "fews_riv_ecmwf_hres_sobek3_choozkeiz_bias",
+    DataType.simulated_forecast_probabilistic: "fews_riv_ecmwf_ens_sobek3_choozkeiz_ens_dres",
 }
 
 
@@ -352,7 +352,7 @@ def fews_webservice_observed_historical(
     config = FewsWebserviceConfig(
         kind="fewswebservice",
         source="observed",
-        timeseries_kind="observed_historical",
+        data_type="observed_historical",
         location_ids=["H-RN-0001", "H-RN-0689"],
         parameter_ids=["Q_m"],
         module_instance_id="Hydro_Prep",
@@ -374,7 +374,7 @@ def fews_webservice_simulated_forecast_ensemble_frt(
     config = FewsWebserviceConfig(
         kind="fewswebservice",
         source="source_ensemble",
-        timeseries_kind="simulated_forecast_ensemble",
+        data_type="simulated_forecast_ensemble",
         location_ids=["H-RN-0001", "H-RN-0689"],
         parameter_ids=["Q_fs"],
         module_instance_id="SBK3_MaxRTK_ECMWF_ENS",
@@ -412,12 +412,10 @@ def fews_webservice_simulated_forecast_single_frt(
     config = FewsWebserviceConfig(
         kind="fewswebservice",
         source="source_single",
-        timeseries_kind=TimeseriesKind.simulated_forecast_single,
+        data_type=DataType.simulated_forecast_single,
         location_ids=test_data_meuse_locations,
         parameter_ids=test_data_meuse_parameters,
-        module_instance_id=test_data_meuse_module_instance_ids[
-            TimeseriesKind.simulated_forecast_single
-        ],
+        module_instance_id=test_data_meuse_module_instance_ids[DataType.simulated_forecast_single],
         archive_kind=ArchiveKind.external_storage_archive,
         forecast_retrieval_method=ForecastRetrievalMethod.retrieve_all_forecast_data,
         general=general_info_config_single.model_dump(),
@@ -450,11 +448,11 @@ def fews_webservice_simulated_forecast_probabilistic_frt(
     config = FewsWebserviceConfig(
         kind="fewswebservice",
         source="source_probabilistic",
-        timeseries_kind=TimeseriesKind.simulated_forecast_probabilistic,
+        data_type=DataType.simulated_forecast_probabilistic,
         location_ids=test_data_meuse_locations,
         parameter_ids=["discharge"],
         module_instance_id=test_data_meuse_module_instance_ids[
-            TimeseriesKind.simulated_forecast_probabilistic
+            DataType.simulated_forecast_probabilistic
         ],
         ensemble_id="ensembleQR",
         archive_kind=ArchiveKind.external_storage_archive,
@@ -500,7 +498,7 @@ def fews_netcdf_observed_historical(
     return FewsNetCDF.from_config(
         {
             "kind": "fewsnetcdf",
-            "timeseries_kind": "observed_historical",
+            "data_type": "observed_historical",
             "netcdf_kind": "observation",
             "directory": "tests/data/webservice_responses_netcdf/observations",
             "filename_glob": "*.nc",
@@ -521,7 +519,7 @@ def fews_netcdf_simulated_forecast_ensemble_frt(
     return FewsNetCDF.from_config(
         {
             "kind": "fewsnetcdf",
-            "timeseries_kind": "simulated_forecast_ensemble",
+            "data_type": "simulated_forecast_ensemble",
             "netcdf_kind": FewsNetCDFKind.simulated_forecast_per_forecast_reference_time,
             "directory": "tests/data/webservice_responses_netcdf/simulations_per_forecast_reference_time/ensemble",  # noqa: E501
             "filename_glob": "*.nc",
@@ -554,7 +552,7 @@ def fews_netcdf_simulated_forecast_single_frt(
     return FewsNetCDF.from_config(
         {
             "kind": "fewsnetcdf",
-            "timeseries_kind": TimeseriesKind.simulated_forecast_single,
+            "data_type": DataType.simulated_forecast_single,
             "netcdf_kind": FewsNetCDFKind.simulated_forecast_per_forecast_reference_time,
             "directory": "tests/data/webservice_responses_netcdf/simulations_per_forecast_reference_time/single",  # noqa: E501
             "filename_glob": "*.nc",
@@ -586,7 +584,7 @@ def fews_netcdf_simulated_forecast_probabilistic_frt(
     return FewsNetCDF.from_config(
         {
             "kind": "fewsnetcdf",
-            "timeseries_kind": TimeseriesKind.simulated_forecast_probabilistic,
+            "data_type": DataType.simulated_forecast_probabilistic,
             "netcdf_kind": FewsNetCDFKind.simulated_forecast_per_forecast_reference_time,
             "directory": "tests/data/webservice_responses_netcdf/simulations_per_forecast_reference_time/probabilistic",  # noqa: E501
             "filename_glob": "*.nc",

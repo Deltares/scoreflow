@@ -21,7 +21,7 @@ from dpyverification.configuration.utils import (
 )
 
 
-@pytest.fixture
+@pytest.fixture  # type:ignore[misc]
 def _mock_env(monkeypatch: Generator[pytest.MonkeyPatch, None, None]) -> None:
     """Create a mock environment for testing secret env vars."""
     monkeypatch.setenv("FEWSWEBSERVICE_URL", "https://fixture_url.test")  # type: ignore  # noqa: PGH003
@@ -123,7 +123,7 @@ def test_single_id_map_get_mapping() -> None:
 def test_id_mapping_rename_dataset(xarray_observed_historical: xr.DataArray) -> None:
     """Test partial renaming of stations on dummy dataset."""
     config = IdMappingConfig(
-        station=IdMap({"newstation1": {"observation_source": "station0"}}),
+        station=IdMap({"newstation1": {"observation_source": "station_0"}}),
     )
     new_da = config.rename_data_array(xarray_observed_historical)
     assert next(iter(new_da.station.to_numpy())) == "newstation1"  # type:ignore[misc]

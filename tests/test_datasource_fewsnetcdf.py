@@ -50,7 +50,7 @@ def test_get_data_returns_valid_data_array(
     fews_netcdf: FewsNetCDF = request.getfixturevalue(fews_netcdf_fixture)
     datasource = fews_netcdf.get_data()
 
-    schema = input_schemas[fews_netcdf.config.timeseries_kind]
+    schema = input_schemas[fews_netcdf.config.data_type]
     schema.model_validate(fews_netcdf.data_array.to_dict(data=False))  # type:ignore[misc]
 
     assert all(

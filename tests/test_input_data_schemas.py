@@ -46,7 +46,7 @@ def test_xarray_simulation_ensemble(
     xarray_simulated_forecast_ensemble: xr.DataArray,
 ) -> None:
     da = xarray_simulated_forecast_ensemble
-    schema = input_schemas[da.attrs["timeseries_kind"]]
+    schema = input_schemas[da.attrs["data_type"]]
     schema.model_validate(da.to_dict(data=False))
 
 
@@ -54,7 +54,7 @@ def test_xarray_simulation_no_ensemble(
     xarray_simulated_forecast_ensemble: xr.DataArray,
 ) -> None:
     da = xarray_simulated_forecast_ensemble.drop_vars("realization")
-    schema = input_schemas[da.attrs["timeseries_kind"]]
+    schema = input_schemas[da.attrs["data_type"]]
 
     with pytest.raises(ValidationError):
         schema.model_validate(da.to_dict(data=False))

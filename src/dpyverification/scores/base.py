@@ -7,7 +7,7 @@ import xarray as xr
 
 from dpyverification.base import Base
 from dpyverification.configuration.config import BaseScoreConfig
-from dpyverification.constants import TimeseriesKind
+from dpyverification.constants import DataType
 
 
 class BaseScore(Base):
@@ -15,7 +15,7 @@ class BaseScore(Base):
 
     kind = ""  # to be defined by subclasses
     config_class: type[BaseScoreConfig] = BaseScoreConfig  # to be defined by subclasses
-    supported_timeseries_kinds: ClassVar[set[TimeseriesKind]] = set()
+    supported_data_types: ClassVar[set[DataType]] = set()
 
     def __init__(self, config: BaseScoreConfig) -> None:
         self.config: BaseScoreConfig = config
@@ -34,11 +34,11 @@ class BaseScore(Base):
         sim: xr.DataArray,
     ) -> xr.DataArray | xr.Dataset:
         """Validate and compute."""
-        timeseries_kind: TimeseriesKind = sim.verification.timeseries_kind  # type:ignore[misc]
-        if timeseries_kind not in self.supported_timeseries_kinds:
-            msg = f"The timeseries kind '{timeseries_kind} is not supported by"
+        data_type: DataType = sim.verification.data_type  # type:ignore[misc]
+        if data_type not in self.supported_data_types:
+            msg = f"The data type '{data_type} is not supported by"
             f"{self.__class__.__name__}. Supported types: "
-            f"{sorted(self.supported_timeseries_kinds)}."
+            f"{sorted(self.supported_data_types)}."
             raise ValueError(msg)
         result = self.compute(obs, sim)
         if isinstance(result, xr.DataArray) and result.name is None:  # type:ignore[misc]

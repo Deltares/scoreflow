@@ -11,7 +11,7 @@ from dpyverification.configuration.default.scores import (
     CrpsForEnsembleConfig,
     RankHistogramConfig,
 )
-from dpyverification.constants import TimeseriesKind
+from dpyverification.constants import DataType
 from dpyverification.datamodel.main import InputDataset
 from dpyverification.datasources.fewsnetcdf import FewsNetCDF
 from dpyverification.scores.categorical import CategoricalScores
@@ -64,7 +64,7 @@ def test_probabilistic_crps_cdf(
     mean_sim = sim.threshold.mean()  # type:ignore[misc]
     obs_dummy = xr.full_like(sim.mean(["threshold", "forecast_period"]), mean_sim)  # type:ignore[misc]
     obs_dummy.name = "source_observation"
-    obs_dummy.attrs.update({"timeseries_kind": TimeseriesKind.observed_historical})  # type:ignore[misc]
+    obs_dummy.attrs.update({"data_type": DataType.observed_historical})  # type:ignore[misc]
 
     config_instance = deepcopy(score_config_crps_cdf.model_dump())  # type:ignore[misc]
     conf = config_instance  # type:ignore[misc]

@@ -87,6 +87,7 @@ class FewsWebserviceClient:
         external_forecast_times: list[datetime | None] | None = None,
         export_id_map: str | None = None,
         timeseries_type: TimeseriesType | None = None,
+        show_thresholds: bool | None = None,  # noqa: FBT001
         document_format: DocumentFormat = DocumentFormat.PI_NETCDF,
         only_headers: bool | None = None,  # noqa: FBT001
     ) -> requests.Response:
@@ -107,6 +108,7 @@ class FewsWebserviceClient:
             "externalForecastTimes": self.format_list_of_datetime(external_forecast_times),
             "exportIdMap": export_id_map,
             "timeSeriesType": timeseries_type,
+            "showThresholds": show_thresholds,
             "documentFormat": document_format,
             "onlyHeaders": only_headers,
         }

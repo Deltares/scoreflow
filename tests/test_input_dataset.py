@@ -1,5 +1,6 @@
 """Test the dpyverification.datamodel package."""
 
+import pytest
 import xarray as xr
 
 from dpyverification.datamodel.main import InputDataset
@@ -56,5 +57,17 @@ def test_init_input_dataset_fewsnetcdf(
         data=[
             fews_netcdf_observed_historical.get_data().data_array,
             fews_netcdf_simulated_forecast_ensemble_frt.get_data().data_array,
+        ],
+    )
+
+
+@pytest.mark.skip
+def test_init_input_dataset_thresholds(
+    xarray_thresholds: xr.DataArray,
+) -> None:
+    """Test the fewsnetcdf is accepted by the input_dataset."""
+    InputDataset(
+        data=[
+            xarray_thresholds,
         ],
     )

@@ -28,7 +28,7 @@ class DataSinkKind(StrEnum):
 
 
 @unique
-class TimeseriesKind(StrEnum):
+class DataType(StrEnum):
     """Input timeseries data kind."""
 
     observed_historical = "observed_historical"
@@ -36,16 +36,17 @@ class TimeseriesKind(StrEnum):
     simulated_forecast_single = "simulated_forecast_single"
     simulated_forecast_ensemble = "simulated_forecast_ensemble"
     simulated_forecast_probabilistic = "simulated_forecast_probabilistic"
+    threshold = "threshold"
 
 
-FORECAST_TIMESERIES_KINDS = (
-    TimeseriesKind.simulated_forecast_single,
-    TimeseriesKind.simulated_forecast_ensemble,
-    TimeseriesKind.simulated_forecast_probabilistic,
+FORECAST_DATA_TYPES = (
+    DataType.simulated_forecast_single,
+    DataType.simulated_forecast_ensemble,
+    DataType.simulated_forecast_probabilistic,
 )
-HISTORICAL_TIMESERIES_KINDS = (
-    TimeseriesKind.observed_historical,
-    TimeseriesKind.simulated_historical,
+HISTORICAL_DATA_TYPES = (
+    DataType.observed_historical,
+    DataType.simulated_historical,
 )
 
 
