@@ -110,7 +110,7 @@ class IdMap(RootModel[dict[str, dict[str, str]]]):
 class RankHistogramConfig(BaseScoreConfig, ReduceDimsForecast):
     """A rank histogram config element."""
 
-    kind: Literal[ScoreKind.rank_histogram]
+    score_adapter: Literal[ScoreKind.rank_histogram]
 
 
 class CrpsForEnsembleConfig(BaseScoreConfig, ReduceDimsForecast):
@@ -119,7 +119,7 @@ class CrpsForEnsembleConfig(BaseScoreConfig, ReduceDimsForecast):
     For reference, see: See: https://scores.readthedocs.io/en/stable/api.html#scores.probability.crps_for_ensemble
     """
 
-    kind: Literal[ScoreKind.crps_for_ensemble]
+    score_adapter: Literal[ScoreKind.crps_for_ensemble]
     method: Annotated[
         Literal["ecdf", "fair"],
         Field(
@@ -137,7 +137,7 @@ class CrpsCDFConfig(BaseScoreConfig, ReduceDimsForecast):
     For reference, see: https://scores.readthedocs.io/en/stable/api.html#scores.probability.crps_cdf
     """
 
-    kind: Literal[ScoreKind.crps_cdf]
+    score_adapter: Literal[ScoreKind.crps_cdf]
     integration_method: Annotated[
         Literal["exact", "trapz"],
         Field(
@@ -150,7 +150,7 @@ class CrpsCDFConfig(BaseScoreConfig, ReduceDimsForecast):
 class ContinuousScoresConfig(BaseScoreConfig, ReduceDimsForecast):
     """Configure multiple continuous scores."""
 
-    kind: Literal[ScoreKind.continuous_scores]
+    score_adapter: Literal[ScoreKind.continuous_scores]
     scores: list[SupportedContinuousScore]
 
 
@@ -179,7 +179,7 @@ class CategoricalScoresConfig(BaseScoreConfig, ReduceDimsForecast):
     events: Annotated[
         list[ThresholdOperator],
         Field(
-            description="List of events. Events are a combination of threshold(s) and operators. "
+            description="List of events. An event is a combination of a threshold and an operator. "
             "Events are used to compute the 2x2 contingency tables can categorical scores.",
         ),
     ]

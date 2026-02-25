@@ -42,5 +42,5 @@ class BaseScore(Base):
             raise ValueError(msg)
         result = self.compute(obs, sim)
         if isinstance(result, xr.DataArray) and result.name is None:  # type:ignore[misc]
-            result.name = self.kind
+            result.name = self.config.score_adapter
         return result

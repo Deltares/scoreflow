@@ -66,15 +66,15 @@ def test_schema_dump_with_user_models(tmp_path: Path) -> None:
     tmpfile = tmp_path / "config.json"
 
     class UserDatasourceConfig(BaseModel):
-        kind: Literal["userdatasource"]
+        import_adapter: Literal["userdatasource"]
         some_other_property: list[int]
 
     class UserScoreconfig(BaseModel):
-        kind: Literal["userscore"]
+        score_adapter: Literal["userscore"]
         some_other_property: list[int]
 
     class UserDataSinkConfig(BaseModel):
-        kind: Literal["userdatasink"]
+        export_adapter: Literal["userdatasink"]
         some_other_property: list[int]
 
     Config.write_schema(

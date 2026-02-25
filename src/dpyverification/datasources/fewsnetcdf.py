@@ -17,7 +17,7 @@ from dpyverification.constants import (
     StandardCoord,
     StandardDim,
 )
-from dpyverification.datasources.base import BaseTimeseriesDatasource
+from dpyverification.datasources.base import BaseDatasource
 
 
 class FewsNetcdfDims(StrEnum):
@@ -417,7 +417,7 @@ def parse_forecast_period_netcdf_files(
     )
 
 
-class FewsNetCDF(BaseTimeseriesDatasource):
+class FewsNetCDF(BaseDatasource):
     """For reading data from, and writing data to, a FEWS NetCDF file."""
 
     kind = "fewsnetcdf"

@@ -6,19 +6,19 @@ from typing import Self
 import pandas as pd
 import xarray as xr
 
-from dpyverification.configuration.default.thresholds import CsvFileConfig
+from dpyverification.configuration.default.datasources import ThresholdCsvConfig
 from dpyverification.constants import StandardDim
-from dpyverification.datasources.base import BaseThresholdsDatasource
+from dpyverification.datasources.base import BaseDatasource
 
 
-class CsvFile(BaseThresholdsDatasource):
+class CsvFile(BaseDatasource):
     """Parse thresholds from a csv file."""
 
     kind: str = ""
-    config_class = CsvFileConfig
+    config_class = ThresholdCsvConfig
 
-    def __init__(self, config: CsvFileConfig) -> None:
-        self.config: CsvFileConfig = config
+    def __init__(self, config: ThresholdCsvConfig) -> None:
+        self.config: ThresholdCsvConfig = config
         self.data_array = xr.DataArray()
 
     def fetch_data(self) -> Self:

@@ -33,7 +33,7 @@ def test_ensemble_crps(
         obs=obs_reprojected,
         sim=sim,
     )
-    assert result.name == score_config_crps.kind  # type:ignore[misc]
+    assert result.name == score_config_crps.score_adapter  # type:ignore[misc]
 
 
 def test_ensemble_rank_histogram(
@@ -74,7 +74,7 @@ def test_probabilistic_crps_cdf(
 
     score = CrpsCDF(CrpsCDFConfig(**conf))  # type:ignore[misc]
     result = score.validate_and_compute(obs=obs_dummy, sim=sim)
-    assert score_config_crps_cdf.kind in result
+    assert score_config_crps_cdf.score_adapter in result
 
 
 def test_single_continuous_scores(

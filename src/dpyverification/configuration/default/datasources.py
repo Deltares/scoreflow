@@ -5,12 +5,13 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, StringConstraints, model_validator
 
-from dpyverification.configuration.config import BaseTimeseriesDatasourceConfig
+from dpyverification.configuration.config import BaseDatasourceConfig
 from dpyverification.configuration.utils import (
     FewsWebserviceAuthConfig,
+    LocalFile,
     LocalFiles,
 )
-from dpyverification.constants import DataSourceKind
+from dpyverification.constants import DataSourceKind, DataType
 
 
 class ArchiveKind(StrEnum):
@@ -57,10 +58,10 @@ class FewsWebserviceVersion(BaseModel):
         return self.year >= year_of_implementation
 
 
-class FewsWebserviceConfig(BaseTimeseriesDatasourceConfig):
+class FewsWebserviceConfig(BaseDatasourceConfig):
     """A fews webservice input config element."""
 
-    kind: Literal[DataSourceKind.FEWSWEBSERVICE]
+    import_adapter: Literal[DataSourceKind.FEWSWEBSERVICE]
     auth_config: FewsWebserviceAuthConfig = Field(
         default_factory=FewsWebserviceAuthConfig,  # type:ignore[misc]
     )
@@ -124,10 +125,20 @@ class FewsWebserviceConfig(BaseTimeseriesDatasourceConfig):
         return self
 
 
-class FewsNetCDFConfig(BaseTimeseriesDatasourceConfig, LocalFiles):
+class FewsNetCDFConfig(BaseDatasourceConfig, LocalFiles):
     """A file input fewsnetcdf config element."""
 
-    kind: Literal[DataSourceKind.FEWSNETCDF]
+    import_adapter: Literal[DataSourceKind.FEWSNETCDF]
     netcdf_kind: FewsNetCDFKind
     station_ids: Annotated[list[str], Field(min_length=1)] | None = None
     parameter_ids: Annotated[list[str], Field(min_length=1)] | None = None
+
+
+class ThresholdCsvConfig(LocalFile, BaseDatasourceConfig):
+    """Configuration for parsing thresholds from csv file."""
+
+    import_adapter: Literal[DataSourceKind.THRESHOLD_CSV]
+    data_type: Literal[DataType.threshold]
+    stations: Annotated[list[str], Field(min_length=1)]
+    variables: Annotated[list[str], Field(min_length=1)]
+    thresholds: Annotated[list[str], Field(min_length=1)]

@@ -63,7 +63,7 @@ class CrpsCDF(BaseScore):
         )
 
         # crps_cdf outputs a rather ambiguous variable 'total', hence rename to score kind.
-        return result.rename_vars({"total": str(self.config.kind)})  # type:ignore[misc]
+        return result.rename_vars({"total": str(self.config.score_adapter)})  # type:ignore[misc]
 
 
 class RankHistogram(BaseScore):

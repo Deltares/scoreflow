@@ -10,22 +10,21 @@ import xarray as xr
 
 from dpyverification.base import Base
 from dpyverification.configuration.config import (
-    BaseThresholdsDatasourceConfig,
-    BaseTimeseriesDatasourceConfig,
+    BaseDatasourceConfig,
 )
 from dpyverification.configuration.utils import TimePeriod
 from dpyverification.constants import FORECAST_DATA_TYPES, DataType, StandardDim
 
 
-class BaseTimeseriesDatasource(Base):
+class BaseDatasource(Base):
     """Class to inherit from, defines the required methods and attributes."""
 
     kind: str = ""
-    config_class: type[BaseTimeseriesDatasourceConfig] = BaseTimeseriesDatasourceConfig
+    config_class: type[BaseDatasourceConfig] = BaseDatasourceConfig
     supported_data_types: ClassVar[set[DataType]] = set()
 
-    def __init__(self, config: BaseTimeseriesDatasourceConfig) -> None:
-        self.config: BaseTimeseriesDatasourceConfig = config
+    def __init__(self, config: BaseDatasourceConfig) -> None:
+        self.config: BaseDatasourceConfig = config
         self.data_type = config.data_type
         self.data_array = xarray.DataArray()
 
@@ -136,18 +135,3 @@ class BaseTimeseriesDatasource(Base):
         # Re-assign from cache
         self.data_array = data_array_reloaded
         return self
-
-
-class BaseThresholdsDatasource(Base):
-    """Class to inherit from, defines the required methods and attributes."""
-
-    kind: str = ""
-    config_class: type[BaseThresholdsDatasourceConfig] = BaseThresholdsDatasourceConfig
-
-    def __init__(self, config: BaseThresholdsDatasourceConfig) -> None:
-        self.config: BaseThresholdsDatasourceConfig = config
-        self.data_array = xarray.DataArray()
-
-    @abstractmethod
-    def fetch_data(self) -> Self:
-        """Fetch data from datasource."""

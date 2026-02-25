@@ -38,10 +38,10 @@ class BaseCFCompliantConfig(LocalFile, BaseDatasinkConfig):
 class FewsNetCDFOutputConfig(BaseCFCompliantConfig):
     """A fews NetCDF output config element."""
 
-    kind: Literal[DataSinkKind.fews_netcdf]
+    export_adapter: Literal[DataSinkKind.fews_netcdf]
 
 
 class CFCompliantNetCDFConfig(BaseCFCompliantConfig):
     """A cf-compliant NetCDF output config element."""
 
-    kind: Literal[DataSinkKind.cf_compliant_netcdf]
+    export_adapter: Literal[DataSinkKind.cf_compliant_netcdf]

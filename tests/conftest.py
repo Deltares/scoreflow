@@ -21,6 +21,7 @@ from dpyverification.configuration.default.datasources import (
     ArchiveKind,
     FewsWebserviceAuthConfig,
     FewsWebserviceConfig,
+    ThresholdCsvConfig,
 )
 from dpyverification.configuration.default.scores import (
     CategoricalScoresConfig,
@@ -31,7 +32,6 @@ from dpyverification.configuration.default.scores import (
     RankHistogramConfig,
     ThresholdOperator,
 )
-from dpyverification.configuration.default.thresholds import CsvFileConfig
 from dpyverification.configuration.utils import (
     ForecastPeriods,
     TimeUnits,
@@ -40,6 +40,7 @@ from dpyverification.configuration.utils import (
 )
 from dpyverification.constants import (
     DataSinkKind,
+    DataSourceKind,
     DataType,
     ScoreKind,
     StandardCoord,
@@ -350,7 +351,7 @@ def fews_webservice_observed_historical(
 ) -> FewsWebservice:
     """Fewsnetcdf datasource sim config."""
     config = FewsWebserviceConfig(
-        kind="fewswebservice",
+        import_adapter="fewswebservice",
         source="observed",
         data_type="observed_historical",
         location_ids=["H-RN-0001", "H-RN-0689"],
@@ -372,7 +373,7 @@ def fews_webservice_simulated_forecast_ensemble_frt(
 ) -> FewsWebservice:
     """Fewsnetcdf datasource sim config."""
     config = FewsWebserviceConfig(
-        kind="fewswebservice",
+        import_adapter="fewswebservice",
         source="source_ensemble",
         data_type="simulated_forecast_ensemble",
         location_ids=["H-RN-0001", "H-RN-0689"],
@@ -410,7 +411,7 @@ def fews_webservice_simulated_forecast_single_frt(
 ) -> FewsWebservice:
     """Fewsnetcdf datasource sim config."""
     config = FewsWebserviceConfig(
-        kind="fewswebservice",
+        import_adapter="fewswebservice",
         source="source_single",
         data_type=DataType.simulated_forecast_single,
         location_ids=test_data_meuse_locations,
@@ -446,7 +447,7 @@ def fews_webservice_simulated_forecast_probabilistic_frt(
 ) -> FewsWebservice:
     """Fewsnetcdf datasource sim config."""
     config = FewsWebserviceConfig(
-        kind="fewswebservice",
+        import_adapter="fewswebservice",
         source="source_probabilistic",
         data_type=DataType.simulated_forecast_probabilistic,
         location_ids=test_data_meuse_locations,
@@ -497,7 +498,7 @@ def fews_netcdf_observed_historical(
     """Fewsnetcdf datasource obs config."""
     return FewsNetCDF.from_config(
         {
-            "kind": "fewsnetcdf",
+            "import_adapter": "fewsnetcdf",
             "data_type": "observed_historical",
             "netcdf_kind": "observation",
             "directory": "tests/data/webservice_responses_netcdf/observations",
@@ -518,7 +519,7 @@ def fews_netcdf_simulated_forecast_ensemble_frt(
     """Fewsnetcdf datasource sim config."""
     return FewsNetCDF.from_config(
         {
-            "kind": "fewsnetcdf",
+            "import_adapter": "fewsnetcdf",
             "data_type": "simulated_forecast_ensemble",
             "netcdf_kind": FewsNetCDFKind.simulated_forecast_per_forecast_reference_time,
             "directory": "tests/data/webservice_responses_netcdf/simulations_per_forecast_reference_time/ensemble",  # noqa: E501
@@ -551,7 +552,7 @@ def fews_netcdf_simulated_forecast_single_frt(
     """Fewsnetcdf datasource sim config."""
     return FewsNetCDF.from_config(
         {
-            "kind": "fewsnetcdf",
+            "import_adapter": "fewsnetcdf",
             "data_type": DataType.simulated_forecast_single,
             "netcdf_kind": FewsNetCDFKind.simulated_forecast_per_forecast_reference_time,
             "directory": "tests/data/webservice_responses_netcdf/simulations_per_forecast_reference_time/single",  # noqa: E501
@@ -583,7 +584,7 @@ def fews_netcdf_simulated_forecast_probabilistic_frt(
     """Fewsnetcdf datasource sim config."""
     return FewsNetCDF.from_config(
         {
-            "kind": "fewsnetcdf",
+            "import_adapter": "fewsnetcdf",
             "data_type": DataType.simulated_forecast_probabilistic,
             "netcdf_kind": FewsNetCDFKind.simulated_forecast_per_forecast_reference_time,
             "directory": "tests/data/webservice_responses_netcdf/simulations_per_forecast_reference_time/probabilistic",  # noqa: E501
@@ -658,7 +659,7 @@ def score_config_crps(
 ) -> CrpsForEnsembleConfig:
     """Flexible fixture for scores config, sharing general config."""
     return CrpsForEnsembleConfig(
-        kind=ScoreKind.crps_for_ensemble,
+        score_adapter=ScoreKind.crps_for_ensemble,
         general=general_info_config_ensemble.model_dump(),
     )
 
@@ -669,7 +670,7 @@ def score_config_rank_histogram(
 ) -> RankHistogramConfig:
     """Flexible fixture for scores config, sharing general config."""
     return RankHistogramConfig(
-        kind=ScoreKind.rank_histogram,
+        score_adapter=ScoreKind.rank_histogram,
         general=general_info_config_ensemble.model_dump(),
     )
 
@@ -680,7 +681,7 @@ def score_config_crps_cdf(
 ) -> CrpsCDFConfig:
     """Flexible fixture for scores config, sharing general config."""
     return CrpsCDFConfig(
-        kind=ScoreKind.crps_cdf,
+        score_adapter=ScoreKind.crps_cdf,
         general=general_info_config_probabilistic.model_dump(),
     )
 
@@ -691,7 +692,7 @@ def score_config_continuous(
 ) -> ContinuousScoresConfig:
     """Flexible fixture for scores config, sharing general config."""
     return ContinuousScoresConfig(
-        kind=ScoreKind.continuous_scores,
+        score_adapter=ScoreKind.continuous_scores,
         general=general_info_config_single.model_dump(),
         scores=["mae", "rmse"],
     )
@@ -703,7 +704,7 @@ def score_config_categorical(
 ) -> ContinuousScoresConfig:
     """Flexible fixture for scores config, sharing general config."""
     return CategoricalScoresConfig(
-        kind=ScoreKind.categorical_scores,
+        score_adapter=ScoreKind.categorical_scores,
         general=general_info_config_single.model_dump(),
         scores=["accuracy", "false_alarm_rate"],
         events=[ThresholdOperator(threshold="warn_2", operator=EventOperator.GREATER_THAN)],
@@ -723,7 +724,7 @@ def datasink_cf_compliant_netcdf(
     """CF Compliant NetCDF datasink."""
     return CFCompliantNetCDF(
         config=CFCompliantNetCDFConfig(
-            kind=DataSinkKind.cf_compliant_netcdf,
+            export_adapter=DataSinkKind.cf_compliant_netcdf,
             directory=str(tmp_path),
             filename="test.nc",
             general=general_info_config_ensemble.model_dump(),
@@ -758,12 +759,19 @@ def dummy_threshold_df() -> pd.DataFrame:
 
 
 @pytest.fixture
-def xarray_thresholds(dummy_threshold_df: pd.DataFrame, tmp_path: Path) -> CsvFile:
+def xarray_thresholds(
+    dummy_threshold_df: pd.DataFrame,
+    general_info_config_single: GeneralInfoConfig,
+    tmp_path: Path,
+) -> CsvFile:
     """Get threshold datasource from csv file."""
     file_path = tmp_path / "thresholds.csv"
     dummy_threshold_df.to_csv(file_path, index=False)
-    config = CsvFileConfig(
-        kind="csv",
+    config = ThresholdCsvConfig(
+        import_adapter=DataSourceKind.THRESHOLD_CSV,
+        data_type=DataType.threshold,
+        source="threshold_source",
+        general=general_info_config_single,
         directory=file_path.parent,
         filename=file_path.name,
         stations=["station_2"],

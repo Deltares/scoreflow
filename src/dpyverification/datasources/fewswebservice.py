@@ -22,7 +22,7 @@ from dpyverification.configuration import (
 )
 from dpyverification.configuration.default.datasources import ArchiveKind
 from dpyverification.constants import DataSourceKind, DataType
-from dpyverification.datasources.base import BaseTimeseriesDatasource
+from dpyverification.datasources.base import BaseDatasource
 from dpyverification.datasources.fewsnetcdf import (
     FewsNetCDF,
     FewsNetCDFKind,
@@ -63,7 +63,7 @@ def run_async_in_compatible_environment(coro: Awaitable[T]) -> T:
         return result
 
 
-class FewsWebservice(BaseTimeseriesDatasource):
+class FewsWebservice(BaseDatasource):
     """For downloading data using a Delft-FEWS webservice."""
 
     # TODO(AU): Fix and document timezone information in fewswebservice requests # noqa: FIX002
@@ -170,7 +170,7 @@ class FewsWebservice(BaseTimeseriesDatasource):
                         data_type=DataType.observed_historical,
                         directory=tmpdir,
                         filename_glob="*.nc",
-                        kind=DataSourceKind.FEWSNETCDF,
+                        import_adapter=DataSourceKind.FEWSNETCDF,
                         general=self.config.general,
                         netcdf_kind=FewsNetCDFKind.observation,
                         id_mapping=self.config.id_mapping,
@@ -331,7 +331,7 @@ class FewsWebservice(BaseTimeseriesDatasource):
                         data_type=self.config.data_type,
                         directory=tmpdir,
                         filename_glob="*.nc",
-                        kind=DataSourceKind.FEWSNETCDF,
+                        import_adapter=DataSourceKind.FEWSNETCDF,
                         general=self.config.general,
                         netcdf_kind=FewsNetCDFKind.simulated_forecast_per_forecast_reference_time,
                         id_mapping=self.config.id_mapping,
@@ -388,7 +388,7 @@ class FewsWebservice(BaseTimeseriesDatasource):
                 # After this, the context manager will be closed and tmpdir deleted
                 datasource = FewsNetCDF(
                     FewsNetCDFConfig(
-                        kind=DataSourceKind.FEWSNETCDF,
+                        import_adapter=DataSourceKind.FEWSNETCDF,
                         data_type=self.config.data_type,
                         directory=tmpdir,
                         filename_glob="*.nc",

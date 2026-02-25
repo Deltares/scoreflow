@@ -18,6 +18,7 @@ class DataSourceKind(StrEnum):
 
     FEWSNETCDF = "fewsnetcdf"
     FEWSWEBSERVICE = "fewswebservice"
+    THRESHOLD_CSV = "threshold_csv"
 
 
 class DataSinkKind(StrEnum):

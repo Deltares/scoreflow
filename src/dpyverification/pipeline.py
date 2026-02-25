@@ -13,7 +13,7 @@ from dpyverification.configuration.file import ConfigKind
 from dpyverification.datamodel import InputDataset, OutputDataset
 from dpyverification.datasinks.base import BaseDatasink
 from dpyverification.datasinks.cf_compliant_netdf import CFCompliantNetCDF
-from dpyverification.datasources.base import BaseTimeseriesDatasource
+from dpyverification.datasources.base import BaseDatasource
 from dpyverification.datasources.fewsnetcdf import FewsNetCDF
 from dpyverification.datasources.fewswebservice import FewsWebservice
 from dpyverification.scores.base import BaseScore
@@ -24,9 +24,9 @@ from dpyverification.scores.probabilistic import CrpsForEnsemble, RankHistogram
 logger = logging.getLogger(__name__)
 
 
-TItem = TypeVar("TItem", bound=BaseTimeseriesDatasource | BaseDatasink | BaseScore)
+TItem = TypeVar("TItem", bound=BaseDatasource | BaseDatasink | BaseScore)
 
-DEFAULT_DATASOURCES: list[type[BaseTimeseriesDatasource]] = [
+DEFAULT_DATASOURCES: list[type[BaseDatasource]] = [
     FewsNetCDF,
     FewsWebservice,
 ]
@@ -63,7 +63,7 @@ def merge_user_and_default_items(
 
 def execute_pipeline(
     config: tuple[Path, ConfigKind] | Config,
-    user_datasources: list[type[BaseTimeseriesDatasource]] | None = None,
+    user_datasources: list[type[BaseDatasource]] | None = None,
     user_scores: list[type[BaseScore]] | None = None,
     user_datasinks: list[type[BaseDatasink]] | None = None,
 ) -> OutputDataset:
@@ -119,11 +119,11 @@ def execute_pipeline(
     logger.info(msg)
 
     # Collect and initialize all datasources
-    datasources: list[BaseTimeseriesDatasource] = []
+    datasources: list[BaseDatasource] = []
     for datasource_config in config.datasources:
         source_kind = find_matching_kind_in_list(
             items=available_datasources,
-            kind=datasource_config.kind,
+            kind=datasource_config.import_adapter,
         )
         datasource = source_kind.from_config(
             datasource_config.model_dump(),  # type: ignore[misc] # Allow Any
@@ -171,7 +171,7 @@ def execute_pipeline(
         for score_config in config.scores:
             score_kind = find_matching_kind_in_list(
                 items=available_scores,
-                kind=score_config.kind,
+                kind=score_config.score_adapter,
             )
             score = score_kind.from_config(score_config.model_dump())  # type: ignore[misc] # Allow Any
             for verification_pair in score.config.verification_pairs:
@@ -190,7 +190,7 @@ def execute_pipeline(
             for datasink_config in config.datasinks:
                 sink_kind = find_matching_kind_in_list(
                     items=available_datasinks,
-                    kind=datasink_config.kind,
+                    kind=datasink_config.export_adapter,
                 )
                 datasink = sink_kind.from_config(datasink_config.model_dump())  # type: ignore[misc] # Allow Any
 

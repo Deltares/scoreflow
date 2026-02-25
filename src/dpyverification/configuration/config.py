@@ -33,7 +33,7 @@ import xarray as xr
 from pydantic import BaseModel, ConfigDict, Field, RootModel, model_validator
 from pydantic.json_schema import SkipJsonSchema
 
-from dpyverification.constants import DataType, StandardDim, TimeUnits
+from dpyverification.constants import DataType, StandardDim
 
 from .utils import ForecastPeriods, Source, TimePeriod, VerificationPair, VerificationPeriod
 
@@ -176,8 +176,6 @@ class BaseConfig(BaseModel):
     or a Datasink.
     """
 
-    kind: str
-
     # Accept additional fields.
     # This is a requirement to make sure that all fields are
     # available after initializing the config instance when
@@ -186,7 +184,7 @@ class BaseConfig(BaseModel):
     model_config = ConfigDict(extra="allow")
 
 
-class BaseTimeseriesDatasourceConfig(BaseConfig):
+class BaseDatasourceConfig(BaseConfig):
     """
     Base config for a datasource config.
 
@@ -194,9 +192,9 @@ class BaseTimeseriesDatasourceConfig(BaseConfig):
     this base class.
     """
 
+    import_adapter: str
     source: Source
     data_type: DataType
-    time_step: TimeUnits = TimeUnits.HOUR
     general: SkipJsonSchema[GeneralInfoConfig]  # Do not serialize to json schema, since general
     # config is propagated from the general config section in the main config. This will prevent
     # users that use the json-schema for making config having to explicitly set a duplicate general
@@ -221,10 +219,6 @@ class BaseTimeseriesDatasourceConfig(BaseConfig):
         return self.general.verification_period_on_time
 
 
-class BaseThresholdsDatasourceConfig(BaseConfig):
-    """Base config for threshold datasources."""
-
-
 class BaseDatasinkConfig(BaseConfig):
     """
     Base config for a datasink config.
@@ -232,6 +226,8 @@ class BaseDatasinkConfig(BaseConfig):
     Specific config definitions should inherit from
     this base class.
     """
+
+    export_adapter: str
 
     force_overwrite: bool = True
 
@@ -253,6 +249,7 @@ class BaseScoreConfig(BaseConfig):
     this base class.
     """
 
+    score_adapter: str
     general: SkipJsonSchema[GeneralInfoConfig]  # Do not serialize to json schema, since general
     # config is propagated from the general config section in the main config. This will prevent
     # users that use the json-schema for making config having to explicitly set a duplicate general
@@ -304,7 +301,7 @@ class BaseScoreConfig(BaseConfig):
 
 TItem = TypeVar(
     "TItem",
-    bound=BaseTimeseriesDatasourceConfig | BaseDatasinkConfig | BaseScoreConfig,
+    bound=BaseDatasourceConfig | BaseDatasinkConfig | BaseScoreConfig,
 )
 
 
@@ -313,7 +310,7 @@ class Config(BaseModel):
 
     fileversion: str
     general: GeneralInfoConfig
-    datasources: Annotated[Sequence[BaseTimeseriesDatasourceConfig], Field(min_length=1)]
+    datasources: Annotated[Sequence[BaseDatasourceConfig], Field(min_length=1)]
     scores: Annotated[Sequence[BaseScoreConfig], Field(min_length=1)]
     datasinks: Annotated[Sequence[BaseDatasinkConfig] | None, Field(min_length=1)] = None
     id_mapping: IdMappingConfig | None = None
@@ -321,7 +318,7 @@ class Config(BaseModel):
     @staticmethod
     def write_schema(
         output_path: Path,
-        user_datasources_config: list[type[BaseTimeseriesDatasourceConfig]] | None = None,
+        user_datasources_config: list[type[BaseDatasourceConfig]] | None = None,
         users_scores_config: list[type[BaseScoreConfig]] | None = None,
         user_datasinks_config: list[type[BaseDatasinkConfig]] | None = None,
     ) -> None:
@@ -374,9 +371,10 @@ class Config(BaseModel):
 
         def create_config_union(
             models: list[type[TItem]],
+            discriminator: str,
         ) -> type:
             union_type = reduce(lambda a, b: a | b, models)  # type:ignore[misc, return-value, arg-type]
-            return list[Annotated[union_type, Field(discriminator="kind")]]  # type:ignore[valid-type]
+            return list[Annotated[union_type, Field(discriminator=discriminator)]]  # type:ignore[valid-type]
 
         merged_datasource_models = (
             default_datasources_config + user_datasources_config
@@ -397,12 +395,15 @@ class Config(BaseModel):
 
         CombinedDataSourceConfig = create_config_union(  # noqa: N806
             merged_datasource_models,  # type:ignore[arg-type]
+            discriminator="import_adapter",
         )
         CombinedScoreConfig = create_config_union(  # noqa: N806
             merged_scores_models,  # type:ignore[arg-type]
+            discriminator="score_adapter",
         )
         CombinedDatasinkConfig = create_config_union(  # noqa: N806
             merged_datasinks_models,  # type:ignore[arg-type]
+            discriminator="export_adapter",
         )
 
         class ConfigSchema(Config):
