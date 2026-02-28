@@ -183,3 +183,7 @@ class CategoricalScoresConfig(BaseScoreConfig, ReduceDimsForecast):
             "Events are used to compute the 2x2 contingency tables can categorical scores.",
         ),
     ]
+    return_contingency_table: Annotated[
+        bool,
+        Field(description="Wether to return the contingency table in the output."),
+    ] = True

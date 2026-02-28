@@ -103,6 +103,11 @@ class CategoricalScores(BaseScore):
                 score_array.name = str(score.value)
                 scores.append(score_array)
 
+            if self.config.return_contingency_table is True:
+                table: xr.DataArray = basic_contingency_manager.get_table()  # type:ignore[misc]
+                table.name = "contingency_table"
+                scores.append(table)
+
             merged_scores = xr.merge(scores)
             merged_scores = set_event_coordinates_on_result(
                 merged_scores,
