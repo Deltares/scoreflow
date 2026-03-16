@@ -491,6 +491,7 @@
       "type": "string"
     },
     "GeneralInfoConfig": {
+      "description": "General configuration information that is shared across the pipeline.",
       "properties": {
         "verification_period": {
           "$ref": "#/$defs/VerificationPeriod",
