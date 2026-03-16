@@ -11,7 +11,7 @@ import yaml
 from pydantic import BaseModel
 
 from dpyverification.configuration import Config
-from dpyverification.configuration.config import IdMap, IdMappingConfig
+from dpyverification.configuration.base import IdMap, IdMappingConfig
 from dpyverification.configuration.default.scores import CrpsForEnsembleConfig
 from dpyverification.configuration.utils import (
     FewsWebserviceAuthConfig,
@@ -54,7 +54,7 @@ def test_schema_up_to_date(tmp_path: Path) -> None:
         schema_in_repo = yaml.safe_load(f)  # type:ignore[misc]
     with tmp_file_path.open("r", encoding="utf-8") as f:
         generated_schema = yaml.safe_load(f)  # type:ignore[misc]
-    assert schema_in_repo == generated_schema
+    assert schema_in_repo == generated_schema  # type:ignore[misc]
 
 
 def test_schema_jsonable(tmp_path: Path) -> None:

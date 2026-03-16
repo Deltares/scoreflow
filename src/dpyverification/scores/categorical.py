@@ -18,7 +18,7 @@ from dpyverification.scores.base import BaseScore
 
 def get_categorical_score(score_name: SupportedCategoricalScores) -> type:
     """Get a categorical score from the scores package."""
-    return getattr(BasicContingencyManager, score_name.value)  # type:ignore[attr-defined]
+    return getattr(BasicContingencyManager, score_name.value)  # type:ignore[no-any-return, misc]
 
 
 class CategoricalScoreDim(StrEnum):
@@ -109,15 +109,15 @@ class CategoricalScores(BaseScore):
             for score in self.config.scores:
                 score_func = get_categorical_score(score)
                 score_array = score_func(basic_contingency_manager)  # type:ignore[misc]
-                score_array.name = str(score.value)
-                scores.append(score_array)
+                score_array.name = str(score.value)  # type:ignore[misc]
+                scores.append(score_array)  # type:ignore[misc]
 
             if self.config.return_contingency_table is True:
                 table: xr.DataArray = basic_contingency_manager.get_table()  # type:ignore[misc]
                 table.name = "contingency_table"
-                scores.append(table)
+                scores.append(table)  # type:ignore[misc]
 
-            merged_scores = xr.merge(scores)
+            merged_scores: xr.Dataset = xr.merge(scores)  # type:ignore[misc, assignment]
             merged_scores = set_event_coordinates_on_result(
                 merged_scores,
                 threshold=event.threshold,

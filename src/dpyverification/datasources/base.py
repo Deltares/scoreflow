@@ -9,7 +9,7 @@ import xarray
 import xarray as xr
 
 from dpyverification.base import Base
-from dpyverification.configuration.config import (
+from dpyverification.configuration.base import (
     BaseDatasourceConfig,
 )
 from dpyverification.configuration.utils import TimePeriod

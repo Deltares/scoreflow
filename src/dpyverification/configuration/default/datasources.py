@@ -5,7 +5,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, StringConstraints, model_validator
 
-from dpyverification.configuration.config import BaseDatasourceConfig
+from dpyverification.configuration.base import BaseDatasourceConfig
 from dpyverification.configuration.utils import (
     FewsWebserviceAuthConfig,
     LocalFile,

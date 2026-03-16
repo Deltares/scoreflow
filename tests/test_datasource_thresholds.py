@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from dpyverification.configuration.config import GeneralInfoConfig
+from dpyverification.configuration.base import GeneralInfoConfig
 from dpyverification.configuration.default.datasources import ThresholdCsvConfig
 from dpyverification.constants import DataSourceKind, DataType
 from dpyverification.datasources.thresholds import CsvFile

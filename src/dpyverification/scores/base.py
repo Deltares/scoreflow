@@ -6,7 +6,7 @@ from typing import ClassVar
 import xarray as xr
 
 from dpyverification.base import Base
-from dpyverification.configuration.config import BaseScoreConfig
+from dpyverification.configuration.base import BaseScoreConfig
 from dpyverification.constants import DataType
 
 

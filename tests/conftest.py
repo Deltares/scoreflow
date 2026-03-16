@@ -15,7 +15,7 @@ import pytest
 import xarray as xr
 
 from dpyverification.configuration import GeneralInfoConfig
-from dpyverification.configuration.config import IdMappingConfig
+from dpyverification.configuration.base import IdMappingConfig
 from dpyverification.configuration.default.datasinks import CFCompliantNetCDFConfig
 from dpyverification.configuration.default.datasources import (
     ArchiveKind,

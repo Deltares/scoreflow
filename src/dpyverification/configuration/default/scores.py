@@ -6,7 +6,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, RootModel
 
-from dpyverification.configuration.config import BaseScoreConfig
+from dpyverification.configuration.base import BaseScoreConfig
 from dpyverification.constants import (
     ScoreKind,
     StandardDim,
@@ -139,5 +139,5 @@ class CategoricalScoresConfig(BaseScoreConfig, ReduceDimsForecast):
     ]
     return_contingency_table: Annotated[
         bool,
-        Field(description="Wether to return the contingency table in the output."),
+        Field(description="Whether to return the contingency table in the output."),
     ] = True
