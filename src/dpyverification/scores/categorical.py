@@ -5,12 +5,20 @@ from enum import StrEnum
 from typing import ClassVar
 
 import xarray as xr
-from scores.categorical import BinaryContingencyManager  # type:ignore[import-untyped]
+from scores.categorical import (  # type:ignore[import-untyped]
+    BasicContingencyManager,
+    BinaryContingencyManager,
+)
 
 from dpyverification.configuration.default.scores import CategoricalScoresConfig, EventOperator
-from dpyverification.constants import DataType
+from dpyverification.constants import DataType, SupportedCategoricalScores
 from dpyverification.datamodel import InputDataset
 from dpyverification.scores.base import BaseScore
+
+
+def get_categorical_score(score_name: SupportedCategoricalScores) -> type:
+    """Get a categorical score from the scores package."""
+    return getattr(BasicContingencyManager, score_name.value)  # type:ignore[attr-defined]
 
 
 class CategoricalScoreDim(StrEnum):
@@ -99,7 +107,8 @@ class CategoricalScores(BaseScore):
             )
             scores = []
             for score in self.config.scores:
-                score_array = score(basic_contingency_manager)  # type:ignore[misc]
+                score_func = get_categorical_score(score)
+                score_array = score_func(basic_contingency_manager)  # type:ignore[misc]
                 score_array.name = str(score.value)
                 scores.append(score_array)
 

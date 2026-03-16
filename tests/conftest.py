@@ -271,7 +271,7 @@ def general_info_config_single(cache_dir: Path) -> GeneralInfoConfig:
             start=datetime(2025, 9, 1, tzinfo=timezone.utc),
             end=datetime(2025, 9, 4, tzinfo=timezone.utc),
         ),
-        forecast_periods=ForecastPeriods(unit=TimeUnits.DAY, values=[1, 2, 3, 4]),
+        forecast_periods=ForecastPeriods(unit=TimeUnits.day, values=[1, 2, 3, 4]),
         verification_pairs=[
             VerificationPair(
                 id="pair1",
@@ -291,7 +291,7 @@ def general_info_config_ensemble(cache_dir: Path) -> GeneralInfoConfig:
             start=datetime(2024, 11, 10, tzinfo=timezone.utc),
             end=datetime(2024, 11, 12, tzinfo=timezone.utc),
         ),
-        forecast_periods=ForecastPeriods(unit=TimeUnits.DAY, values=[1, 2, 3, 4]),
+        forecast_periods=ForecastPeriods(unit=TimeUnits.day, values=[1, 2, 3, 4]),
         verification_pairs=[
             VerificationPair(
                 id="pair1",
@@ -311,7 +311,7 @@ def general_info_config_probabilistic(cache_dir: Path) -> GeneralInfoConfig:
             start=datetime(2025, 6, 27, tzinfo=timezone.utc),
             end=datetime(2025, 6, 28, tzinfo=timezone.utc),
         ),
-        forecast_periods=ForecastPeriods(unit=TimeUnits.DAY, values=[1, 2, 3, 4]),
+        forecast_periods=ForecastPeriods(unit=TimeUnits.day, values=[1, 2, 3, 4]),
         verification_pairs=[
             VerificationPair(
                 id="pair1",

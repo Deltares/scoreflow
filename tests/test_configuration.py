@@ -121,9 +121,9 @@ def test_schema_dump_with_user_models(tmp_path: Path) -> None:
 
 def test_forecast_period_config() -> None:
     """Check forecast periods config identical when using list or range."""
-    list_instance = ForecastPeriods(unit=TimeUnits.HOUR, values=[1, 2, 3])
+    list_instance = ForecastPeriods(unit=TimeUnits.hour, values=[1, 2, 3])
     range_instance = ForecastPeriods(
-        unit=TimeUnits.HOUR,
+        unit=TimeUnits.hour,
         values=Range(start=1, end=3, step=1).to_list(),
     )
     assert list_instance == range_instance
