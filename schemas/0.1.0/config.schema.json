@@ -13,9 +13,9 @@
       "additionalProperties": true,
       "description": "A cf-compliant NetCDF output config element.",
       "properties": {
-        "kind": {
+        "export_adapter": {
           "const": "cf_compliant_netcdf",
-          "title": "Kind",
+          "title": "Export Adapter",
           "type": "string"
         },
         "force_overwrite": {
@@ -57,7 +57,7 @@
         }
       },
       "required": [
-        "kind",
+        "export_adapter",
         "directory",
         "filename",
         "institution"
@@ -81,9 +81,9 @@
           "title": "Reduce Dims",
           "type": "array"
         },
-        "kind": {
+        "score_adapter": {
           "const": "continuous_scores",
-          "title": "Kind",
+          "title": "Score Adapter",
           "type": "string"
         },
         "verification_pair_ids": {
@@ -104,7 +104,7 @@
         }
       },
       "required": [
-        "kind",
+        "score_adapter",
         "scores"
       ],
       "title": "ContinuousScoresConfig",
@@ -126,9 +126,9 @@
           "title": "Reduce Dims",
           "type": "array"
         },
-        "kind": {
+        "score_adapter": {
           "const": "crps_cdf",
-          "title": "Kind",
+          "title": "Score Adapter",
           "type": "string"
         },
         "verification_pair_ids": {
@@ -152,7 +152,7 @@
         }
       },
       "required": [
-        "kind"
+        "score_adapter"
       ],
       "title": "CrpsCDFConfig",
       "type": "object"
@@ -173,9 +173,9 @@
           "title": "Reduce Dims",
           "type": "array"
         },
-        "kind": {
+        "score_adapter": {
           "const": "crps_for_ensemble",
-          "title": "Kind",
+          "title": "Score Adapter",
           "type": "string"
         },
         "verification_pair_ids": {
@@ -199,7 +199,7 @@
         }
       },
       "required": [
-        "kind"
+        "score_adapter"
       ],
       "title": "CrpsForEnsembleConfig",
       "type": "object"
@@ -230,9 +230,9 @@
           "title": "Filename Glob",
           "type": "string"
         },
-        "kind": {
+        "import_adapter": {
           "const": "fewsnetcdf",
-          "title": "Kind",
+          "title": "Import Adapter",
           "type": "string"
         },
         "source": {
@@ -244,10 +244,6 @@
         },
         "data_type": {
           "$ref": "#/$defs/DataType"
-        },
-        "time_step": {
-          "$ref": "#/$defs/TimeUnits",
-          "default": "h"
         },
         "netcdf_kind": {
           "$ref": "#/$defs/FewsNetCDFKind"
@@ -288,7 +284,7 @@
       "required": [
         "directory",
         "filename_glob",
-        "kind",
+        "import_adapter",
         "source",
         "data_type",
         "netcdf_kind"
@@ -341,9 +337,9 @@
       "additionalProperties": true,
       "description": "A fews webservice input config element.",
       "properties": {
-        "kind": {
+        "import_adapter": {
           "const": "fewswebservice",
-          "title": "Kind",
+          "title": "Import Adapter",
           "type": "string"
         },
         "source": {
@@ -355,10 +351,6 @@
         },
         "data_type": {
           "$ref": "#/$defs/DataType"
-        },
-        "time_step": {
-          "$ref": "#/$defs/TimeUnits",
-          "default": "h"
         },
         "auth_config": {
           "$ref": "#/$defs/FewsWebserviceAuthConfig"
@@ -450,7 +442,7 @@
         }
       },
       "required": [
-        "kind",
+        "import_adapter",
         "source",
         "data_type",
         "location_ids",
@@ -615,9 +607,9 @@
           "title": "Reduce Dims",
           "type": "array"
         },
-        "kind": {
+        "score_adapter": {
           "const": "rank_histogram",
-          "title": "Kind",
+          "title": "Score Adapter",
           "type": "string"
         },
         "verification_pair_ids": {
@@ -631,7 +623,7 @@
         }
       },
       "required": [
-        "kind"
+        "score_adapter"
       ],
       "title": "RankHistogramConfig",
       "type": "object"
@@ -749,7 +741,7 @@
             "fewsnetcdf": "#/$defs/FewsNetCDFConfig",
             "fewswebservice": "#/$defs/FewsWebserviceConfig"
           },
-          "propertyName": "kind"
+          "propertyName": "import_adapter"
         },
         "oneOf": [
           {
@@ -772,7 +764,7 @@
             "crps_for_ensemble": "#/$defs/CrpsForEnsembleConfig",
             "rank_histogram": "#/$defs/RankHistogramConfig"
           },
-          "propertyName": "kind"
+          "propertyName": "score_adapter"
         },
         "oneOf": [
           {
@@ -800,7 +792,7 @@
               "mapping": {
                 "cf_compliant_netcdf": "#/$defs/CFCompliantNetCDFConfig"
               },
-              "propertyName": "kind"
+              "propertyName": "export_adapter"
             },
             "oneOf": [
               {

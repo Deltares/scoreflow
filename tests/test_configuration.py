@@ -19,6 +19,7 @@ from dpyverification.configuration.utils import (
     Range,
     TimeUnits,
 )
+from dpyverification.constants import VERSION
 
 
 @pytest.fixture  # type:ignore[misc]
@@ -36,6 +37,24 @@ def test_auth_config_from_fixture() -> None:
     assert str(config.url) == "https://fixture_url.test/"
     assert config.username.get_secret_value() == "fixture_user"
     assert config.password.get_secret_value() == "fixture_pass"
+
+
+def test_schema_up_to_date(tmp_path: Path) -> None:
+    """Check that the schema for our config is up to date."""
+    file_path_schema = (
+        Path(__file__).parent.parent / "schemas" / f"{VERSION}" / "config.schema.json"
+    )
+    assert file_path_schema.exists()
+
+    tmp_file_path = tmp_path / "schema.json"
+    Config.write_schema(tmp_file_path)
+
+    # Check that the generated schema is identical to the one in the repository
+    with file_path_schema.open("r", encoding="utf-8") as f:
+        schema_in_repo = yaml.safe_load(f)  # type:ignore[misc]
+    with tmp_file_path.open("r", encoding="utf-8") as f:
+        generated_schema = yaml.safe_load(f)  # type:ignore[misc]
+    assert schema_in_repo == generated_schema
 
 
 def test_schema_jsonable(tmp_path: Path) -> None:
