@@ -1,6 +1,5 @@
 """A module for default implementation of scores."""
 
-import operator
 from enum import Enum
 from typing import Annotated, Literal
 
@@ -18,10 +17,10 @@ from dpyverification.constants import (
 class EventOperator(Enum):
     """Event operators."""
 
-    GREATER_THAN = operator.gt  # type:ignore[misc]
-    LESS_THAN = operator.lt  # type:ignore[misc]
-    GREATER_THAN_OR_EQUAL_TO = operator.ge  # type:ignore[misc]
-    LESS_THAN_OR_EQUAL_TO = operator.le  # type:ignore[misc]
+    GREATER_THAN = "greater_than"
+    LESS_THAN = "less_than"
+    GREATER_THAN_OR_EQUAL_TO = "greater_than_or_equal_to"
+    LESS_THAN_OR_EQUAL_TO = "less_than_or_equal_to"
 
 
 class ReduceDimsForecast(BaseModel):

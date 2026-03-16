@@ -1,5 +1,6 @@
 """Categorical scores, based on a 2x2 contingency table."""
 
+import operator
 from collections.abc import Callable
 from enum import StrEnum
 from typing import ClassVar
@@ -19,6 +20,22 @@ from dpyverification.scores.base import BaseScore
 def get_categorical_score(score_name: SupportedCategoricalScores) -> type:
     """Get a categorical score from the scores package."""
     return getattr(BasicContingencyManager, score_name.value)  # type:ignore[no-any-return, misc]
+
+
+def get_event_operator(
+    operator_name: EventOperator,
+) -> Callable[[xr.DataArray, xr.DataArray], xr.DataArray]:
+    """Get an event operator function based on the operator name."""
+    if operator_name == EventOperator.GREATER_THAN:
+        return operator.gt  # type:ignore[misc]
+    if operator_name == EventOperator.LESS_THAN:
+        return operator.lt  # type:ignore[misc]
+    if operator_name == EventOperator.GREATER_THAN_OR_EQUAL_TO:
+        return operator.ge  # type:ignore[misc]
+    if operator_name == EventOperator.LESS_THAN_OR_EQUAL_TO:
+        return operator.le  # type:ignore[misc]
+    msg = f"Unsupported operator: {operator_name}"  # type:ignore[unreachable] # runtime check
+    raise ValueError(msg)
 
 
 class CategoricalScoreDim(StrEnum):
@@ -88,15 +105,16 @@ class CategoricalScores(BaseScore):
         obs_mapped = InputDataset.map_historical_into_forecast_space(obs, sim)
         results = []
         for event in self.config.events:
+            operator_func = get_event_operator(event.operator)
             obs_events = create_binary_array(
                 obs_mapped,
                 thresholds=thresholds,
-                operator=event.operator.value,  # type:ignore[misc]
+                operator=operator_func,
             )
             sim_events = create_binary_array(
                 sim,
                 thresholds=thresholds,
-                operator=event.operator.value,  # type:ignore[misc]
+                operator=operator_func,
             )
             binary_contingency_manager = BinaryContingencyManager(  # type:ignore[misc]
                 fcst_events=sim_events,
