@@ -38,9 +38,8 @@ class CsvFile(BaseDatasource):
             raise ValueError(msg)
 
         # Convert it to the internal datamodel
-        data_array = threshold_df.set_index(
+        self.data_array = threshold_df.set_index(
             [StandardDim.station, StandardDim.variable, StandardDim.threshold],
         ).to_xarray()["value"]
-        data_array.attrs["data_type"] = "threshold"  # type:ignore[misc]
-        self.data_array = data_array
+        self.data_array.attrs["data_type"] = "threshold"  # type:ignore[misc]
         return self
