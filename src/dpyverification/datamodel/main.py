@@ -37,6 +37,11 @@ class InputDataArrayExtension:
         return DataType(self._obj.attrs["data_type"])  # type:ignore[misc]
 
     @property
+    def is_thresholds(self) -> bool:
+        """Boolean indicating this array is a thresholds array."""
+        return self.data_type == DataType.threshold
+
+    @property
     def is_historical(self) -> bool:
         """Boolean indicating this array is a historical."""
         return self.data_type in HISTORICAL_DATA_TYPES
@@ -115,6 +120,11 @@ class InputDataset:
         # Attach forecast coordinates explicitly (from the MultiIndex)
         z_index = stacked_time.indexes["z"]  # type:ignore[misc]
 
+        # Assign forecast_reference_time and forecast_period coordinates to the aligned
+        # observations, based on the MultiIndex of the stacked time dimension. This is
+        # necessary because after re-indexing, the original time dimension of the observations
+        # is now aligned with the stacked time dimension of the simulations, which has a MultiIndex
+        # of forecast_reference_time and forecast_period.
         obs_aligned = obs_aligned.assign_coords(
             forecast_reference_time=(  # type:ignore[misc]
                 StandardDim.time,
@@ -126,7 +136,8 @@ class InputDataset:
             ),
         )
 
-        # Create a MultiIndex on time
+        # Set the time coordinate to be the stacked time (MultiIndex of forecast_reference_time and
+        # forecast_period)
         obs_indexed = obs_aligned.set_index(
             time=(StandardDim.forecast_reference_time, StandardDim.forecast_period),
         )
@@ -159,6 +170,17 @@ class InputDataset:
         #   historical simulation). In this case: verify along dimension 'time' instead of mapping
         #   data into forecast space.
         return obs, sim
+
+    def get_thresholds_array(self) -> xr.DataArray:
+        """Get the thresholds array from the input dataset."""
+        for data_array in self.datastore.values():
+            if data_array.verification.is_thresholds:  # type:ignore[misc]
+                return data_array
+        msg = (
+            "No thresholds array found in the input dataset, but required for computing "
+            "categorical scores."
+        )
+        raise ValueError(msg)
 
 
 class OutputDataset:

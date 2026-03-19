@@ -107,5 +107,5 @@ def test_categorical_scores(
     instance.compute(
         obs=xarray_observed_historical,
         sim=xarray_simulated_forecast_single,
-        thresholds=xarray_thresholds,
+        thresholds=xarray_thresholds.data_array,  # type:ignore[misc]
     )

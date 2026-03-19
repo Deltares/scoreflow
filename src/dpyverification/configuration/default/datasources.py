@@ -126,7 +126,7 @@ class FewsWebserviceConfig(BaseDatasourceConfig):
 
 
 class FewsNetCDFConfig(BaseDatasourceConfig, LocalFiles):
-    """A file input fewsnetcdf config element."""
+    """A FEWS NetCDF config element."""
 
     import_adapter: Literal[DataSourceKind.FEWSNETCDF]
     netcdf_kind: FewsNetCDFKind
@@ -134,10 +134,16 @@ class FewsNetCDFConfig(BaseDatasourceConfig, LocalFiles):
     parameter_ids: Annotated[list[str], Field(min_length=1)] | None = None
 
 
-class ThresholdCsvConfig(LocalFile, BaseDatasourceConfig):
-    """Configuration for parsing thresholds from csv file."""
+class NetCDFConfig(BaseDatasourceConfig, LocalFiles):
+    """A NetCDF config element."""
 
-    import_adapter: Literal[DataSourceKind.THRESHOLD_CSV]
+    import_adapter: Literal[DataSourceKind.NETCDF]
+
+
+class CsvConfig(LocalFile, BaseDatasourceConfig):
+    """A CSV input config element."""
+
+    import_adapter: Literal[DataSourceKind.CSV]
     data_type: Literal[DataType.threshold]
     stations: Annotated[list[str], Field(min_length=1)]
     variables: Annotated[list[str], Field(min_length=1)]

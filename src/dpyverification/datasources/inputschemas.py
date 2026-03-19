@@ -27,6 +27,7 @@ On the following input datasets:
 
 from typing import Annotated, Literal
 
+import xarray as xr
 from pydantic import AfterValidator, BaseModel, Field
 
 from dpyverification.constants import DataType, StandardDim
@@ -284,3 +285,26 @@ INPUT_SCHEMAS: dict[DataType, BaseModel] = {
     DataType.simulated_forecast_probabilistic: SimulatedForecastProbabilistic,
     DataType.threshold: Thresholds,
 }
+
+
+def validate_input_data(data_array: xr.DataArray) -> BaseModel:
+    """Validate input data against the expected schema for the given data type."""
+    if not isinstance(data_array, xr.DataArray):
+        msg = f"Expected an xarray DataArray. Got: {type(data_array)}"
+        raise TypeError(msg)
+
+    if "data_type" not in data_array.attrs:
+        msg = "Input data array is missing required 'data_type' attribute."
+        raise ValueError(msg)
+
+    data_type = data_array.attrs["data_type"]
+    schema_class = INPUT_SCHEMAS.get(data_type)
+    if not schema_class:
+        msg = f"No input schema defined for data type: {data_type}"
+        raise ValueError(msg)
+
+    # Convert the xarray DataArray to a dictionary that can be used as input for the Pydantic model
+    data_dict = data_array.to_dict(data=False)
+
+    # Validate the data against the schema
+    schema_class.model_validate(data_dict)

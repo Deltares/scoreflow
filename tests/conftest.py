@@ -19,9 +19,10 @@ from dpyverification.configuration.base import IdMappingConfig
 from dpyverification.configuration.default.datasinks import CFCompliantNetCDFConfig
 from dpyverification.configuration.default.datasources import (
     ArchiveKind,
+    CsvConfig,
     FewsWebserviceAuthConfig,
     FewsWebserviceConfig,
-    ThresholdCsvConfig,
+    NetCDFConfig,
 )
 from dpyverification.configuration.default.scores import (
     CategoricalScoresConfig,
@@ -48,9 +49,10 @@ from dpyverification.constants import (
 )
 from dpyverification.datamodel.main import InputDataset
 from dpyverification.datasinks.cf_compliant_netdf import CFCompliantNetCDF
+from dpyverification.datasources.csv import Csv
 from dpyverification.datasources.fewsnetcdf import FewsNetCDF, FewsNetCDFKind
 from dpyverification.datasources.fewswebservice import FewsWebservice, ForecastRetrievalMethod
-from dpyverification.datasources.thresholds import CsvFile
+from dpyverification.datasources.netcdf import NetCDF
 
 TESTS_DATA_DIR = Path(__file__).parent / "data"
 
@@ -60,18 +62,17 @@ rng = np.random.default_rng(seed=42)
 # Settings for dummy xarray data.
 #   fp  = forecast period
 #   frt = forecast reference time
-day_multiplier = 365 * 1  # Easily scale the verification period
+day_multiplier = 10  # Easily scale the verification period
 dtype = "float32"
 
-time_start = "2025-01-01T00:00"
+time_start = frt_start = "2025-01-01T00:00"
 time_step = fp_step = "h"
 time_n = day_multiplier * 24
 
-frt_start = "2025-01-01T00:00"
 frt_step = "d"
 frt_n = day_multiplier
 
-fp_n = 96
+fp_n = 24 * 5
 realization_n = 10
 station_n = 3
 variable_n = 2
@@ -84,6 +85,12 @@ forecast_reference_times = pd.date_range(
     periods=frt_n,
     freq=frt_step,
 )
+
+# Start and end of the verification period, based on the forecast reference times and forecast
+# periods.
+vp_start = pd.to_datetime(frt_start)
+vp_end = pd.to_datetime(frt_start) + pd.to_timedelta(time_n, unit=time_step)
+
 forecast_periods = pd.timedelta_range(0, periods=fp_n, freq=fp_step)
 forecast_times = forecast_reference_times.to_numpy()[:, None] + forecast_periods.to_numpy()[None, :]
 stations = [f"station_{n}" for n in range(station_n)]
@@ -154,6 +161,32 @@ def xarray_observed_historical() -> xr.DataArray:
         },
         attrs={"data_type": DataType.observed_historical},
     )
+
+
+@pytest.fixture
+def xarray_observed_historical_datasource(
+    tmp_path: Path,
+    xarray_general_info_config: GeneralInfoConfig,
+    xarray_observed_historical: xr.DataArray,
+) -> NetCDF:
+    """Return example observations."""
+    # Write the xarray to a NetCDF file in the temporary directory
+    file_path = tmp_path / "observations.nc"
+    xarray_observed_historical.to_netcdf(file_path)
+
+    # Initialize the datasource with the path to the NetCDF file
+    datasource = NetCDF(
+        config=NetCDFConfig(
+            general=xarray_general_info_config,
+            source=xarray_general_info_config.verification_pairs[0].obs,
+            data_type=DataType.observed_historical,
+            directory=str(tmp_path),
+            filename_glob="observations.nc",
+            import_adapter=DataSourceKind.NETCDF,
+        ),
+    )
+    datasource.fetch_data()
+    return datasource
 
 
 @pytest.fixture
@@ -245,6 +278,32 @@ def xarray_simulated_forecast_single() -> xr.DataArray:
 
 
 @pytest.fixture
+def xarray_observed_forecast_single_datasource(
+    tmp_path: Path,
+    xarray_general_info_config: GeneralInfoConfig,
+    xarray_simulated_forecast_single: xr.DataArray,
+) -> NetCDF:
+    """Return example forecast single datasource."""
+    # Write the xarray to a NetCDF file in the temporary directory
+    file_path = tmp_path / "forecast_single.nc"
+    xarray_simulated_forecast_single.to_netcdf(file_path)
+
+    # Initialize the datasource with the path to the NetCDF file
+    datasource = NetCDF(
+        config=NetCDFConfig(
+            general=xarray_general_info_config,
+            source=xarray_general_info_config.verification_pairs[0].sim,
+            data_type=DataType.simulated_forecast_single,
+            directory=str(tmp_path),
+            filename_glob="forecast_single.nc",
+            import_adapter=DataSourceKind.NETCDF,
+        ),
+    )
+    datasource.fetch_data()
+    return datasource
+
+
+@pytest.fixture
 def fews_webservice_auth_config() -> FewsWebserviceAuthConfig:
     """Read authorization config from environment."""
     return FewsWebserviceAuthConfig()
@@ -264,7 +323,7 @@ test_data_meuse_module_instance_ids = {
 
 
 @pytest.fixture
-def general_info_config_single(cache_dir: Path) -> GeneralInfoConfig:
+def fews_general_info_config_single(cache_dir: Path) -> GeneralInfoConfig:
     """GeneralInfoConfig for a single forecast."""
     return GeneralInfoConfig(
         verification_period=VerificationPeriod(
@@ -284,7 +343,27 @@ def general_info_config_single(cache_dir: Path) -> GeneralInfoConfig:
 
 
 @pytest.fixture
-def general_info_config_ensemble(cache_dir: Path) -> GeneralInfoConfig:
+def xarray_general_info_config(cache_dir: Path) -> GeneralInfoConfig:
+    """GeneralInfoConfig for a single forecast."""
+    return GeneralInfoConfig(
+        verification_period=VerificationPeriod(
+            start=vp_start,
+            end=vp_end,
+        ),
+        forecast_periods=ForecastPeriods(unit=TimeUnits.day, values=[1, 2, 3, 4]),
+        verification_pairs=[
+            VerificationPair(
+                id="pair1",
+                obs="observed",
+                sim="source_single",
+            ),
+        ],
+        cache_dir=cache_dir,
+    )
+
+
+@pytest.fixture
+def fews_general_info_config_ensemble(cache_dir: Path) -> GeneralInfoConfig:
     """GeneralInfoConfig for an ensemble."""
     return GeneralInfoConfig(
         verification_period=VerificationPeriod(
@@ -304,7 +383,7 @@ def general_info_config_ensemble(cache_dir: Path) -> GeneralInfoConfig:
 
 
 @pytest.fixture
-def general_info_config_probabilistic(cache_dir: Path) -> GeneralInfoConfig:
+def fews_general_info_config_probabilistic(cache_dir: Path) -> GeneralInfoConfig:
     """GeneralInfoConfig for probabilistic forecast."""
     return GeneralInfoConfig(
         verification_period=VerificationPeriod(
@@ -347,7 +426,7 @@ def id_mapping_config_fewsnetcdf() -> IdMappingConfig:
 def fews_webservice_observed_historical(
     fews_webservice_auth_config: FewsWebserviceAuthConfig,
     id_mapping_config_fewsnetcdf: IdMappingConfig,
-    general_info_config_ensemble: GeneralInfoConfig,
+    fews_general_info_config_ensemble: GeneralInfoConfig,
 ) -> FewsWebservice:
     """Fewsnetcdf datasource sim config."""
     config = FewsWebserviceConfig(
@@ -357,7 +436,7 @@ def fews_webservice_observed_historical(
         location_ids=["H-RN-0001", "H-RN-0689"],
         parameter_ids=["Q_m"],
         module_instance_id="Hydro_Prep",
-        general=general_info_config_ensemble,
+        general=fews_general_info_config_ensemble,
         auth_config=fews_webservice_auth_config,
         id_mapping=id_mapping_config_fewsnetcdf,
         webservice_version="2025.01",
@@ -369,7 +448,7 @@ def fews_webservice_observed_historical(
 def fews_webservice_simulated_forecast_ensemble_frt(
     fews_webservice_auth_config: FewsWebserviceAuthConfig,
     id_mapping_config_fewsnetcdf: IdMappingConfig,
-    general_info_config_ensemble: GeneralInfoConfig,
+    fews_general_info_config_ensemble: GeneralInfoConfig,
 ) -> FewsWebservice:
     """Fewsnetcdf datasource sim config."""
     config = FewsWebserviceConfig(
@@ -382,7 +461,7 @@ def fews_webservice_simulated_forecast_ensemble_frt(
         ensemble_id="ECMWF_ENS",
         archive_kind=ArchiveKind.external_storage_archive,
         forecast_retrieval_method=ForecastRetrievalMethod.retrieve_all_forecast_data,
-        general=general_info_config_ensemble,
+        general=fews_general_info_config_ensemble,
         auth_config=fews_webservice_auth_config,
         id_mapping=id_mapping_config_fewsnetcdf,
         webservice_version="2025.01",
@@ -407,7 +486,7 @@ def fews_webservice_simulated_forecast_ensemble_fp(
 @pytest.fixture
 def fews_webservice_simulated_forecast_single_frt(
     fews_webservice_auth_config: FewsWebserviceAuthConfig,
-    general_info_config_single: GeneralInfoConfig,
+    fews_general_info_config_single: GeneralInfoConfig,
 ) -> FewsWebservice:
     """Fewsnetcdf datasource sim config."""
     config = FewsWebserviceConfig(
@@ -419,7 +498,7 @@ def fews_webservice_simulated_forecast_single_frt(
         module_instance_id=test_data_meuse_module_instance_ids[DataType.simulated_forecast_single],
         archive_kind=ArchiveKind.external_storage_archive,
         forecast_retrieval_method=ForecastRetrievalMethod.retrieve_all_forecast_data,
-        general=general_info_config_single.model_dump(),
+        general=fews_general_info_config_single.model_dump(),
         auth_config=fews_webservice_auth_config,
         webservice_version="2025.01",
     )
@@ -443,7 +522,7 @@ def fews_webservice_simulated_forecast_single_fp(
 @pytest.fixture
 def fews_webservice_simulated_forecast_probabilistic_frt(
     fews_webservice_auth_config: FewsWebserviceAuthConfig,
-    general_info_config_probabilistic: GeneralInfoConfig,
+    fews_general_info_config_probabilistic: GeneralInfoConfig,
 ) -> FewsWebservice:
     """Fewsnetcdf datasource sim config."""
     config = FewsWebserviceConfig(
@@ -458,7 +537,7 @@ def fews_webservice_simulated_forecast_probabilistic_frt(
         ensemble_id="ensembleQR",
         archive_kind=ArchiveKind.external_storage_archive,
         forecast_retrieval_method=ForecastRetrievalMethod.retrieve_all_forecast_data,
-        general=general_info_config_probabilistic.model_dump(),
+        general=fews_general_info_config_probabilistic.model_dump(),
         auth_config=fews_webservice_auth_config,
         webservice_version="2025.01",
     )
@@ -493,7 +572,7 @@ def fews_webservice_timeseries_headers_only() -> xr.Dataset:
 @pytest.fixture
 def fews_netcdf_observed_historical(
     id_mapping_config_fewsnetcdf: IdMappingConfig,
-    general_info_config_ensemble: GeneralInfoConfig,
+    fews_general_info_config_ensemble: GeneralInfoConfig,
 ) -> FewsNetCDF:
     """Fewsnetcdf datasource obs config."""
     return FewsNetCDF.from_config(
@@ -505,7 +584,7 @@ def fews_netcdf_observed_historical(
             "filename_glob": "*.nc",
             "station_ids": ["H-RN-0001", "H-RN-0689"],
             "source": "observed",
-            "general": general_info_config_ensemble.model_dump(),
+            "general": fews_general_info_config_ensemble.model_dump(),
             "id_mapping": id_mapping_config_fewsnetcdf.model_dump(),
         },
     )
@@ -514,7 +593,7 @@ def fews_netcdf_observed_historical(
 @pytest.fixture
 def fews_netcdf_simulated_forecast_ensemble_frt(
     id_mapping_config_fewsnetcdf: IdMappingConfig,
-    general_info_config_ensemble: GeneralInfoConfig,
+    fews_general_info_config_ensemble: GeneralInfoConfig,
 ) -> FewsNetCDF:
     """Fewsnetcdf datasource sim config."""
     return FewsNetCDF.from_config(
@@ -525,7 +604,7 @@ def fews_netcdf_simulated_forecast_ensemble_frt(
             "directory": "tests/data/webservice_responses_netcdf/simulations_per_forecast_reference_time/ensemble",  # noqa: E501
             "filename_glob": "*.nc",
             "source": "source_ensemble",
-            "general": general_info_config_ensemble.model_dump(),
+            "general": fews_general_info_config_ensemble.model_dump(),
             "id_mapping": id_mapping_config_fewsnetcdf.model_dump(),
         },
     )
@@ -547,7 +626,7 @@ def fews_netcdf_simulated_forecast_ensemble_fp(
 @pytest.fixture
 def fews_netcdf_simulated_forecast_single_frt(
     id_mapping_config_fewsnetcdf: IdMappingConfig,
-    general_info_config_single: GeneralInfoConfig,
+    fews_general_info_config_single: GeneralInfoConfig,
 ) -> FewsNetCDF:
     """Fewsnetcdf datasource sim config."""
     return FewsNetCDF.from_config(
@@ -558,7 +637,7 @@ def fews_netcdf_simulated_forecast_single_frt(
             "directory": "tests/data/webservice_responses_netcdf/simulations_per_forecast_reference_time/single",  # noqa: E501
             "filename_glob": "*.nc",
             "source": "source_single",
-            "general": general_info_config_single.model_dump(),
+            "general": fews_general_info_config_single.model_dump(),
             "id_mapping": id_mapping_config_fewsnetcdf.model_dump(),
         },
     )
@@ -579,7 +658,7 @@ def fews_netcdf_simulated_forecast_single_fp(
 
 @pytest.fixture
 def fews_netcdf_simulated_forecast_probabilistic_frt(
-    general_info_config_probabilistic: GeneralInfoConfig,
+    fews_general_info_config_probabilistic: GeneralInfoConfig,
 ) -> FewsNetCDF:
     """Fewsnetcdf datasource sim config."""
     return FewsNetCDF.from_config(
@@ -590,7 +669,7 @@ def fews_netcdf_simulated_forecast_probabilistic_frt(
             "directory": "tests/data/webservice_responses_netcdf/simulations_per_forecast_reference_time/probabilistic",  # noqa: E501
             "filename_glob": "*.nc",
             "source": "source_probabilistic",
-            "general": general_info_config_probabilistic.model_dump(),
+            "general": fews_general_info_config_probabilistic.model_dump(),
         },
     )
 
@@ -655,57 +734,57 @@ def input_dataset_fews_netcdf_simulated_forecast_ensemble(
 
 @pytest.fixture
 def score_config_crps(
-    general_info_config_ensemble: GeneralInfoConfig,
+    fews_general_info_config_ensemble: GeneralInfoConfig,
 ) -> CrpsForEnsembleConfig:
     """Flexible fixture for scores config, sharing general config."""
     return CrpsForEnsembleConfig(
         score_adapter=ScoreKind.crps_for_ensemble,
-        general=general_info_config_ensemble.model_dump(),
+        general=fews_general_info_config_ensemble.model_dump(),
     )
 
 
 @pytest.fixture
 def score_config_rank_histogram(
-    general_info_config_ensemble: GeneralInfoConfig,
+    fews_general_info_config_ensemble: GeneralInfoConfig,
 ) -> RankHistogramConfig:
     """Flexible fixture for scores config, sharing general config."""
     return RankHistogramConfig(
         score_adapter=ScoreKind.rank_histogram,
-        general=general_info_config_ensemble.model_dump(),
+        general=fews_general_info_config_ensemble.model_dump(),
     )
 
 
 @pytest.fixture
 def score_config_crps_cdf(
-    general_info_config_probabilistic: GeneralInfoConfig,
+    fews_general_info_config_probabilistic: GeneralInfoConfig,
 ) -> CrpsCDFConfig:
     """Flexible fixture for scores config, sharing general config."""
     return CrpsCDFConfig(
         score_adapter=ScoreKind.crps_cdf,
-        general=general_info_config_probabilistic.model_dump(),
+        general=fews_general_info_config_probabilistic.model_dump(),
     )
 
 
 @pytest.fixture
 def score_config_continuous(
-    general_info_config_single: GeneralInfoConfig,
+    fews_general_info_config_single: GeneralInfoConfig,
 ) -> ContinuousScoresConfig:
     """Flexible fixture for scores config, sharing general config."""
     return ContinuousScoresConfig(
         score_adapter=ScoreKind.continuous_scores,
-        general=general_info_config_single.model_dump(),
+        general=fews_general_info_config_single.model_dump(),
         scores=["mae", "rmse"],
     )
 
 
 @pytest.fixture
 def score_config_categorical(
-    general_info_config_single: GeneralInfoConfig,
+    fews_general_info_config_single: GeneralInfoConfig,
 ) -> ContinuousScoresConfig:
     """Flexible fixture for scores config, sharing general config."""
     return CategoricalScoresConfig(
         score_adapter=ScoreKind.categorical_scores,
-        general=general_info_config_single.model_dump(),
+        general=fews_general_info_config_single.model_dump(),
         scores=["accuracy", "false_alarm_rate"],
         events=[ThresholdOperator(threshold="warn_2", operator=EventOperator.GREATER_THAN)],
         verification_pair_ids=["pair1"],
@@ -719,7 +798,7 @@ def score_config_categorical(
 @pytest.fixture
 def datasink_cf_compliant_netcdf(
     tmp_path: Path,
-    general_info_config_ensemble: GeneralInfoConfig,
+    fews_general_info_config_ensemble: GeneralInfoConfig,
 ) -> CFCompliantNetCDF:
     """CF Compliant NetCDF datasink."""
     return CFCompliantNetCDF(
@@ -727,7 +806,7 @@ def datasink_cf_compliant_netcdf(
             export_adapter=DataSinkKind.cf_compliant_netcdf,
             directory=str(tmp_path),
             filename="test.nc",
-            general=general_info_config_ensemble.model_dump(),
+            general=fews_general_info_config_ensemble.model_dump(),
             institution="Deltares",
         ),
     )
@@ -761,21 +840,23 @@ def dummy_threshold_df() -> pd.DataFrame:
 @pytest.fixture
 def xarray_thresholds(
     dummy_threshold_df: pd.DataFrame,
-    general_info_config_single: GeneralInfoConfig,
+    fews_general_info_config_single: GeneralInfoConfig,
     tmp_path: Path,
-) -> CsvFile:
+) -> Csv:
     """Get threshold datasource from csv file."""
     file_path = tmp_path / "thresholds.csv"
     dummy_threshold_df.to_csv(file_path, index=False)
-    config = ThresholdCsvConfig(
-        import_adapter=DataSourceKind.THRESHOLD_CSV,
+    config = CsvConfig(
+        import_adapter=DataSourceKind.CSV,
         data_type=DataType.threshold,
         source="threshold_source",
-        general=general_info_config_single,
+        general=fews_general_info_config_single,
         directory=file_path.parent,
         filename=file_path.name,
         stations=["station_2"],
-        variables=["variable_1"],
+        variables=["var_1"],
         thresholds=["warn_1"],
     )
-    return CsvFile(config).fetch_data().data_array
+    instance = Csv(config)
+    instance.fetch_data()
+    return instance

@@ -219,7 +219,7 @@
     },
     "FewsNetCDFConfig": {
       "additionalProperties": true,
-      "description": "A file input fewsnetcdf config element.",
+      "description": "A FEWS NetCDF config element.",
       "properties": {
         "directory": {
           "title": "Directory",

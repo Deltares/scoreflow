@@ -13,8 +13,7 @@ from scores.categorical import (  # type:ignore[import-untyped]
 
 from dpyverification.configuration.default.scores import CategoricalScoresConfig, EventOperator
 from dpyverification.constants import DataType, SupportedCategoricalScores
-from dpyverification.datamodel import InputDataset
-from dpyverification.scores.base import BaseScore
+from dpyverification.scores.base import BaseCategoricalScore
 
 
 def get_categorical_score(score_name: SupportedCategoricalScores) -> type:
@@ -77,7 +76,7 @@ def set_event_coordinates_on_result(
     )
 
 
-class CategoricalScores(BaseScore):
+class CategoricalScores(BaseCategoricalScore):
     """Implementation for CRPS for probabilistic forecasts, expressed as cdf."""
 
     kind = "categorical_scores"
@@ -93,21 +92,14 @@ class CategoricalScores(BaseScore):
         self,
         obs: xr.DataArray,
         sim: xr.DataArray,
-        thresholds: xr.DataArray | None = None,  # optional, to satisfy contract with the ABC
+        thresholds: xr.DataArray,
     ) -> xr.Dataset | xr.DataArray:
         """Compute any number of categorical scores."""
-        # Runtime check for thresholds, because they are always required
-        if thresholds is None:
-            msg = "Argument 'thresholds' is None, but required for computing categorical scores."
-            raise ValueError(msg)
-
         results: list[xr.DataArray | xr.Dataset] = []
-        obs_mapped = InputDataset.map_historical_into_forecast_space(obs, sim)
-        results = []
         for event in self.config.events:
             operator_func = get_event_operator(event.operator)
             obs_events = create_binary_array(
-                obs_mapped,
+                obs,
                 thresholds=thresholds,
                 operator=operator_func,
             )

@@ -5,7 +5,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, RootModel
 
-from dpyverification.configuration.base import BaseScoreConfig
+from dpyverification.configuration.base import BaseCategoricalScoreConfig, BaseScoreConfig
 from dpyverification.constants import (
     ScoreKind,
     StandardDim,
@@ -120,7 +120,7 @@ class ThresholdOperator(BaseModel):
     ]
 
 
-class CategoricalScoresConfig(BaseScoreConfig, ReduceDimsForecast):
+class CategoricalScoresConfig(BaseCategoricalScoreConfig, ReduceDimsForecast):
     """Config to compute categorical scores, based on an event definition."""
 
     scores: Annotated[

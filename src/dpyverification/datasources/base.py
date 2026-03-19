@@ -92,6 +92,18 @@ class BaseDatasource(Base):
         self.fetch_data()
         data_array_original = self.data_array
 
+        # Check that the datatype is defined, and consistent with the config
+        if "data_type" not in data_array_original.attrs:  # type:ignore[misc]
+            msg = "The fetched data array does not have a 'data_type' attribute."
+            raise ValueError(msg)
+        if data_array_original.attrs["data_type"] != self.config.data_type:  # type:ignore[misc]
+            msg = (
+                f"The data type of the fetched data array "
+                f"({data_array_original.attrs['data_type']}) does not match the configured data "  # type:ignore[misc]
+                f"type ({self.config.data_type})."
+            )
+            raise ValueError(msg)
+
         # Make sure the name of the array is set to the configured source
         data_array_original.name = self.config.source
 
@@ -110,7 +122,8 @@ class BaseDatasource(Base):
                 da=data_array_original,
                 verification_period_on_time=self.config.verification_period_on_time,
             )
-        else:
+        if data_array_original.attrs["data_type"] == DataType.observed_historical:  # type:ignore[misc]
+            # Mask and drop time values outside of the configured vp
             # Historical data type
             data_array_original = data_array_original.sel(
                 {

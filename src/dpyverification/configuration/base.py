@@ -291,3 +291,16 @@ class BaseScoreConfig(BaseConfig):
                 )
                 raise ValueError(msg)
         return self
+
+
+class BaseCategoricalScoreConfig(BaseScoreConfig):
+    """
+    Base config for a categorical score config.
+
+    Specific config definitions should inherit from
+    this base class.
+    """
+
+    # No additional fields yet, but we want to keep the categorical score configs separate from the
+    # continuous score configs, because they require a different compute function signature and thus
+    # a different Score class implementation.

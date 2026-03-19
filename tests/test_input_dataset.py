@@ -3,6 +3,7 @@
 import xarray as xr
 
 from dpyverification.datamodel.main import InputDataset
+from dpyverification.datasources.csv import Csv
 from dpyverification.datasources.fewsnetcdf import FewsNetCDF
 
 # mypy: disable-error-code="misc"
@@ -61,11 +62,11 @@ def test_init_input_dataset_fewsnetcdf(
 
 
 def test_init_input_dataset_thresholds(
-    xarray_thresholds: xr.DataArray,
+    xarray_thresholds: Csv,
 ) -> None:
     """Test the fewsnetcdf is accepted by the input_dataset."""
     InputDataset(
         data=[
-            xarray_thresholds,
+            xarray_thresholds.data_array,
         ],
     )
