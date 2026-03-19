@@ -815,6 +815,8 @@ def datasink_cf_compliant_netcdf(
 @pytest.fixture
 def dummy_threshold_df() -> pd.DataFrame:
     """Get dummy thresholds."""
+    # Use a local RNG so threshold test data is independent of global RNG state.
+    local_rng = np.random.default_rng(seed=42)
     station_ids = np.array(stations)
     threshold_ids = np.array(thresholds)
     variable_ids = np.array(variables)
@@ -825,7 +827,7 @@ def dummy_threshold_df() -> pd.DataFrame:
         variable_ids,
         indexing="ij",
     )
-    data = rng.random(size=(station_n, threshold_n, variable_n))
+    data = local_rng.random(size=(station_n, threshold_n, variable_n))
 
     return pd.DataFrame(
         {

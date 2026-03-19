@@ -17,7 +17,7 @@ class NetCDF(BaseDatasource):
     You can validate that the NetCDF file satisfies the internal datamodel using the following
     example::
         import xarray as xr
-        from dpyverification import validate_input_data
+        from dpyverification.datasources import validate_input_data
 
         data_array = xr.open_dataarray("path/to/netcdf/file/example.nc")
         validated_data = validate_input_data(data_array)

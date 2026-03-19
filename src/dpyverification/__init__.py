@@ -5,5 +5,4 @@ The data the functions apply to are observations and (a combination of multiple)
 
 """
 
-from dpyverification.datasources.inputschemas import validate_input_data
 from dpyverification.pipeline import execute_pipeline

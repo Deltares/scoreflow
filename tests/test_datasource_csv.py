@@ -1,13 +1,18 @@
 """Test the threshold datasource."""
 
 import numpy as np
+import pandas as pd
 import pytest
 
 from dpyverification.datasources.csv import Csv
 
+# mypy: disable-error-code=misc
+# we are using xarray DataArrays in the tests, which have attributes that mypy cannot verify
+
 
 def test_fetch_thresholds(
     xarray_thresholds: Csv,
+    dummy_threshold_df: pd.DataFrame,
 ) -> None:
     """Test we can fetch thresholds from csv file."""
     xarray_thresholds.fetch_data()
@@ -18,8 +23,13 @@ def test_fetch_thresholds(
         np.array(["warn_1"]),  # type:ignore[misc]
     )
 
-    # Test one threshold value is as expected
-    expected_value = np.array(0.1542894920675478)  # type:ignore[misc]
+    # Test one threshold value matches the source csv content.
+    expected_value = dummy_threshold_df[
+        (dummy_threshold_df["station"] == "station_2")
+        & (dummy_threshold_df["variable"] == "var_1")
+        & (dummy_threshold_df["threshold"] == "warn_1")
+    ]["value"].iloc[0]
+
     np.testing.assert_approx_equal(
         xarray_thresholds.data_array.isel(station=0, variable=0, threshold=0).to_numpy(),  # type:ignore[misc]
         expected_value,  # type:ignore[misc]
