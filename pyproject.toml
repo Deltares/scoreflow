@@ -25,7 +25,7 @@ dependencies = [
 
 [tool.mypy]
 mypy_path = "$MYPY_CONFIG_FILE_DIR/src"
-files = ["**/*.py"]
+files = ["src", "tests"]
 warn_unused_configs = true
 python_version = "3.11"
 plugins = ["pydantic.mypy", ]
@@ -53,6 +53,35 @@ init_typed = true
 target-version = "py310"
 line-length = 100
 indent-width = 4
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".ipynb_checkpoints",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pyenv",
+    ".pytest_cache",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    ".vscode",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "site-packages",
+    ".venv",
+    "docs",
+]
 
 [tool.ruff.format]
 indent-style = "space"
