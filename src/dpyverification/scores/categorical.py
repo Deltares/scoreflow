@@ -1,4 +1,10 @@
-"""Categorical scores, based on a 2x2 contingency table."""
+"""
+Categorical scores, based on a 2x2 contingency table.
+
+For verification of non-probabilistic forecasts, and historical simulations of discrete variables.
+
+For references, see: https://scores.readthedocs.io/en/stable/included.html#categorical.
+"""
 
 import operator
 from collections.abc import Callable

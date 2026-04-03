@@ -1,4 +1,11 @@
-"""Module for continuous scores."""
+"""
+Continuous verification scores.
+
+For verification of non-probabilistic (deterministic) forecasts, and historical simulations of
+continuous variables.
+
+For reference, see: https://scores.readthedocs.io/en/stable/included.html#continuous.
+"""
 
 from collections.abc import Callable
 from typing import TYPE_CHECKING, ClassVar

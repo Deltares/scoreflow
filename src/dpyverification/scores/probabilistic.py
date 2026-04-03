@@ -1,7 +1,10 @@
-"""Compute the Continuous Ranked Probability Score (CRPS) for an ensemble of forecasts.
+"""
+Probabilistic verification scores.
 
-For documentation, see below:
-https://scores.readthedocs.io/en/1.0.0/tutorials/CRPS_for_Ensembles.html
+For verification of probabilistic and ensemble forecasts, and probabilistic historical simulations
+of continuous variables.
+
+For reference, see: https://scores.readthedocs.io/en/stable/included.html#probability
 """
 
 from typing import ClassVar
