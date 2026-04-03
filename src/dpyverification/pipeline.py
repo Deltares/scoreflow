@@ -14,10 +14,11 @@ from dpyverification.configuration.file import ConfigFile, ConfigKind
 from dpyverification.datamodel import InputDataset, OutputDataset
 from dpyverification.datasinks import DEFAULT_DATASINKS
 from dpyverification.datasinks.base import BaseDatasink
-from dpyverification.datasources import DEFAULT_DATASOURCES
 from dpyverification.datasources.base import BaseDatasource
 from dpyverification.scores import DEFAULT_SCORES
 from dpyverification.scores.base import BaseCategoricalScore, BaseScore
+
+__all__ = ["execute_pipeline"]
 
 logger = logging.getLogger(__name__)
 

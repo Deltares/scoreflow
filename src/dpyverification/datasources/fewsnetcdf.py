@@ -18,6 +18,11 @@ from dpyverification.constants import (
 )
 from dpyverification.datasources.base import BaseDatasource
 
+__all__ = [
+    "FewsNetCDF",
+    "FewsNetCDFConfig",
+]
+
 
 class FewsNetcdfDims(StrEnum):
     """List of dimension names."""

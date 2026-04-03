@@ -14,6 +14,8 @@ from dpyverification.constants import (
 )
 from dpyverification.datasources.inputschemas import INPUT_SCHEMAS
 
+__all__ = ["InputDataset", "OutputDataset"]
+
 
 @xr.register_dataarray_accessor("verification")  # type:ignore[no-untyped-call, misc]
 class InputDataArrayExtension:

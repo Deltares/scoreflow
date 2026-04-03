@@ -29,6 +29,11 @@ score_funcs: dict[SupportedContinuousScore, Callable] = {
     SupportedContinuousScore.mean_error: mean_error,  # type:ignore[misc]
 }
 
+__all__ = [
+    "ContinuousScores",
+    "ContinuousScoresConfig",
+]
+
 
 class ContinuousScores(BaseScore):
     """Implementation for CRPS for probabilistic forecasts, expressed as cdf."""

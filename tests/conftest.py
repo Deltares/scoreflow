@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 import pytest
 import xarray as xr
+from dpyverification.datasinks.cf_compliant_netdf import CFCompliantNetCDF
 
 from dpyverification.configuration import GeneralInfoConfig
 from dpyverification.configuration.base import IdMappingConfig
@@ -48,7 +49,6 @@ from dpyverification.constants import (
     StandardDim,
 )
 from dpyverification.datamodel.main import InputDataset
-from dpyverification.datasinks.cf_compliant_netdf import CFCompliantNetCDF
 from dpyverification.datasources.csv import Csv
 from dpyverification.datasources.fewsnetcdf import FewsNetCDF, FewsNetCDFKind
 from dpyverification.datasources.fewswebservice import FewsWebservice, ForecastRetrievalMethod

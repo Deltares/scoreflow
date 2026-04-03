@@ -1,6 +1,7 @@
 """Test the functions in the pipeline module."""
 
 import pytest
+from dpyverification.datasinks.cf_compliant_netdf import CFCompliantNetCDF
 from pytest_lazy_fixtures import lf
 
 from dpyverification.configuration.base import GeneralInfoConfig
@@ -12,7 +13,6 @@ from dpyverification.configuration.default.scores import (
 )
 from dpyverification.configuration.file import Config
 from dpyverification.constants import ScoreKind, SupportedCategoricalScores
-from dpyverification.datasinks.cf_compliant_netdf import CFCompliantNetCDF
 from dpyverification.datasources.csv import Csv
 from dpyverification.datasources.fewsnetcdf import FewsNetCDF
 from dpyverification.datasources.netcdf import NetCDF
