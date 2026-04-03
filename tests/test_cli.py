@@ -6,66 +6,99 @@ import pytest
 from typer.testing import CliRunner
 
 from dpyverification.cli import app
+from dpyverification.configuration import Config
+
+# mypy: disable-error-code=misc
 
 runner = CliRunner()
 
 
-def test_cli_run_without_overrides(
-    cli_dummy_pipeline_config_yaml: Path,
-) -> None:
-    """Test running the CLI without overrides."""
-    # When this exception is raised, we have successfully started a pipeline. Because we are using
-    #   an invalid datasource, the pipeline will crash on start-up, but config is valid.
-    with pytest.raises(FileNotFoundError, match="No such file or directory"):
-        runner.invoke(
-            app,
-            [
-                "run-pipeline",
-                str(cli_dummy_pipeline_config_yaml),
-            ],
-            catch_exceptions=False,
-        )
+test_cases = [
+    {
+        "cli_option_key": None,
+        "cli_option_value": None,
+        "expected_verification_period_start": "2026-01-01T00:00:00",
+        "expected_verification_period_end": "2026-01-02T00:00:00",
+    },
+    {
+        "cli_option_key": "--verification-period-start",
+        "cli_option_value": "2025-01-01T00:00:00",
+        "expected_verification_period_start": "2025-01-01T00:00:00",
+        "expected_verification_period_end": "2026-01-02T00:00:00",
+    },
+    {
+        "cli_option_key": "--verification-period-end",
+        "cli_option_value": "2027-01-01T00:00:00",
+        "expected_verification_period_start": "2026-01-01T00:00:00",
+        "expected_verification_period_end": "2027-01-01T00:00:00",
+    },
+]
 
 
 @pytest.mark.parametrize(
-    ("cli_option_key", "cli_option_value"),
-    [
-        ("--set-verification-period-start", "2027-01-01T00:00:00"),
-        ("--set-verification-period-end", "2027-01-01T00:00:00"),
-    ],
+    "case",
+    test_cases,
     ids=[
-        "--set-verification-period-start",
-        "--set-verification-period-end",
+        "no-overrides",
+        "override-verification-period-start",
+        "override-verification-period-end",
     ],
 )
-def test_cli_run_with_valid_overrides(
+def test_cli_run(
     cli_dummy_pipeline_config_yaml: Path,
-    cli_option_key: str,
-    cli_option_value: str,
+    case: dict,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Test running the CLI with overrides."""
-    # When this exception is raised, we have successfully started a pipeline. Because we are using
-    #   an invalid datasource, the pipeline will crash on start-up, but config is valid.
-    with pytest.raises(FileNotFoundError, match="No such file or directory"):
-        runner.invoke(
+    captured_config: Config | None = None
+
+    def fake_run_pipeline(*, config: Config) -> None:
+        """Fake pipeline run function that just validates the config and raises an exception."""
+        nonlocal captured_config
+        captured_config = config
+
+    # Patch the symbol used by the CLI module
+    monkeypatch.setattr("dpyverification.cli.run_pipeline", fake_run_pipeline)
+
+    if case["cli_option_key"] is None and case["cli_option_value"] is None:
+        result = runner.invoke(
             app,
             [
                 "run-pipeline",
                 str(cli_dummy_pipeline_config_yaml),
-                cli_option_key,
-                cli_option_value,
             ],
             catch_exceptions=False,
         )
+    else:
+        result = runner.invoke(
+            app,
+            [
+                "run-pipeline",
+                str(cli_dummy_pipeline_config_yaml),
+                case["cli_option_key"],
+                case["cli_option_value"],
+            ],
+            catch_exceptions=False,
+        )
+    assert result.exit_code == 0
+    assert captured_config is not None
+    assert (
+        captured_config.general.verification_period.start.isoformat()
+        == case["expected_verification_period_start"]
+    )
+    assert (
+        captured_config.general.verification_period.end.isoformat()
+        == case["expected_verification_period_end"]
+    )
 
 
 @pytest.mark.parametrize(
     ("cli_option_key", "cli_option_value"),
     [
-        ("--set-verification-period-start", "1"),
+        ("--verification-period-start", "1"),
     ],
     ids=[
-        "--set-verification-period-start",
+        "verification-period-start",
     ],
 )
 def test_cli_run_with_invalid_overrides(
@@ -87,4 +120,4 @@ def test_cli_run_with_invalid_overrides(
     )
 
     assert result.exit_code == expected_exit_code
-    assert "--set-verification-period-start': '1' does not match the" in result.output
+    assert "verification-period-start': '1' does not match the" in result.output

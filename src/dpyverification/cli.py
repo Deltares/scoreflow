@@ -16,7 +16,7 @@ from dpyverification.pipeline import run_pipeline
 logger = logging.getLogger(__name__)
 
 
-app = typer.Typer(  # The main app for the command-line interface
+app = typer.Typer(
     help=(
         f"Welcome to the {NAME} command line interface. The interface allows you to run a "
         "verification pipeline."
@@ -24,7 +24,7 @@ app = typer.Typer(  # The main app for the command-line interface
     context_settings={"help_option_names": ["-h", "--help"]},  # type:ignore[misc]
     no_args_is_help=True,
 )
-run_pipeline_subcommand = typer.Typer()  # Add subcommand group
+run_pipeline_subcommand = typer.Typer()
 
 
 def _version_callback(*, value: bool) -> None:
@@ -32,6 +32,52 @@ def _version_callback(*, value: bool) -> None:
     if value:
         typer.echo(f"{NAME} version {VERSION}")
         raise typer.Exit
+
+
+def override_general_info_config(
+    config: Config,
+    verification_period_start: datetime | None,
+    verification_period_end: datetime | None,
+) -> Config:
+    """Override the general info config with command-line options."""
+    if verification_period_start is None and verification_period_end is None:
+        return config
+
+    general_config = config.general.model_copy(deep=True)
+
+    if verification_period_start is not None:
+        logger.info(
+            f"Overriding verification period start to {verification_period_start.isoformat()} "  # noqa: G004
+            f"based on command-line input.",
+        )
+        general_config.verification_period.start = verification_period_start
+    if verification_period_end is not None:
+        logger.info(
+            f"Overriding verification period end to {verification_period_end.isoformat()} "  # noqa: G004
+            f"based on command-line input.",
+        )
+        general_config.verification_period.end = verification_period_end
+
+    # Override the general config in the main config object.
+    config.general = general_config
+
+    # Because datasources, scores, and datasinks will have a copy of the general configuration,
+    # we also need to override the verification period start for each of them
+    if config.datasources is not None:
+        for datasource in config.datasources:
+            datasource.general = general_config
+    if config.scores is not None:
+        for score in config.scores:
+            score.general = general_config
+    if config.datasinks is not None:
+        for datasink in config.datasinks:
+            datasink.general = general_config
+
+    logger.debug(
+        "Successfully passed general info config overrides to all datasources, scores and "
+        "datasinks.",
+    )
+    return config
 
 
 @app.callback()  # type:ignore[misc]
@@ -61,7 +107,7 @@ def main(
 
 
 @app.command("run-pipeline")  # type:ignore[misc]
-def run_pipeline_cmd(  # noqa: C901, PLR0912
+def run_pipeline_cmd(
     path_to_yaml_config: Annotated[
         Path,
         typer.Argument(
@@ -73,13 +119,13 @@ def run_pipeline_cmd(  # noqa: C901, PLR0912
             help="Path to the YAML configuration file.",
         ),
     ],
-    set_verification_period_start: Annotated[
+    verification_period_start: Annotated[
         datetime | None,
         typer.Option(
             help="Override verification period start (ISO format: YYYY-MM-DDTHH:MM:SS)",
         ),
     ] = None,
-    set_verification_period_end: Annotated[
+    verification_period_end: Annotated[
         datetime | None,
         typer.Option(
             help="Override verification period end (ISO format: YYYY-MM-DDTHH:MM:SS)",
@@ -90,53 +136,24 @@ def run_pipeline_cmd(  # noqa: C901, PLR0912
     # Load the YAML content from the provided path
     config = ConfigFile(config_file=path_to_yaml_config, config_type="yaml").content
 
-    logger.info("Applying command-line overrides to the config content.")
-
-    modified_config = config.model_copy(deep=True)
-
-    if set_verification_period_start is not None:
-        logger.info(
-            f"Overriding verification period start to {set_verification_period_start.isoformat()} "  # noqa: G004
-            f"based on command-line input.",
+    if verification_period_end is not None or verification_period_start is not None:
+        # At least one of the verification period start and end is provided, so we need to override
+        # the general info config with the provided values.
+        config = override_general_info_config(
+            config=config.model_copy(deep=True),
+            verification_period_start=verification_period_start,
+            verification_period_end=verification_period_end,
         )
-        modified_config.general.verification_period.start = set_verification_period_start
 
-        # Because datasources, scores, and datasinks will have a copy of the general configuration,
-        # we also need to override the verification period start for each of them
-        if modified_config.datasources is not None:
-            for datasource in modified_config.datasources:
-                datasource.general.verification_period.start = set_verification_period_start
-        if modified_config.scores is not None:
-            for score in modified_config.scores:
-                score.general.verification_period.start = set_verification_period_start
-        if modified_config.datasinks is not None:
-            for datasink in modified_config.datasinks:
-                datasink.general.verification_period.start = set_verification_period_start
-
-    if set_verification_period_end is not None:
-        logger.info(
-            f"Overriding verification period end to {set_verification_period_end.isoformat()} "  # noqa: G004
-            f"based on command-line input.",
-        )
-        modified_config.general.verification_period.end = set_verification_period_end
-
-        # Because datasources, scores, and datasinks will have a copy of the general configuration,
-        # we also need to override the verification period end for each of them
-        if modified_config.datasources is not None:
-            for datasource in modified_config.datasources:
-                datasource.general.verification_period.end = set_verification_period_end
-        if modified_config.scores is not None:
-            for score in modified_config.scores:
-                score.general.verification_period.end = set_verification_period_end
-        if modified_config.datasinks is not None:
-            for datasink in modified_config.datasinks:
-                datasink.general.verification_period.end = set_verification_period_end
-
-    # Load the configuration
-    #   at this point, Typer has already validate path is an existing, readable file
-    logger.info("Validating modified configuration.")
-    config = Config.model_validate(modified_config)
-    logger.info("Configuration loaded successfully. Starting the pipeline.")
+    # Validate the configuration against the Pydantic model.
+    logger.info("Validating configuration...")
+    config = Config.model_validate(config)
+    logger.info("Configuration validated successfully.")
+    logger.info(
+        "Starting the pipeline with the following verification period: %s to %s",
+        verification_period_start,
+        verification_period_end,
+    )
 
     # Run the pipeline
     run_pipeline(config=config)
