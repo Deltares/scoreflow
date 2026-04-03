@@ -10,7 +10,11 @@ import xarray as xr
 from scores.probability import crps_cdf, crps_for_ensemble  # type: ignore[import-untyped]
 from xskillscore import rank_histogram  # type: ignore[import-untyped]
 
-from dpyverification.configuration import CrpsCDFConfig, CrpsForEnsembleConfig, RankHistogramConfig
+from dpyverification.configuration.default.scores import (
+    CrpsCDFConfig,
+    CrpsForEnsembleConfig,
+    RankHistogramConfig,
+)
 from dpyverification.constants import DataType, StandardDim
 from dpyverification.scores.base import BaseScore
 

@@ -15,12 +15,12 @@ import requests
 import xarray as xr
 
 from dpyverification.api.fewswebservice import DocumentFormat, FewsWebserviceClient, TimeseriesType
-from dpyverification.configuration import (
+from dpyverification.configuration.default.datasources import (
+    ArchiveKind,
     FewsNetCDFConfig,
     FewsWebserviceConfig,
     ForecastRetrievalMethod,
 )
-from dpyverification.configuration.default.datasources import ArchiveKind
 from dpyverification.constants import DataSourceKind, DataType
 from dpyverification.datasources.base import BaseDatasource
 from dpyverification.datasources.fewsnetcdf import (

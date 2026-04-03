@@ -9,8 +9,7 @@ import numpy as np
 import xarray as xr
 from numpy.typing import NDArray
 
-from dpyverification.configuration import FewsNetCDFConfig
-from dpyverification.configuration.default.datasources import FewsNetCDFKind
+from dpyverification.configuration.default.datasources import FewsNetCDFConfig, FewsNetCDFKind
 from dpyverification.constants import (
     FORECAST_DATA_TYPES,
     DataType,
