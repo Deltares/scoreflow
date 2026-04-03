@@ -13,7 +13,6 @@ import numpy as np
 import pandas as pd
 import pytest
 import xarray as xr
-from dpyverification.datasinks.cf_compliant_netdf import CFCompliantNetCDF
 
 from dpyverification.configuration import GeneralInfoConfig
 from dpyverification.configuration.base import IdMappingConfig
