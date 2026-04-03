@@ -159,6 +159,7 @@ class Config(BaseModel):
 
         schema = ConfigSchema.model_json_schema()  # type:ignore[misc]
 
-        # Write the schema to file
-        with output_path.open("w", encoding="utf-8") as f:
+        # Write with explicit LF line endings so schema diffs are OS-independent.
+        with output_path.open("w", encoding="utf-8", newline="\n") as f:
             json.dump(schema, f, indent=2, ensure_ascii=False)  # type:ignore[misc]
+            f.write("\n")
