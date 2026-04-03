@@ -2,8 +2,6 @@ name: Build and deploy documentation
 
 on:
   push:
-    branches:
-      - 35-setup-docs
   workflow_dispatch:
 
 permissions:
@@ -51,6 +49,7 @@ jobs:
   deploy:
     name: Deploy to GitHub Pages
     needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' # Only deploy on push to main branch
     runs-on: ubuntu-latest
     environment:
       name: github-pages
