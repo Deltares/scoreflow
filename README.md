@@ -1,3 +1,4 @@
+[![Docs latest](https://img.shields.io/badge/docs-latest-brightgreen.svg)](https://deltares.github.io/scoreflow/index.html)
 [![Tests](https://github.com/Deltares/scoreflow/actions/workflows/ci.yml/badge.svg)](https://github.com/Deltares/scoreflow/actions/workflows/ci.yml)
 [![Docs](https://github.com/Deltares/scoreflow/actions/workflows/docs.yml/badge.svg)](https://github.com/Deltares/scoreflow/actions/workflows/docs.yml)
 [![codecov](https://codecov.io/gh/Deltares/scoreflow//branch/main/graph/badge.svg)](https://codecov.io/gh/Deltares-research/DPyVerification)
