@@ -13,7 +13,7 @@ sys.path.insert(0, os.path.abspath("../../src"))
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = "dpyverification"
-copyright = "2026, Jurian Beunk"
+copyright = "2026, Deltares"
 author = "Jurian Beunk"
 release = VERSION
 
@@ -27,7 +27,6 @@ extensions = [
     "sphinx.ext.viewcode",
     "sphinx.ext.todo",
     "sphinx.ext.githubpages",
-    # "sphinxcontrib.autodoc_pydantic",  # For nicely rendering Pydantic models
     "sphinx.ext.intersphinx",
     "sphinx_design",
     "myst_parser",  # Markdown support
@@ -78,16 +77,8 @@ autodoc_default_options = {
     "exclude-members": "model_config",
     "members": True,
     "undoc-members": True,  # show StrEnum members from constants
-    # "show-inheritance": True, # shows 'bases' in docs
 }
 
-
-# # Autodoc Pytantic
-# # autodoc_default_options = {"inherited-members": "BaseModel"}
-# autodoc_pydantic_model_show_json = True
-# autodoc_pydantic_model_show_config_summary = True
-# autodoc_pydantic_model_hide_reused_validator = False
-# autodoc_pydantic_model_members = True
 
 # nbshpinx
 nb_execution_mode = "off"  # or "auto"
