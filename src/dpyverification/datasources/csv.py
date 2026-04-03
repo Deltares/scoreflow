@@ -10,9 +10,14 @@ from dpyverification.configuration.default.datasources import CsvConfig
 from dpyverification.constants import DataSourceKind, DataType, StandardDim
 from dpyverification.datasources.base import BaseDatasource
 
+__all__ = [
+    "Csv",
+    "CsvConfig",
+]
+
 
 class Csv(BaseDatasource):
-    """Parse thresholds from a csv file."""
+    """Datasource for reading CSV files."""
 
     kind: str = DataSourceKind.CSV
     config_class = CsvConfig

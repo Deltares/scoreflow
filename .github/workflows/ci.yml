@@ -27,7 +27,7 @@ jobs:
       - name: Ruff format
         run: uv run ruff format --check .
       - name: Mypy
-        run: uv run mypy .
+        run: uv run mypy 
   # Run pytest on a matrix of Python versions and operating systems
   pytest:
     # Needs the linter to succeed, before test matrix will run
@@ -75,11 +75,3 @@ jobs:
           files: coverage.xml
           fail_ci_if_error: false
   
-  # TODO: Add test for documentation generation
-  #   https://github.com/Deltares-research/DPyVerification/issues/7
-  #   Testing the documentation generation can be a job that
-  #   is separate from the pytest job.
-  #   Doc build testing probably only needs to run for one python version and
-  #   one os, assuming release and publish will be a separate workflow
-  # doc:
-  #   name: Documentation generation

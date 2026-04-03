@@ -1,4 +1,10 @@
-"""Categorical scores, based on a 2x2 contingency table."""
+"""
+Categorical scores, based on a 2x2 contingency table.
+
+For verification of non-probabilistic forecasts, and historical simulations of discrete variables.
+
+For references, see: https://scores.readthedocs.io/en/stable/included.html#categorical.
+"""
 
 import operator
 from collections.abc import Callable
@@ -19,6 +25,12 @@ from dpyverification.configuration.default.scores import (
 )
 from dpyverification.constants import DataType, SupportedCategoricalScores
 from dpyverification.scores.base import BaseCategoricalScore
+
+__all__ = [
+    "CategoricalScores",
+    "CategoricalScoresConfig",
+    "create_binary_array",
+]
 
 
 def get_categorical_score(score_name: SupportedCategoricalScores) -> type:
@@ -82,7 +94,10 @@ def set_event_coordinates_on_result(
 
 
 class CategoricalScores(BaseCategoricalScore):
-    """Implementation for CRPS for probabilistic forecasts, expressed as cdf."""
+    """Categorical scores, based on the 2x2 contingency table.
+
+    For reference: https://scores.readthedocs.io/en/stable/included.html#categorical
+    """
 
     kind = "categorical_scores"
     config_class = CategoricalScoresConfig

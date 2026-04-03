@@ -28,6 +28,11 @@ from dpyverification.datasources.fewsnetcdf import (
     FewsNetCDFKind,
 )
 
+__all__ = [
+    "FewsWebservice",
+    "FewsWebserviceConfig",
+]
+
 T = TypeVar("T")
 
 FORECAST_COUNT_WHEN_SEARCHING_FOR_FORECAST_REFERENCE_TIMES = 1000000
@@ -64,7 +69,7 @@ def run_async_in_compatible_environment(coro: Awaitable[T]) -> T:
 
 
 class FewsWebservice(BaseDatasource):
-    """For downloading data using a Delft-FEWS webservice."""
+    """For downloading data using the Delft-FEWS PI Webservice."""
 
     # TODO(AU): Fix and document timezone information in fewswebservice requests # noqa: FIX002
     #   A hardcoded Z is added at the end, that cannot be right? See the issue for details:

@@ -10,12 +10,20 @@ from dpyverification.constants import (
 )
 from dpyverification.datasources.base import BaseDatasource
 
+__all__ = [
+    "NetCDF",
+    "NetCDFConfig",
+]
+
 
 class NetCDF(BaseDatasource):
     """A datasource for reading NetCDF files compatible with the internal datamodel.
 
     You can validate that the NetCDF file satisfies the internal datamodel using the following
-    example::
+    example:
+
+    .. code-block:: python
+
         import xarray as xr
         from dpyverification.datasources import validate_input_data
 

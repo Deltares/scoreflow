@@ -18,6 +18,11 @@ from dpyverification.constants import (
 )
 from dpyverification.datasources.base import BaseDatasource
 
+__all__ = [
+    "FewsNetCDF",
+    "FewsNetCDFConfig",
+]
+
 
 class FewsNetcdfDims(StrEnum):
     """List of dimension names."""
@@ -422,7 +427,7 @@ def parse_forecast_period_netcdf_files(
 
 
 class FewsNetCDF(BaseDatasource):
-    """For reading data from, and writing data to, a FEWS NetCDF file."""
+    """For reading data from a NetCDF file produced by Delft-FEWS."""
 
     kind = "fewsnetcdf"
     config_class = FewsNetCDFConfig

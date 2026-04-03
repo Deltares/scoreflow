@@ -916,19 +916,13 @@
       "description": "Definition of the verification period.",
       "properties": {
         "start": {
-          "description": [
-            "YYYY-MM-DD[T]HH:MM[:SS[.ffffff]][Z or [±]HH[:]MM], ",
-            "see: https://docs.pydantic.dev/2.0/usage/types/datetime/#validation-of-datetime-types"
-          ],
+          "description": "YYYY-MM-DD[T]HH:MM[:SS[.ffffff]][Z or [±]HH[:]MM], see: https://docs.pydantic.dev/2.0/usage/types/datetime/#validation-of-datetime-types",
           "format": "date-time",
           "title": "Start",
           "type": "string"
         },
         "end": {
-          "description": [
-            "YYYY-MM-DD[T]HH:MM[:SS[.ffffff]][Z or [±]HH[:]MM], ",
-            "see: https://docs.pydantic.dev/2.0/usage/types/datetime/#validation-of-datetime-types"
-          ],
+          "description": "YYYY-MM-DD[T]HH:MM[:SS[.ffffff]][Z or [±]HH[:]MM], see: https://docs.pydantic.dev/2.0/usage/types/datetime/#validation-of-datetime-types",
           "format": "date-time",
           "title": "End",
           "type": "string"
