@@ -18,7 +18,7 @@ from .schema import FewsNetcdfOutputSchema
 if TYPE_CHECKING:
     from collections.abc import Hashable
 
-__all__ = []
+__all__: list[str] = []
 
 
 class FewsNetCDFFileSink(BaseDatasink):
