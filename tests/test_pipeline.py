@@ -11,7 +11,7 @@ from dpyverification.configuration.default.scores import (
     ThresholdOperator,
 )
 from dpyverification.configuration.file import Config
-from dpyverification.constants import SupportedCategoricalScores
+from dpyverification.constants import ScoreKind, SupportedCategoricalScores
 from dpyverification.datasinks.cf_compliant_netdf import CFCompliantNetCDF
 from dpyverification.datasources.csv import Csv
 from dpyverification.datasources.fewsnetcdf import FewsNetCDF
@@ -53,7 +53,7 @@ def test_pipeline_xarray_categorical_scores(
     """Full integration tests of the pipeline."""
     categorical_score_config = CategoricalScoresConfig(
         general=xarray_general_info_config,
-        score_adapter="categorical_scores",
+        score_adapter=ScoreKind.categorical_scores,
         scores=[SupportedCategoricalScores.accuracy, SupportedCategoricalScores.false_alarm_rate],
         events=[ThresholdOperator(threshold="warn_1", operator=EventOperator.GREATER_THAN)],
         reduce_dims=[],
