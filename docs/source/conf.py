@@ -1,5 +1,6 @@
 import os
 import sys
+
 from dpyverification.constants import VERSION
 
 sys.path.insert(0, os.path.abspath("../../src"))
@@ -15,6 +16,7 @@ sys.path.insert(0, os.path.abspath("../../src"))
 project = "dpyverification"
 copyright = "2026, Deltares"
 author = "Jurian Beunk"
+
 release = VERSION
 
 # -- General configuration ---------------------------------------------------
@@ -25,8 +27,6 @@ extensions = [
     "sphinx.ext.autosummary",
     "sphinx.ext.napoleon",  # Google/NumPy docstrings
     "sphinx.ext.viewcode",
-    "sphinx.ext.todo",
-    "sphinx.ext.githubpages",
     "sphinx.ext.intersphinx",
     "sphinx_design",
     "myst_parser",  # Markdown support
@@ -82,6 +82,6 @@ autodoc_default_options = {
 
 # nbshpinx
 nb_execution_mode = "off"  # or "auto"
-nbsphinx_execute = "always"  # options: 'auto', 'always', 'never'
+nbsphinx_execute = "auto"  # options: 'auto', 'always', 'never'
 nbsphinx_kernel_name = "python3"  # kernel to use for notebook execution
 nbsphinx_timeout = 600  # seconds per notebook
