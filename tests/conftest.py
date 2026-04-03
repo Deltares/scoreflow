@@ -15,8 +15,8 @@ import pytest
 import xarray as xr
 import yaml
 
-from dpyverification.configuration import GeneralInfoConfig
-from dpyverification.configuration.base import IdMappingConfig
+from dpyverification.configuration import Config
+from dpyverification.configuration.base import GeneralInfoConfig, IdMappingConfig
 from dpyverification.configuration.default.datasinks import CFCompliantNetCDFConfig
 from dpyverification.configuration.default.datasources import (
     ArchiveKind,
@@ -873,7 +873,7 @@ def cli_dummy_pipeline_config_yaml(tmp_path: Path) -> Path:
             start=datetime(2026, 1, 1, tzinfo=timezone.utc),
             end=datetime(2026, 1, 2, tzinfo=timezone.utc),
         ),
-        forecast_periods=ForecastPeriods(unit=TimeUnits.DAY, values=[1, 2]),
+        forecast_periods=ForecastPeriods(unit=TimeUnits.day, values=[1, 2]),
         verification_pairs=[
             VerificationPair(
                 id="pair1",
@@ -883,8 +883,8 @@ def cli_dummy_pipeline_config_yaml(tmp_path: Path) -> Path:
         ],
     )
 
-    datasource_config = ThresholdCsvConfig(
-        import_adapter=DataSourceKind.THRESHOLD_CSV,
+    datasource_config = CsvConfig(
+        import_adapter=DataSourceKind.CSV,
         source="threshold_source",
         data_type=DataType.threshold,
         general=general,
@@ -917,7 +917,7 @@ def cli_dummy_pipeline_config_yaml(tmp_path: Path) -> Path:
         datasinks=[datasink_config],
     )
 
-    data = config_obj.model_dump(mode="json")
+    data = config_obj.model_dump(mode="json", serialize_as_any=True)
     destination = tmp_path / "config.yaml"
     destination.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
     return destination

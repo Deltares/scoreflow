@@ -19,7 +19,7 @@ from dpyverification.datasources.base import BaseDatasource
 from dpyverification.scores import DEFAULT_SCORES
 from dpyverification.scores.base import BaseCategoricalScore, BaseScore
 
-__all__ = ["execute_pipeline"]
+__all__ = ["run_pipeline"]
 
 logger = logging.getLogger(__name__)
 
@@ -83,19 +83,19 @@ def run_pipeline(
 
     .. code-block:: python
 
-        from dpyverification import execute_pipeline
+        from dpyverification import run_pipeline
         from dpyverification.configuration import Config
         from pathlib import Path
 
         path_to_config = Path("./config.yaml)
-        output_dataset = execute_pipeline((path_to_config, "yaml"))
+        output_dataset = run_pipeline((path_to_config, "yaml"))
 
 
     Using Python objects directly:
 
     .. code-block:: python
 
-        from dpyverification import execute_pipeline
+        from dpyverification import run_pipeline
         from dpyverification.configuration import Config, GeneralInfoConfig
 
         config = Config(
@@ -103,7 +103,7 @@ def run_pipeline(
             # ... other sub-models here ...
         )
 
-        output_dataset = execute_pipeline(config)
+        output_dataset = run_pipeline(config)
 
     """
     # Get the available sources, scores and sinks

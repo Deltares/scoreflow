@@ -29,7 +29,7 @@ from functools import reduce
 from pathlib import Path
 from typing import Annotated, TypeVar
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from dpyverification.configuration.default.datasinks import (
     CFCompliantNetCDFConfig,

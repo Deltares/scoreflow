@@ -9,11 +9,11 @@ You can execute a verification pipeline via a Python interface, or via the Comma
 
       .. code-block:: python
 
-         from dpyverification import execute_pipeline
+         from dpyverification import run_pipeline
          from pathlib import Path
 
          path_to_config = ("./config.yaml")
-         output_dataset = execute_pipeline((path_to_config, "yaml"))
+         output_dataset = run_pipeline((path_to_config, "yaml"))
 
    .. tab-item:: Command Line
 

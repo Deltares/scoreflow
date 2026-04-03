@@ -70,4 +70,4 @@ def test_pipeline_xarray_categorical_scores(
         scores=[categorical_score_config],
         datasinks=[datasink_cf_compliant_netcdf.config],
     )
-    _ = execute_pipeline(config)
+    _ = run_pipeline(config)
