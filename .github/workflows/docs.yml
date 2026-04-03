@@ -32,6 +32,11 @@ jobs:
       - name: Install dependencies (dev group)
         run: uv sync --dev
 
+      - name: Install Pandoc
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pandoc
+
       - name: Build Sphinx HTML
         run: uv run make -C docs html
 

@@ -84,7 +84,6 @@ autodoc_pydantic_model_members = True
 
 # nbshpinx
 nb_execution_mode = "off"  # or "auto"
-nbsphinx_execute = "auto"  # options: 'auto', 'always', 'never'
+nbsphinx_execute = "always"  # options: 'auto', 'always', 'never'
 nbsphinx_kernel_name = "python3"  # kernel to use for notebook execution
 nbsphinx_timeout = 600  # seconds per notebook
-nbsphinx_markdown_to_html = "myst"
