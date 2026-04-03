@@ -38,6 +38,8 @@ extensions = [
     "sphinx.ext.autosummary",
     "sphinx.ext.napoleon",  # Google/NumPy docstrings
     "sphinx.ext.viewcode",
+    "sphinx.ext.todo",
+    "sphinx.ext.githubpages",
     "sphinxcontrib.autodoc_pydantic",  # For nicely rendering Pydantic models
     "sphinx.ext.intersphinx",
     "sphinx_design",
