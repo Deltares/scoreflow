@@ -68,20 +68,6 @@ wheels = [
 ]
 
 [[package]]
-name = "autodoc-pydantic"
-version = "2.2.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "pydantic" },
-    { name = "pydantic-settings" },
-    { name = "sphinx", version = "9.0.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "sphinx", version = "9.1.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
-]
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/7b/df/87120e2195f08d760bc5cf8a31cfa2381a6887517aa89453b23f1ae3354f/autodoc_pydantic-2.2.0-py3-none-any.whl", hash = "sha256:8c6a36fbf6ed2700ea9c6d21ea76ad541b621fbdf16b5a80ee04673548af4d95", size = 34001, upload-time = "2024-04-27T10:57:00.542Z" },
-]
-
-[[package]]
 name = "babel"
 version = "2.18.0"
 source = { registry = "https://pypi.org/simple" }
@@ -719,7 +705,6 @@ name = "dpyverification"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "autodoc-pydantic" },
     { name = "importlib-metadata" },
     { name = "netcdf4" },
     { name = "pydantic" },
@@ -756,7 +741,6 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "autodoc-pydantic", specifier = ">=2.2.0" },
     { name = "importlib-metadata", specifier = ">=7,<9" },
     { name = "netcdf4", specifier = "==1.7.4" },
     { name = "pydantic", specifier = "==2.12.5" },

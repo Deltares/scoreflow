@@ -1,3 +1,7 @@
+[![Tests](https://github.com/Deltares-research/DPyVerification/actions/workflows/ci.yml/badge.svg)](https://github.com/Deltares-research/DPyVerification/actions/workflows/ci.yml)
+[![Docs](https://github.com/Deltares-research/DPyVerification/actions/workflows/docs.yml/badge.svg)](https://github.com/Deltares-research/DPyVerification/actions/workflows/docs.yml)
+[![codecov](https://codecov.io/gh/Deltares-research/DPyVerification//branch/main/graph/badge.svg)](https://codecov.io/gh/Deltares-research/DPyVerification)
+
 # DPyVerification
 
 
