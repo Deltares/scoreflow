@@ -7,7 +7,8 @@ Datasources
 
    dpyverification.datasources.fewswebservice
    dpyverification.datasources.fewsnetcdf
-   dpyverification.datasources.thresholds
+   dpyverification.datasources.csv
+   dpyverification.datasources.netcdf
    dpyverification.datasources.base
 
    

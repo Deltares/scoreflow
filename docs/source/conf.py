@@ -1,21 +1,8 @@
 import os
 import sys
+from dpyverification.constants import VERSION
 
 sys.path.insert(0, os.path.abspath("../../src"))
-
-# # This function skips classes / functions not part of  __all__ defined at the module level.
-# #   This enables us to keep the .rst file minimal, while retaining full control over what 
-# #   gets documented from the codebase.
-# def skip(app, what, name, obj, skip, options):
-#     # Only filter top-level module members
-#     if what == "module" and hasattr(obj, "__all__"):
-#         return name not in obj.__all__
-
-#     # For everything else (classes, methods, etc.), use default behavior
-#     return skip
-
-# def setup(app):
-#     app.connect("autodoc-skip-member", skip)
 
 # Configuration file for the Sphinx documentation builder.
 #
@@ -28,7 +15,7 @@ sys.path.insert(0, os.path.abspath("../../src"))
 project = "dpyverification"
 copyright = "2026, Jurian Beunk"
 author = "Jurian Beunk"
-release = "0.1.0"
+release = VERSION
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -40,7 +27,7 @@ extensions = [
     "sphinx.ext.viewcode",
     "sphinx.ext.todo",
     "sphinx.ext.githubpages",
-    "sphinxcontrib.autodoc_pydantic",  # For nicely rendering Pydantic models
+    # "sphinxcontrib.autodoc_pydantic",  # For nicely rendering Pydantic models
     "sphinx.ext.intersphinx",
     "sphinx_design",
     "myst_parser",  # Markdown support
@@ -58,6 +45,7 @@ intersphinx_mapping = {
     "python": ("https://docs.python.org/3", None),
     "pydantic": ("https://docs.pydantic.dev/latest/", None),
     "xarray": ("https://docs.xarray.dev/en/stable/", None),
+    "scores": ("https://scores.readthedocs.io/en/stable/", None),
 }
 
 # -- Options for HTML output -------------------------------------------------
@@ -73,10 +61,10 @@ html_theme_options = {
     "navbar_start": ["navbar-logo"],
     "navbar_center": ["navbar-nav"],
     "navbar_end": ["version-switcher", "theme-switcher", "navbar-icon-links"],
-    "switcher": {
-        "json_url": "_static/versions.json",  # see below
-        "version_match": "current",
-    },
+    # "switcher": {
+    #     "json_url": "_static/versions.json",  # see below
+    #     "version_match": "current",
+    # },
     "navigation_depth": 3,
 }
 
@@ -94,12 +82,12 @@ autodoc_default_options = {
 }
 
 
-# Autodoc Pytantic
-# autodoc_default_options = {"inherited-members": "BaseModel"}
-autodoc_pydantic_model_show_json = True
-autodoc_pydantic_model_show_config_summary = True
-autodoc_pydantic_model_hide_reused_validator = False
-autodoc_pydantic_model_members = True
+# # Autodoc Pytantic
+# # autodoc_default_options = {"inherited-members": "BaseModel"}
+# autodoc_pydantic_model_show_json = True
+# autodoc_pydantic_model_show_config_summary = True
+# autodoc_pydantic_model_hide_reused_validator = False
+# autodoc_pydantic_model_members = True
 
 # nbshpinx
 nb_execution_mode = "off"  # or "auto"
