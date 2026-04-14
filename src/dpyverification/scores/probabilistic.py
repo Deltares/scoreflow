@@ -100,6 +100,8 @@ class RankHistogram(BaseScore):
 
     def compute(self, obs: xr.DataArray, sim: xr.DataArray) -> xr.DataArray | xr.Dataset:
         """Compute the histogram of ranks over the specified dimensions."""
+        # This current implementation requires aligned dimensions
+        obs, sim = xr.align(obs, sim)
         result: xr.DataArray | xr.Dataset = rank_histogram(
             observations=obs,
             forecasts=sim,
