@@ -20,6 +20,7 @@ class Theme(BaseModel):
 
 
 THEME = Theme()
+MISSING_VALUE_MARKER = -999
 
 STYLES = {
     "page": {
@@ -250,14 +251,31 @@ def create_app(output_dataset: OutputDataset) -> Dash:
         obs_flat = np.repeat(obs_values, sim_selected.sizes["realization"])
         sim_flat = sim_selected.values.flatten()
 
-        # Remove values that use -999 as missing-data marker.
-        valid_mask = sim_flat != -999
+        # Remove missing markers and non-finite values before computing axis limits.
+        valid_mask = (
+            (sim_flat != MISSING_VALUE_MARKER) & np.isfinite(obs_flat) & np.isfinite(sim_flat)
+        )
         obs_flat = obs_flat[valid_mask]
         sim_flat = sim_flat[valid_mask]
 
-        axis_min = min(obs_flat.min(), sim_flat.min())
-        axis_max = max(obs_flat.max(), sim_flat.max())
-        padding = (axis_max - axis_min) * 0.05
+        if obs_flat.size and sim_flat.size:
+            axis_values = np.concatenate([obs_flat, sim_flat])
+        else:
+            fallback_values = np.concatenate([np.ravel(obs_values), np.ravel(sim_mean)])
+            axis_values = fallback_values[np.isfinite(fallback_values)]
+
+        if axis_values.size:
+            axis_min = float(np.min(axis_values))
+            axis_max = float(np.max(axis_values))
+        else:
+            axis_min, axis_max = 0.0, 1.0
+
+        span = axis_max - axis_min
+        if span == 0:
+            base = max(abs(axis_min), 1.0)
+            padding = base * 0.05
+        else:
+            padding = span * 0.05
 
         fig = go.Figure()
         fig.add_trace(
