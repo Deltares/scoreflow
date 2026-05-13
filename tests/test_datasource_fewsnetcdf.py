@@ -91,3 +91,31 @@ def test_get_data_retrieval_methods_return_equal_data_arrays(
     b = ds_b.get_data().dataset
 
     xr.testing.assert_equal(a, b)
+
+
+def test_preprocessor_raises_clear_error_for_missing_forecast_periods(
+    fews_netcdf_simulated_forecast_single_fp: FewsNetCDF,
+) -> None:
+    """Filtering on a forecast period not present in the data must raise a clear ValueError.
+
+    Previously this would fall through to xarray's selector, which raised a confusing
+    file-permission error when the context manager closed.  Regression test for issue #166.
+    """
+    import numpy as np
+
+    from veriflow.configuration.default.datasources import FewsNetCDFKind
+    from veriflow.datasources.fewsnetcdf import Preprocessor
+
+    # Get a dataset that has the forecast_period dimension
+    ds = fews_netcdf_simulated_forecast_single_fp.get_data().dataset
+
+    # Pick a period that definitely isn't in the data
+    missing_period = np.timedelta64(999, "D")
+
+    preprocessor = Preprocessor(
+        fews_netcdf_kind=FewsNetCDFKind.simulated_forecast_per_forecast_reference_time,
+        filter_forecast_periods=[missing_period],
+    )
+
+    with pytest.raises(ValueError, match="not found in the dataset"):
+        preprocessor(ds)

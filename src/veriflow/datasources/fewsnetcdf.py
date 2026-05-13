@@ -198,6 +198,17 @@ class Preprocessor:
             and self.fews_netcdf_kind
             == FewsNetCDFKind.simulated_forecast_per_forecast_reference_time
         ):
+            # Check that the requested forecast periods are actually present in the data
+            # before selecting; provide a clear error instead of a confusing downstream
+            # file-permission error when the context manager closes.
+            available = set(dataset[StandardDim.forecast_period].values.tolist())
+            missing = [fp for fp in self.forecast_periods if fp not in available]
+            if missing:
+                raise ValueError(
+                    f"The following forecast period(s) were not found in the dataset: "
+                    f"{missing}. "
+                    f"Available forecast periods are: {sorted(available)}."
+                )
             # Filter the relevant forecast_periods to maximize memory efficiency
             selector = {StandardDim.forecast_period: self.forecast_periods}
             dataset = dataset.sel(selector)
