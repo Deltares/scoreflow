@@ -11,5 +11,3 @@ Datasources
    veriflow.datasources.netcdf
    veriflow.datasources.zarr
    veriflow.datasources.base
-
-   

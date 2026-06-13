@@ -19,6 +19,19 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from veriflow.constants import TimeUnits
 
+__all__ = [
+    # "FewsWebserviceAuthConfig",
+    "LeadTimes",
+    "LocalFile",
+    "LocalFiles",
+    "Range",
+    # "S3AuthConfig",
+    "Source",
+    "TimePeriod",
+    "Variable",
+    "VerificationPair",
+    "VerificationPeriod",
+]
 Source = Annotated[
     str,
     StringConstraints(pattern=r"^[A-Za-z][A-Za-z0-9_]*$", min_length=1),
@@ -211,13 +224,28 @@ class FewsWebserviceAuthConfig(BaseSettings):
     This config class inherits from :class:`pydantic_settings.BaseSettings`,
     that will try to infer field values from environment variables.
 
-    Make sure to prefix each environment variable with FEWSWEBSERVICE_.
+    Environment variables:
 
-    For url: set the environment variable as: FEWSWEBSERVICE_URL.
-    For username: set the environment variable as: FEWSWEBSERVICE_USERNAME.
-    For password: set the environment variable as: FEWSWEBSERVICE_PASSWORD.
+    - ``FEWSWEBSERVICE_URL``: URL of the FEWS webservice (required).
+    - ``FEWSWEBSERVICE_USERNAME``: Username for the FEWS webservice (set to "" if not required).
+    - ``FEWSWEBSERVICE_PASSWORD``: Password for the FEWS webservice (set to "" if not required).
 
     see: https://docs.pydantic.dev/latest/concepts/pydantic_settings/#usage
+
+    Notes
+    -----
+    For local development, an easy and recommended way to set environment variables is to
+    use a ``.env`` file in the project root with the required environment variables, and they
+    will be automatically loaded when you instantiate this config class. For example:
+
+    .. code-block:: python
+
+        from dotenv import load_dotenv
+        load_dotenv()  # Load environment variables from .env file
+
+        # You can check that the variables are loaded correctly
+        import os
+        print(os.getenv("FEWSWEBSERVICE_URL"))
     """
 
     model_config = SettingsConfigDict(env_prefix="FEWSWEBSERVICE_")

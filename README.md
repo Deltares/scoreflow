@@ -8,15 +8,19 @@
 
 # Veriflow
 
-A verification pipeline for evaluating models and forecasts.
+A reproducible verification pipeline for evaluating model outputs and forecasts.
 - 📥 Fetching data
 - 🧮 Computing scores
 - 📝 Writing results
 
+<br>
+<img src="_static/pipeline.svg" alt="Schematic overview of veriflow pipeline" width="80%">
+
 ## Key features
 - ✅ Full control over the verification pipeline via configuration
 - ✅ Native integration with [Delft-FEWS](https://oss.deltares.nl/web/delft-fews) 
-- ✅ Builds on [Scores](https://scores.readthedocs.io/en/stable/) for computation of scores. This package has extensive functionality, and it's documentation is world-class.
+- ✅ Native integration with local and remote (S3) [Zarr](https://zarr.dev/) 
+- ✅ Builds on [scores](https://scores.readthedocs.io/en/stable/) for computation of scores. This package has extensive functionality, and it's documentation is world-class.
 - ✅ Extensible with your own (private) datasources, scores and datasinks
 - ✅ Optimized internal datamodel for efficient computation
 
@@ -36,7 +40,36 @@ uv pip install veriflow
 
 See [CONTRIBUTING.md](https://github.com/Deltares/veriflow/blob/main/CONTRIBUTING.md) for development setup.
 
+## Running a verification pipeline with _veriflow_
+The below example shows you the minimal code to run a verification pipeline.
 
+```python
+from veriflow import run_pipeline
+from pathlib import Path
+
+# Create your config and point to the file
+path_to_config = Path("./config.yml")
+
+# Run your verification pipeline in just one line of code
+run_pipeline((path_to_config, "yaml"))
+```
+
+If it's your wish to further analyze the input data and verification results in an interactive Python session, assign the returned `OutputDataset` from `run_pipeline` to a Python variable. For each each configured `verification_pair`*, the `output_dataset` contains an `xarray.Dataset` with the results. By default, the input data will be included in the output.
+
+*_a verification pair is definition of two datasources (e.g. observed and simulated) for one pysical variable (e.g. discharge or temperature)_
+```python
+# Alternatively, assign the returned `output_dataset` to a Python variable.
+output_dataset = run_pipeline((path_to_config, "yaml"))
+
+# List the verification_pairs in the output_dataset
+verification_pairs = output_dataset.verification_pairs
+
+# Retrieve the verification results for a verification_pair from the output_dataset
+first_verification_pair = verification_pairs[0]
+dataset = output_dataset.get(first_verification_pair) # An instance of xarray.Dataset
+```
+
+For more advanced documentation, please refer to our [user guide](https://deltares.github.io/veriflow/user_guide.html).
 
 ## 👥 Who Is This For?
 

@@ -18,6 +18,7 @@ from veriflow.api.fewswebservice import DocumentFormat, FewsWebserviceClient, Ti
 from veriflow.configuration.default.datasources import (
     ArchiveKind,
     FewsNetCDFConfig,
+    FewsWebserviceAuthConfig,
     FewsWebserviceConfig,
     ForecastRetrievalMethod,
 )
@@ -28,9 +29,10 @@ from veriflow.datasources.fewsnetcdf import (
     FewsNetCDFKind,
 )
 
-__all__ = [
+__all__ = [  # noqa: RUF022
     "FewsWebservice",
     "FewsWebserviceConfig",
+    "FewsWebserviceAuthConfig",
 ]
 
 T = TypeVar("T")
@@ -110,7 +112,11 @@ class FewsWebservice(BaseDatasource):
         write_dir: Path,
         unique_prefix: str | None = None,
     ) -> Path:
-        """Unzip a file and write the NetCDF file(s) to a directory.
+        """Write the NetCDF file(s) from a webservice response to a directory.
+
+        The Delft-FEWS Webservice may return either a zip archive containing one or more
+        NetCDF files (one per requested parameter), or a single, unzipped NetCDF (``.nc``)
+        file. Both cases are handled here.
 
         Optional parameter unique_prefix is used only when using the leadTime
         parameter in the request. In this case, the Delft-FEWS webservice response
@@ -118,34 +124,55 @@ class FewsWebservice(BaseDatasource):
         we need to store it in the filename, so that we can internally assign it later
         as a proper coordinate on the internal xr.DataArray.
         """
-        zip_bytes = io.BytesIO(response.content)
-
         if not write_dir.is_dir():
             msg = "Provided path is not a directory."
             raise ValueError(msg)
 
-        # Open the zipfile in memory
-        with zipfile.ZipFile(zip_bytes) as zf:
-            n_files = len(zf.namelist())
-            if n_files == 0:
-                msg = f"No NetCDF file present in webservice response. Request URL: {response.url}"
-                raise ValueError(msg)
+        response_bytes = io.BytesIO(response.content)
 
-            # NetCDF responses from the Delft-FEWS Webservice come zipped. The zipped file
-            #   contains one unique NetCDF file for each requested parameter. For example,
-            #   when requesting 'waterlevel' and 'discharge', we get one zip file with two
-            #   NetCDF files.
-            for netcdf_file_name in (name for name in zf.namelist() if name.endswith(".nc")):
-                # Extract that file in memory
-                with zf.open(netcdf_file_name) as netcdf_file:
-                    netcdf_data = netcdf_file.read()  # bytes of the .nc file
+        # The response may be a zip archive containing one or more NetCDF files, or a single,
+        #   unzipped NetCDF file. Branch on the actual content rather than trusting the request.
+        if zipfile.is_zipfile(response_bytes):
+            # Open the zipfile in memory
+            with zipfile.ZipFile(response_bytes) as zf:
+                netcdf_file_names = [name for name in zf.namelist() if name.endswith(".nc")]
+                if not netcdf_file_names:
+                    msg = (
+                        f"No NetCDF file present in webservice response. "
+                        f"Request URL: {response.url}"
+                    )
+                    raise ValueError(msg)
 
-                # Write the NetCDF file(s) to the write dir
-                if unique_prefix is not None:
-                    netcdf_path = write_dir / f"{unique_prefix}_{netcdf_file_name}"
-                else:
-                    netcdf_path = write_dir / netcdf_file_name
-                netcdf_path.write_bytes(netcdf_data)
+                # NetCDF responses from the Delft-FEWS Webservice come zipped. The zipped file
+                #   contains one unique NetCDF file for each requested parameter. For example,
+                #   when requesting 'waterlevel' and 'discharge', we get one zip file with two
+                #   NetCDF files.
+                for netcdf_file_name in netcdf_file_names:
+                    # Extract that file in memory
+                    with zf.open(netcdf_file_name) as netcdf_file:
+                        netcdf_data = netcdf_file.read()  # bytes of the .nc file
+
+                    # Write the NetCDF file(s) to the write dir
+                    if unique_prefix is not None:
+                        netcdf_path = write_dir / f"{unique_prefix}_{netcdf_file_name}"
+                    else:
+                        netcdf_path = write_dir / netcdf_file_name
+                    netcdf_path.write_bytes(netcdf_data)
+            return write_dir
+
+        # The response is a single, unzipped NetCDF file. Validate the magic bytes so we
+        #   don't silently write some other (e.g. error) payload as a NetCDF file.
+        netcdf_data = response.content
+        # Classic NetCDF starts with "CDF"; NetCDF-4/HDF5 starts with "\x89HDF".
+        if not netcdf_data.startswith((b"CDF", b"\x89HDF")):  # type:ignore[misc]
+            msg = f"No NetCDF file present in webservice response. Request URL: {response.url}"
+            raise ValueError(msg)
+
+        if unique_prefix is not None:
+            netcdf_path = write_dir / f"{unique_prefix}.nc"
+        else:
+            netcdf_path = write_dir / "response.nc"
+        netcdf_path.write_bytes(netcdf_data)
         return write_dir
 
     def fetch_data(self) -> Self:  # noqa: C901, PLR0915

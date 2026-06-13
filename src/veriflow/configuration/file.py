@@ -9,6 +9,8 @@ from .config import (
     Config,
 )
 
+__all__ = ["ConfigFile", "ConfigKind"]
+
 
 @unique
 class ConfigKind(StrEnum):

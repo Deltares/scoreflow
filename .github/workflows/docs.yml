@@ -30,6 +30,9 @@ jobs:
       - name: Install dependencies (dev group)
         run: uv sync --dev
 
+      - name: Install dash (for rendering notebooks)
+        run: uv pip install dash
+
       - name: Install Pandoc
         run: |
           sudo apt-get update
