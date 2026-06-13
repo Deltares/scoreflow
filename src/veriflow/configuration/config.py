@@ -64,6 +64,11 @@ TItem = TypeVar(
     bound=BaseDatasourceConfig | BaseDatasinkConfig | BaseScoreConfig,
 )
 
+__all__ = [
+    # "SCHEMA_PUBLIC_URL",
+    "Config",
+    "SupportedSchemaVersion",
+]
 #: Public URL where the schema is published via GitHub Pages. Consumers can
 #: reference this URL from YAML configs for IDE validation, e.g. via the
 #: ``# yaml-language-server: $schema=...`` modeline.

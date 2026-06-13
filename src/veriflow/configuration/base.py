@@ -1,19 +1,4 @@
-"""The definition of the base configuration settings.
-
-This definition is used both as the schema for the configuration yaml file, and as the content of
-the veriflow configuration object.
-
-To generate a yaml / json file with the json representation of this schema:
-    import pathlib
-    import yaml
-    from veriflow.configuration import Config
-    FILEPATH = pathlib.Path("YOUR_PATH_HERE")
-    with FILEPATH.open("w") as myfile:
-        yaml.dump(Config.model_json_schema(), myfile)
-"""
-
-
-# ruff: noqa: D102 Do not require class docstrings for the classes in this file
+"""The base configuration definitions for the veriflow pipeline."""
 
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, Annotated, Self
@@ -28,6 +13,16 @@ from .utils import LeadTimes, Source, TimePeriod, VerificationPair, Verification
 
 if TYPE_CHECKING:
     from collections.abc import Generator
+
+__all__ = [
+    # "BaseConfig",
+    # "BaseDatasourceConfig",
+    # "BaseDatasinkConfig",
+    # "BaseScoreConfig",
+    # "BaseCategoricalScoreConfig",
+    "GeneralInfoConfig",
+    "IdMappingConfig",
+]
 
 
 class GeneralInfoConfig(BaseModel):

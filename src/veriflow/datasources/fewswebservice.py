@@ -18,6 +18,7 @@ from veriflow.api.fewswebservice import DocumentFormat, FewsWebserviceClient, Ti
 from veriflow.configuration.default.datasources import (
     ArchiveKind,
     FewsNetCDFConfig,
+    FewsWebserviceAuthConfig,
     FewsWebserviceConfig,
     ForecastRetrievalMethod,
 )
@@ -28,9 +29,10 @@ from veriflow.datasources.fewsnetcdf import (
     FewsNetCDFKind,
 )
 
-__all__ = [
+__all__ = [  # noqa: RUF022
     "FewsWebservice",
     "FewsWebserviceConfig",
+    "FewsWebserviceAuthConfig",
 ]
 
 T = TypeVar("T")
@@ -162,7 +164,7 @@ class FewsWebservice(BaseDatasource):
         #   don't silently write some other (e.g. error) payload as a NetCDF file.
         netcdf_data = response.content
         # Classic NetCDF starts with "CDF"; NetCDF-4/HDF5 starts with "\x89HDF".
-        if not netcdf_data.startswith((b"CDF", b"\x89HDF")):
+        if not netcdf_data.startswith((b"CDF", b"\x89HDF")):  # type:ignore[misc]
             msg = f"No NetCDF file present in webservice response. Request URL: {response.url}"
             raise ValueError(msg)
 

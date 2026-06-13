@@ -1,0 +1,111 @@
+# yaml-language-server: $schema=https://deltares.github.io/veriflow/v0/config.schema.json
+version: v0
+general:
+  verification_period:
+    dimension: time
+    start: "2026-05-15T00:00:00Z"
+    end: "2026-06-08T00:00:00Z"
+  verification_pairs:
+    - id: PC_RDPA
+      obs: observed
+      sim: simulated_RDPA
+      variable: PC
+    - id: PC_HRDPA
+      obs: observed
+      sim: simulated_HRDPA
+      variable: PC
+
+datasources:
+  - import_adapter: fewswebservice
+    source: observed
+    data_type: observed_historical
+    location_ids:
+      - "3031092"
+      - "3050778"
+      - "MSC-005"
+      - "05BL813"
+      - "05BJ804"
+      - "05BL809"
+      - "FIRES-B4"
+      - "05BJ805"
+      - "05BL812"
+      - "FIRES-B5"
+      - "05BJ806"
+      - "05BH803"
+      - "05BF825"
+      - "05BH802"
+      - "05BL810"
+      - "05BF827"
+    parameter_ids:
+      - PC.obs
+    module_instance_id: ImportMeteoStations
+    webservice_version: "2025.02"
+
+  - import_adapter: fewswebservice
+    source: simulated_RDPA
+    data_type: observed_historical
+    location_ids:
+      - "3031092"
+      - "3050778"
+      - "MSC-005"
+      - "05BL813"
+      - "05BJ804"
+      - "05BL809"
+      - "FIRES-B4"
+      - "05BJ805"
+      - "05BL812"
+      - "FIRES-B5"
+      - "05BJ806"
+      - "05BH803"
+      - "05BF825"
+      - "05BH802"
+      - "05BL810"
+      - "05BF827"
+    parameter_ids:
+      - PC.sim
+    module_instance_id: PreprocessRDPA
+    webservice_version: "2025.02"
+  - import_adapter: fewswebservice
+    source: simulated_HRDPA
+    data_type: observed_historical
+    location_ids:
+      - "3031092"
+      - "3050778"
+      - "MSC-005"
+      - "05BL813"
+      - "05BJ804"
+      - "05BL809"
+      - "FIRES-B4"
+      - "05BJ805"
+      - "05BL812"
+      - "FIRES-B5"
+      - "05BJ806"
+      - "05BH803"
+      - "05BF825"
+      - "05BH802"
+      - "05BL810"
+      - "05BF827"
+    parameter_ids:
+      - PC.sim
+    module_instance_id: PreprocessHRDPA
+    webservice_version: "2025.02"
+
+scores:
+  - score_adapter: continuous_scores
+    scores: [mean_error, mae, rmse]
+    reduce_dims: []
+
+# datasinks:
+#   - export_adapter: cf_compliant_netcdf
+#     directory: .
+#     filename: reanalysis_precip_Elbow.nc
+#     institution: OpenFEWS
+#     title: reanalysis precipitation verification
+#     force_overwrite: true
+
+id_mapping:
+  variable:
+    PC:
+      observed: PC_obs
+      simulated_RDPA: PC_sim
+      simulated_HRDPA: PC_sim

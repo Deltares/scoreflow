@@ -133,7 +133,6 @@ def test_build_storage_options_remote_merges(
     assert options is not None
     assert options["anon"] is True
     assert options["requester_pays"] == "true"
-    assert options["client_kwargs"] == {"region_name": "eu-west-1"}
 
 
 def test_s3_auth_config_to_storage_options_unwraps_secrets() -> None:

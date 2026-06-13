@@ -125,7 +125,7 @@ dev = [
 
 [project.optional-dependencies]
 tutorial = [
-    "dash",
+    "plotly",
     "matplotlib", 
     "ipykernel"
 ]

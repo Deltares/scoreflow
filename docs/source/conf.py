@@ -49,7 +49,9 @@ myst_enable_extensions = ["colon_fence"]
 
 templates_path = ["_templates"]
 
-exclude_patterns = []
+# ``examples/index.ipynb`` is a stray overview notebook that is superseded by the
+# case-based Gallery pages; exclude it so it is not built as an orphan document.
+exclude_patterns = ["examples/index.ipynb"]
 
 # Links to external documentation pages
 intersphinx_mapping = {
@@ -102,3 +104,45 @@ nb_execution_mode = "auto"  # or "auto"
 nbsphinx_execute = "auto"  # options: 'auto', 'always', 'never'
 nbsphinx_kernel_name = "python3"  # kernel to use for notebook execution
 nbsphinx_timeout = 600  # seconds per notebook
+
+# Repository coordinates used to build "view source" / Binder links for notebooks.
+GITHUB_REPO = "Deltares/veriflow"
+GITHUB_BRANCH = "main"
+
+# Prepended to every rendered notebook. Adds a banner with a "view on GitHub"
+# link, an "Open in Binder" badge, and a direct download link for the notebook.
+# ``env.doc2path`` yields the source path relative to ``docs/source`` (e.g.
+# ``examples/The Rhine Case/1a_basics.ipynb``), which matches the layout of the
+# notebooks inside the repository, so the same path works for GitHub and Binder.
+nbsphinx_prolog = (
+    r"""
+{% set docpath = env.doc2path(env.docname, base=None) %}
+{% set notebook = env.docname.split('/')|last + '.ipynb' %}
+{% set displaypath = docpath|replace('\\', '/') %}
+{% set urlpath = docpath|replace('\\', '/')|replace(' ', '%20')|replace('(', '%28')|replace(')', '%29') %}
+
+.. raw:: html
+
+    <div class="admonition note nbsphinx-prolog">
+      <p class="admonition-title">Notebook</p>
+      <p>
+        This page was generated from
+        <a class="reference external" href="https://github.com/"""
+    + GITHUB_REPO
+    + r"""/blob/"""
+    + GITHUB_BRANCH
+    + r"""/{{ urlpath }}">{{ displaypath }}</a>.
+        Run it live:
+        <a class="reference external" href="https://mybinder.org/v2/gh/"""
+    + GITHUB_REPO
+    + r"""/"""
+    + GITHUB_BRANCH
+    + r"""?labpath={{ urlpath }}"><img alt="Open in Binder" src="https://mybinder.org/badge_logo.svg" style="vertical-align:text-bottom"></a>
+      </p>
+    </div>
+
+.. nbinfo::
+
+    Download this notebook: :download:`{{ notebook }} <{{ notebook }}>`
+"""
+)

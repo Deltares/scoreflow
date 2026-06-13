@@ -9,5 +9,3 @@ Scores
    veriflow.scores.probabilistic
    veriflow.scores.categorical
    veriflow.scores.base
-   
-   
