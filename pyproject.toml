@@ -1,6 +1,6 @@
 [project]
 name = "veriflow"
-version = "0.1.0"
+version = "0.2.0"
 description = "A verification pipeline for evaluating models and forecasts."
 authors = [
     {name = "Jurian Beunk", email = "jurian.beunk@deltares.nl"},
