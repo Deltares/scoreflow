@@ -16,6 +16,9 @@ Typical usage::
     # CRPS: keep the lead_time axis, pre-select the station(s) of interest.
     crps_sliced = ds.sel(station=["station-a", "station-b"])
     fig = crps_plot(crps_sliced, score_var=find_crps_variable(crps_sliced))
+
+    # Reanalysis / historical simulations: plot each verification pair over time.
+    fig = reanalysis_timeseries_plot(output_dataset, station="some-station", error_var="mean_error")
 """
 
 from typing import Protocol
@@ -109,8 +112,8 @@ def _squeeze_to_single_station(ds: xr.Dataset) -> xr.Dataset:
         return ds
     if ds.sizes["station"] != 1:
         msg = (
-            "forecast_timeseries_plot expects a single station; pre-select one with "
-            "ds.sel(station=...) before calling."
+            "forecast_timeseries_plot expects a single station; pass station=... or "
+            "pre-select one with ds.sel(station=...) before calling."
         )
         raise ValueError(msg)
     return ds.isel(station=0)
@@ -135,6 +138,26 @@ def _observed_series(obs: xr.DataArray, time_coord: xr.DataArray) -> tuple[np.nd
     return unique_times, values[first_idx]
 
 
+def _as_clean_float_array(data: xr.DataArray) -> np.ndarray:
+    """Return ``data`` values as floats with the configured missing marker replaced by NaN."""
+    values = np.asarray(data.values, dtype=float)
+    values[values == MISSING_VALUE_MARKER] = np.nan
+    return values
+
+
+def _iter_station_slices(
+    ds: xr.Dataset,
+) -> list[tuple[object | None, xr.Dataset]]:
+    """Return datasets split by station, or the original dataset when stationless."""
+    if "station" not in ds.dims:
+        return [(None, ds)]
+
+    return [
+        (station_value, ds.sel(station=station_value))
+        for station_value in np.atleast_1d(ds.coords["station"].values)
+    ]
+
+
 def find_crps_variable(ds: xr.Dataset, *, exclude_vars: tuple[str, ...] = ()) -> str:
     """Return the name of a CRPS-like score variable in ``ds``.
 
@@ -153,6 +176,40 @@ def find_crps_variable(ds: xr.Dataset, *, exclude_vars: tuple[str, ...] = ()) ->
         raise ValueError(msg)
     crps_candidates = [name for name in score_candidates if "crps" in name.lower()]
     return (crps_candidates or score_candidates)[0]
+
+
+def _score_variables_to_plot(
+    ds: xr.Dataset,
+    *,
+    score_var: str | None,
+    score_vars: str | list[str] | tuple[str, ...] | None,
+    exclude_vars: tuple[str, ...],
+) -> list[str]:
+    """Return score variables requested for a lead-time score plot."""
+    if score_var is not None and score_vars is not None:
+        msg = "Pass either score_var or score_vars, not both."
+        raise ValueError(msg)
+
+    if score_vars is None:
+        variables = [score_var or find_crps_variable(ds, exclude_vars=exclude_vars)]
+    elif isinstance(score_vars, str):
+        variables = [score_vars]
+    else:
+        variables = list(score_vars)
+
+    if not variables:
+        msg = "At least one score variable must be provided."
+        raise ValueError(msg)
+
+    missing = [variable for variable in variables if variable not in ds.data_vars]
+    if missing:
+        msg = (
+            f"Score variable(s) {missing} not found in the dataset. "
+            f"Available variables: {sorted(ds.data_vars)}."
+        )
+        raise ValueError(msg)
+
+    return variables
 
 
 def _subplot_axis_suffix(index: int) -> str:
@@ -375,14 +432,17 @@ def crps_plot(
     output_dataset: OutputDatasetLike,
     *,
     score_var: str | None = None,
+    score_vars: str | list[str] | tuple[str, ...] | None = None,
     template: go.layout.Template = PLOT_TEMPLATE,
 ) -> go.Figure:
-    """Build a CRPS-vs-lead-time figure with one line per verification pair.
+    """Build a score-vs-lead-time figure with one line per verification pair.
 
     One line is drawn per verification pair in ``output_dataset`` in a single shared figure.
     For each pair the dataset is obtained with ``output_dataset.get(pair)`` and the score
     variable is located automatically (excluding the ``pair.obs``/``pair.sim`` input
     variables); pass ``score_var`` to use a specific variable name for every pair instead.
+    Pass ``score_vars`` to plot multiple score variables, for example
+    ``score_vars=["crps", "mae"]``.
 
     Each pair's dataset must retain its ``lead_time`` dimension. If a ``station`` dimension is
     present, one line is drawn per station (labelled ``"<pair id> - <station>"``); otherwise a
@@ -396,53 +456,77 @@ def crps_plot(
 
     fig = go.Figure()
     all_hours: list[np.ndarray] = []
+    plotted_variables: list[str] = []
 
     for pair in pairs:
         ds = output_dataset.get(pair)
-        variable = score_var or find_crps_variable(
+        variables = _score_variables_to_plot(
             ds,
+            score_var=score_var,
+            score_vars=score_vars,
             exclude_vars=(str(pair.obs), str(pair.sim)),
         )
-        score_data = ds[variable]
+        plotted_variables.extend(variables)
 
-        dims_to_reduce = [
-            dim_name for dim_name in score_data.dims if dim_name not in {"lead_time", "station"}
-        ]
-        if dims_to_reduce:
-            score_data = score_data.mean(dim=dims_to_reduce, skipna=True)
+        for variable in variables:
+            score_data = ds[variable]
+            if "lead_time" not in score_data.dims:
+                msg = f"Score variable '{variable}' must have a 'lead_time' dimension."
+                raise ValueError(msg)
 
-        hours = lead_time_hours(ds)
-        all_hours.append(hours)
-        single_pair = len(pairs) == 1
+            dims_to_reduce = [
+                dim_name for dim_name in score_data.dims if dim_name not in {"lead_time", "station"}
+            ]
+            if dims_to_reduce:
+                score_data = score_data.mean(dim=dims_to_reduce, skipna=True)
 
-        if "station" in score_data.dims:
-            for station in score_data.coords["station"].values:
-                station_values = np.ravel(score_data.sel(station=station).values)
-                valid = np.isfinite(station_values)
-                name = str(station) if single_pair else f"{pair.id} - {station}"
+            hours = lead_time_hours(ds)
+            all_hours.append(hours)
+            single_pair = len(pairs) == 1
+            single_variable = len(variables) == 1 and (
+                score_vars is None or isinstance(score_vars, str)
+            )
+
+            if "station" in score_data.dims:
+                for station in score_data.coords["station"].values:
+                    station_values = np.ravel(score_data.sel(station=station).values)
+                    valid = np.isfinite(station_values)
+                    if single_pair and single_variable:
+                        name = str(station)
+                    elif single_pair:
+                        name = f"{variable} - {station}"
+                    elif single_variable:
+                        name = f"{pair.id} - {station}"
+                    else:
+                        name = f"{variable} - {pair.id} - {station}"
+                    fig.add_trace(
+                        go.Scatter(
+                            x=hours[valid],
+                            y=station_values[valid],
+                            mode="lines+markers",
+                            name=name,
+                            legendgroup=variable,
+                        ),
+                    )
+            else:
+                score_values = np.ravel(score_data.values)
+                valid = np.isfinite(score_values)
+                name = str(pair.id) if single_variable else f"{variable} - {pair.id}"
                 fig.add_trace(
                     go.Scatter(
                         x=hours[valid],
-                        y=station_values[valid],
+                        y=score_values[valid],
                         mode="lines+markers",
                         name=name,
+                        legendgroup=variable,
                     ),
                 )
-        else:
-            score_values = np.ravel(score_data.values)
-            valid = np.isfinite(score_values)
-            fig.add_trace(
-                go.Scatter(
-                    x=hours[valid],
-                    y=score_values[valid],
-                    mode="lines+markers",
-                    name=str(pair.id),
-                ),
-            )
 
     # Build a tick set covering the union of lead times across all pairs.
     tick_hours = np.unique(np.concatenate(all_hours)) if all_hours else np.array([])
     tick_labels = [f"{int(h)} h" for h in tick_hours]
+    unique_variables = list(dict.fromkeys(plotted_variables))
+    yaxis_title = unique_variables[0].upper() if len(unique_variables) == 1 else "Score"
 
     fig.update_layout(
         xaxis={
@@ -451,7 +535,7 @@ def crps_plot(
             "tickvals": tick_hours,
             "ticktext": tick_labels,
         },
-        yaxis_title="CRPS",
+        yaxis_title=yaxis_title,
         template=template,
         hovermode="x unified",
     )
@@ -533,6 +617,208 @@ def rank_histogram_plot(
     fig.update_layout(
         template=template,
         height=380 * n_rows,
+    )
+    return fig
+
+
+def _add_reanalysis_traces(
+    fig: go.Figure,
+    ds: xr.Dataset,
+    obs_var: str,
+    sim_var: str,
+    *,
+    row: int,
+    legend_state: dict[str, bool],
+    error_var: str | None,
+) -> str:
+    """Add observed and simulated historical time-series traces for one pair to ``fig``."""
+    if "time" not in ds.coords:
+        msg = "reanalysis_timeseries_plot expects datasets with a 'time' coordinate."
+        raise ValueError(msg)
+    if error_var is not None and error_var not in ds.data_vars:
+        msg = (
+            f"Error variable '{error_var}' not found in the dataset. "
+            f"Available variables: {sorted(ds.data_vars)}."
+        )
+        raise ValueError(msg)
+
+    obs = ds[obs_var]
+    time_values = np.ravel(ds.coords["time"].values)
+    station_slices = _iter_station_slices(ds)
+    multi_station = len(station_slices) > 1
+
+    for station_value, station_ds in station_slices:
+        station_label = "" if station_value is None else str(station_value)
+        hover_station = (
+            "station: %{customdata}<br>"
+            if station_value is not None
+            else ""
+        )
+        customdata = np.full(time_values.shape, station_label, dtype=object)
+        obs_values = np.ravel(_as_clean_float_array(station_ds[obs_var]))
+        sim_values = np.ravel(_as_clean_float_array(station_ds[sim_var]))
+
+        obs_valid = np.isfinite(obs_values)
+        fig.add_trace(
+            go.Scatter(
+                x=time_values[obs_valid],
+                y=obs_values[obs_valid],
+                customdata=customdata[obs_valid],
+                mode="lines+markers",
+                name="observed",
+                legendgroup=f"{row}-observed",
+                line={"color": THEME.font_color, "width": 1.5},
+                marker={"size": 5},
+                opacity=0.45 if multi_station else 1.0,
+                showlegend=legend_state["observed"],
+                hovertemplate=(
+                    f"{hover_station}time: %{{x}}<br>{obs_var}: %{{y}}"
+                    "<extra>observed</extra>"
+                ),
+            ),
+            row=row,
+            col=1,
+        )
+        legend_state["observed"] = False
+
+        sim_valid = np.isfinite(sim_values)
+        fig.add_trace(
+            go.Scatter(
+                x=time_values[sim_valid],
+                y=sim_values[sim_valid],
+                customdata=customdata[sim_valid],
+                mode="lines+markers",
+                name=sim_var,
+                legendgroup=f"{row}-{sim_var}",
+                line={"color": THEME.accent, "width": 1.5},
+                marker={"size": 5},
+                opacity=0.65 if multi_station else 1.0,
+                showlegend=legend_state[sim_var],
+                hovertemplate=(
+                    f"{hover_station}time: %{{x}}<br>{sim_var}: %{{y}}"
+                    f"<extra>{sim_var}</extra>"
+                ),
+            ),
+            row=row,
+            col=1,
+        )
+        legend_state[sim_var] = False
+
+        if error_var is None:
+            continue
+
+        error_values = np.ravel(_as_clean_float_array(station_ds[error_var]))
+        error_valid = np.isfinite(error_values)
+        fig.add_trace(
+            go.Scatter(
+                x=time_values[error_valid],
+                y=error_values[error_valid],
+                customdata=customdata[error_valid],
+                mode="lines+markers",
+                name=error_var,
+                legendgroup=f"{row}-{error_var}",
+                line={"color": THEME.reference, "width": 1.5, "dash": "dot"},
+                marker={"size": 5, "symbol": "diamond"},
+                opacity=0.7 if multi_station else 1.0,
+                showlegend=legend_state[error_var],
+                hovertemplate=(
+                    f"{hover_station}time: %{{x}}<br>{error_var}: %{{y}}"
+                    f"<extra>{error_var}</extra>"
+                ),
+            ),
+            row=row,
+            col=1,
+            secondary_y=True,
+        )
+        legend_state[error_var] = False
+
+    return str(obs.attrs.get("units", ""))
+
+
+def reanalysis_timeseries_plot(
+    output_dataset: OutputDatasetLike,
+    *,
+    station: object | None = None,
+    error_var: str | None = None,
+    template: go.layout.Template = PLOT_TEMPLATE,
+) -> go.Figure:
+    """Plot observed and simulated historical time series for every verification pair.
+
+    This is intended for reanalysis or other historical verification runs where the pair
+    datasets use a direct ``time`` dimension instead of the forecast
+    ``(forecast_reference_time, lead_time)`` grid.
+
+    One stacked subplot is drawn per verification pair in ``output_dataset``. By default,
+    all stations are plotted with translucent traces. Pass a scalar station id or a list of
+    station ids to pre-select the station dimension before plotting. Pass ``error_var`` to
+    draw one score/error variable, such as ``"mean_error"`` or ``"mae"``, on a secondary
+    y-axis.
+    """
+    pairs = list(output_dataset.verification_pairs)
+    if not pairs:
+        msg = "The output dataset contains no verification pairs to plot."
+        raise ValueError(msg)
+
+    sliced: list[tuple[VerificationPairLike, xr.Dataset]] = []
+    titles: list[str] = []
+    for pair in pairs:
+        ds = output_dataset.get(pair)
+        if station is not None:
+            if "station" not in ds.dims:
+                msg = "Cannot select station because this dataset has no 'station' dimension."
+                raise ValueError(msg)
+            ds = ds.sel(station=station)
+
+        title_parts = [str(pair.id)]
+        if "station" in ds.coords and "station" not in ds.dims:
+            title_parts.append(f"station {np.asarray(ds.coords['station'].values).item()}")
+        elif "station" in ds.dims and station is not None:
+            title_parts.append(f"{ds.sizes['station']} stations")
+
+        sliced.append((pair, ds))
+        titles.append(", ".join(title_parts))
+
+    fig = make_subplots(
+        rows=len(pairs),
+        cols=1,
+        shared_xaxes=False,
+        subplot_titles=titles,
+        vertical_spacing=min(0.12, 1.0 / len(pairs)),
+        specs=[[{"secondary_y": error_var is not None}] for _ in pairs],
+    )
+
+    legend_state = {"observed": True}
+    for pair, _ds in sliced:
+        legend_state[str(pair.sim)] = True
+    if error_var is not None:
+        legend_state[error_var] = True
+
+    for index, (pair, ds) in enumerate(sliced, start=1):
+        obs_var = str(pair.obs)
+        sim_var = str(pair.sim)
+        units = _add_reanalysis_traces(
+            fig,
+            ds,
+            obs_var,
+            sim_var,
+            row=index,
+            legend_state=legend_state,
+            error_var=error_var,
+        )
+        y_title = f"{obs_var} / {sim_var}" + (f" ({units})" if units else "")
+        fig.update_yaxes(title_text=y_title, row=index, col=1, secondary_y=False)
+        if error_var is not None:
+            error_units = str(ds[error_var].attrs.get("units", ""))
+            error_title = error_var + (f" ({error_units})" if error_units else "")
+            fig.update_yaxes(title_text=error_title, row=index, col=1, secondary_y=True)
+
+    fig.update_xaxes(title_text="Time", row=len(pairs), col=1)
+    for index in range(1, len(pairs) + 1):
+        fig.update_yaxes(matches="y", row=index, col=1, secondary_y=False)
+    fig.update_layout(
+        template=template,
+        hovermode="closest",
+        height=340 * len(pairs),
     )
     return fig
 
@@ -681,6 +967,7 @@ def _add_forecast_traces(
 def forecast_timeseries_plot(
     output_dataset: OutputDatasetLike,
     *,
+    station: object | None = None,
     show_members: bool = False,
     show_spread: bool = True,
     spread_quantiles: tuple[float, float] = (0.1, 0.9),
@@ -706,18 +993,37 @@ def forecast_timeseries_plot(
       drawn faintly.
     - Deterministic: a single line is drawn per forecast.
 
-    Each pair's dataset must be sliced to a single station (or have no ``station`` dimension).
+    Pass ``station`` to select one station from multi-station datasets. If ``station`` is not
+    given, each pair's dataset must already be sliced to a single station (or have no
+    ``station`` dimension).
     """
     pairs = list(output_dataset.verification_pairs)
     if not pairs:
         msg = "The output dataset contains no verification pairs to plot."
         raise ValueError(msg)
 
+    sliced: list[tuple[VerificationPairLike, xr.Dataset]] = []
+    titles: list[str] = []
+    for pair in pairs:
+        ds = output_dataset.get(pair)
+        if station is not None:
+            if "station" not in ds.dims:
+                msg = "Cannot select station because this dataset has no 'station' dimension."
+                raise ValueError(msg)
+            ds = ds.sel(station=station)
+
+        title_parts = [str(pair.id)]
+        if "station" in ds.coords and "station" not in ds.dims:
+            title_parts.append(f"station {np.asarray(ds.coords['station'].values).item()}")
+
+        sliced.append((pair, ds))
+        titles.append(", ".join(title_parts))
+
     fig = make_subplots(
         rows=len(pairs),
         cols=1,
         shared_xaxes=False,
-        subplot_titles=[str(pair.id) for pair in pairs],
+        subplot_titles=titles,
         vertical_spacing=min(0.12, 1.0 / len(pairs)),
     )
 
@@ -730,8 +1036,7 @@ def forecast_timeseries_plot(
         "forecast": True,
     }
 
-    for index, pair in enumerate(pairs, start=1):
-        ds = output_dataset.get(pair)
+    for index, (pair, ds) in enumerate(sliced, start=1):
         obs_var = str(pair.obs)
         sim_var = str(pair.sim)
         units = _add_forecast_traces(

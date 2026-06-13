@@ -34,8 +34,8 @@ datasources:
 
 scores:
   - score_adapter: continuous_scores
-    scores: [mean_error, mae, kge, rmse]
-    reduce_dims: []
+    scores: [kge]
+    reduce_dims: ["time"]
 
 datasinks:
   - export_adapter: cf_compliant_netcdf

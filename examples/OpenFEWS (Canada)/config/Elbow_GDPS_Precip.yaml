@@ -4,13 +4,15 @@ general:
   verification_period:
     dimension: time
     start: "2026-05-15T00:00:00Z"
-    end: "2026-06-08T00:00:00Z"
+    end: "2026-06-01T00:00:00Z"
   verification_pairs:
     - variable: PC
       id: PC
       obs: observed
       sim: simulated
-
+  lead_times:
+    unit: D
+    values: [1, 2, 3, 4, 5, 6, 7]
 datasources:
   - import_adapter: fewswebservice
     source: observed
@@ -32,14 +34,14 @@ datasources:
       - "05BH802"
       - "05BL810"
       - "05BF827"
-    parameter_ids:
-      - PC.obs
+
+    parameter_ids: ["PC.obs"]
     module_instance_id: ImportMeteoStations
     webservice_version: "2025.02"
-
+  
   - import_adapter: fewswebservice
     source: simulated
-    data_type: observed_historical
+    data_type: simulated_forecast_single
     location_ids:
       - "3031092"
       - "3050778"
@@ -57,31 +59,25 @@ datasources:
       - "05BH802"
       - "05BL810"
       - "05BF827"
-    parameter_ids:
-      - PC.sim
-    module_instance_id: PreprocessRDPA
+    parameter_ids: ["PC.nwp"]
+    module_instance_id: PreprocessGDPS
     webservice_version: "2025.02"
 
 scores:
   - score_adapter: continuous_scores
-    scores: [mean_error, mae, kge, rmse]
+    scores: [mean_error, mae, rmse]
     reduce_dims: []
-
+    
 datasinks:
   - export_adapter: cf_compliant_netcdf
     directory: .
-    filename: RDPA_precip_Elbow.nc
+    filename: GDPS_precip_Elbow.nc
     institution: OpenFEWS
-    title: RDPA precipitation verification
+    title: GDPS precipitation verification
     force_overwrite: true
 
 id_mapping:
-  station:
-    "3031092":
-      observed: "3031092"
-      simulated: "3031092"
-
   variable:
     PC:
       observed: PC_obs
-      simulated: PC_sim
+      simulated: PC_nwp
