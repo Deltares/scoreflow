@@ -67,14 +67,7 @@ scores:
   - score_adapter: continuous_scores
     scores: [mean_error, mae, rmse]
     reduce_dims: []
-    
-# datasinks:
-#   - export_adapter: cf_compliant_netcdf
-#     directory: .
-#     filename: GDPS_precip_Elbow.nc
-#     institution: OpenFEWS
-#     title: GDPS precipitation verification
-#     force_overwrite: true
+  
 
 id_mapping:
   variable:

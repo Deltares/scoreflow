@@ -15,7 +15,7 @@ page includes a banner to **download** it or **open it in Binder**.
 :class-container: veriflow-gallery
 
 :::{grid-item-card} 00 · Introduction
-:img-top: ../_static/gallery/elbowwatershed.png
+:img-top: ../_static/gallery/openfews.png
 :link: ../examples/The%20Delft-FEWS%20(OpenFEWS)%20Case/00_introduction.html
 :link-type: url
 
@@ -23,7 +23,7 @@ Meet the Elbow Watershed event, OpenFEWS hindcasts, and how _veriflow_ integrate
 with Delft-FEWS.
 :::
 
-:::{grid-item-card} 01 · Precipitation Analysis
+:::{grid-item-card} 01 · Precipitation Reanalysis (RDPA, HRDPA)
 :img-top: ../_static/gallery/elbowrainfall.png
 :link: ../examples/The%20Delft-FEWS%20(OpenFEWS)%20Case/01_elbow_precipitation_analysis.html
 :link-type: url
@@ -32,16 +32,16 @@ Compare observed precipitation with the RDPA and HRDPA reanalyses and visualize
 simple error metrics.
 :::
 
-:::{grid-item-card} 02 · Deterministic Forecasts
-:img-top: ../_static/gallery/elbowforecast.png
+:::{grid-item-card} 02 · Precipitation Deterministic Forecasts (GDPS)
+:img-top: ../_static/gallery/elbowwatershed.png
 :link: ../examples/The%20Delft-FEWS%20(OpenFEWS)%20Case/02_elbow_deterministic_forecast.html
 :link-type: url
 
-Verify deterministic precipitation forecasts for the Elbow Watershed.
+Verify deterministic precipitation forecasts (GDPS) for the Elbow Watershed.
 :::
 
-:::{grid-item-card} 03 · Precipitation Ensemble
-:img-top: ../_static/gallery/RDPS_Hits_GDPS_Misses.jpg
+:::{grid-item-card} 03 · Precipitation Ensemble (GEPS, GEFS, IFS)
+:img-top: ../_static/gallery/elbowforecastens.png
 :link: ../examples/The%20Delft-FEWS%20(OpenFEWS)%20Case/03_elbow_precipitation_ensemble.html
 :link-type: url
 
@@ -49,17 +49,9 @@ Move from deterministic to ensemble precipitation forecasts and verify forecast
 uncertainty.
 :::
 
-:::{grid-item-card} 04 · Discharge — Historical
-:img-top: ../_static/gallery/elbowforecast.png
-:link: ../examples/The%20Delft-FEWS%20(OpenFEWS)%20Case/04_raven_elbow_discharge_historical.html
-:link-type: url
-
-Verify historical discharge produced by the Raven hydrological model.
-:::
-
-:::{grid-item-card} 05 · Discharge — Ensemble
-:img-top: ../_static/gallery/elbowwatershed.png
-:link: ../examples/The%20Delft-FEWS%20(OpenFEWS)%20Case/05_raven_elbow_discharge_ensemble.html
+:::{grid-item-card} 04 · Raven Discharge Ensemble (GEPS, GEFS, IFS)
+:img-top: ../_static/gallery/ravenforecast.png
+:link: ../examples/The%20Delft-FEWS%20(OpenFEWS)%20Case/04_raven_elbow_discharge_ensemble.html
 :link-type: url
 
 Compare ensemble discharge forecasts and evaluate probabilistic skill.
@@ -74,6 +66,5 @@ Compare ensemble discharge forecasts and evaluate probabilistic skill.
 ../examples/The Delft-FEWS (OpenFEWS) Case/01_elbow_precipitation_analysis
 ../examples/The Delft-FEWS (OpenFEWS) Case/02_elbow_deterministic_forecast
 ../examples/The Delft-FEWS (OpenFEWS) Case/03_elbow_precipitation_ensemble
-../examples/The Delft-FEWS (OpenFEWS) Case/04_raven_elbow_discharge_historical
-../examples/The Delft-FEWS (OpenFEWS) Case/05_raven_elbow_discharge_ensemble
+../examples/The Delft-FEWS (OpenFEWS) Case/04_raven_elbow_discharge_ensemble
 ```

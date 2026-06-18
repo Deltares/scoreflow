@@ -126,12 +126,7 @@ nbsphinx_prolog = (
     <div class="admonition note nbsphinx-prolog">
       <p class="admonition-title">Notebook</p>
       <p>
-        This page was generated from
-        <a class="reference external" href="https://github.com/"""
-    + GITHUB_REPO
-    + r"""/blob/"""
-    + GITHUB_BRANCH
-    + r"""/{{ urlpath }}">{{ displaypath }}</a>.
+
         Run it live:
         <a class="reference external" href="https://mybinder.org/v2/gh/"""
     + GITHUB_REPO
@@ -146,3 +141,11 @@ nbsphinx_prolog = (
     Download this notebook: :download:`{{ notebook }} <{{ notebook }}>`
 """
 )
+
+
+#     This page was generated from
+#     <a class="reference external" href="https://github.com/"""
+# + GITHUB_REPO
+# + r"""/blob/"""
+# + GITHUB_BRANCH
+# + r"""/{{ urlpath }}">{{ displaypath }}</a>.

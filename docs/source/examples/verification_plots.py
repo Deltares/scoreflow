@@ -357,6 +357,7 @@ def scatter_plot(
     output_dataset: OutputDatasetLike,
     *,
     lead_time: object | None = None,
+    station: object | None = None,
     template: go.layout.Template = PLOT_TEMPLATE,
 ) -> go.Figure:
     """Build observation-vs-simulation scatter subplots for every verification pair.
@@ -395,6 +396,9 @@ def scatter_plot(
             label = _format_lead_time_label(ds.coords["lead_time"].values)
             if label:
                 title = f"{title} ({label})"
+        if station is not None:
+            ds = ds.sel(station=station)
+            title = f"{title} - station {station}"
         sliced.append((pair, ds))
         titles.append(title)
 
@@ -439,6 +443,7 @@ def scatter_plot(
 def crps_plot(
     output_dataset: OutputDatasetLike,
     *,
+    stations: list[object] | None = None,
     score_var: str | None = None,
     score_vars: str | list[str] | tuple[str, ...] | None = None,
     template: go.layout.Template = PLOT_TEMPLATE,
@@ -468,6 +473,9 @@ def crps_plot(
 
     for pair in pairs:
         ds = output_dataset.get(pair)
+        if stations is not None and "station" in ds.dims:
+            ds = ds.sel(station=stations)
+
         variables = _score_variables_to_plot(
             ds,
             score_var=score_var,
@@ -546,6 +554,7 @@ def crps_plot(
         yaxis_title=yaxis_title,
         template=template,
         hovermode="x unified",
+        title=f"CRPS vs Lead Time for {len(pairs)} Verification Pair(s)",
     )
     return fig
 
@@ -625,6 +634,109 @@ def rank_histogram_plot(
     fig.update_layout(
         template=template,
         height=380 * n_rows,
+        title=f"Rank Histograms for {len(pairs)} Verification Pair(s)",
+    )
+    return fig
+
+
+def rank_histogram_3d_plot(
+    output_dataset: OutputDatasetLike,
+    *,
+    rank_var: str = "histogram_rank",
+    station: object | None = None,
+    template: go.layout.Template = PLOT_TEMPLATE,
+) -> go.Figure:
+    """Build 3D rank-histogram surfaces for every verification pair.
+
+    This is a three-dimensional version of :func:`rank_histogram_plot`. Instead of collapsing
+    the dataset to a single lead time, the ``lead_time`` axis is kept and shown as a third
+    dimension: for each verification pair a 3D surface is drawn with ``rank`` on the x-axis,
+    ``lead_time`` (in hours) on the y-axis, and the rank count on the z-axis. This shows all
+    rank histograms across lead times in one figure, so the evolution of the histogram shape
+    with increasing lead time becomes visible.
+
+    One 3D subplot is drawn per verification pair, laid out in a grid of at most two columns
+    (filling left-to-right, then top-to-bottom). ``station`` selects the station to plot when
+    the dataset has a ``station`` dimension; it must reduce ``rank_var`` to two dimensions
+    (``lead_time`` by ``rank``). The chosen station is shown in each subplot title.
+    """
+    pairs = list(output_dataset.verification_pairs)
+    if not pairs:
+        msg = "The output dataset contains no verification pairs to plot."
+        raise ValueError(msg)
+
+    n_cols = min(2, len(pairs))
+    n_rows = -(-len(pairs) // n_cols)  # ceil division
+
+    # Pre-fetch (and slice) each dataset so subplot titles can carry the station.
+    sliced: list[tuple[VerificationPairLike, xr.Dataset]] = []
+    titles: list[str] = []
+    for pair in pairs:
+        ds = output_dataset.get(pair)
+        if station is not None and "station" in ds.dims:
+            ds = ds.sel(station=station)
+
+        title_parts = [str(pair.id)]
+        if "station" in ds.coords:
+            title_parts.append(f"station {np.atleast_1d(ds.coords['station'].values)[0]}")
+        sliced.append((pair, ds))
+        titles.append(", ".join(title_parts))
+
+    fig = make_subplots(
+        rows=n_rows,
+        cols=n_cols,
+        subplot_titles=titles,
+        specs=[[{"type": "surface"} for _ in range(n_cols)] for _ in range(n_rows)],
+        horizontal_spacing=min(0.12, 0.3 / n_cols),
+        vertical_spacing=min(0.2, 1.0 / n_rows),
+    )
+
+    for index, (_pair, ds) in enumerate(sliced):
+        row = index // n_cols + 1
+        col = index % n_cols + 1
+        hist = ds[rank_var]
+        if "lead_time" not in hist.dims or "rank" not in hist.dims:
+            msg = (
+                "rank_histogram_3d_plot expects the rank variable to have both 'lead_time' "
+                f"and 'rank' dimensions; got dimensions {tuple(hist.dims)}."
+            )
+            raise ValueError(msg)
+        extra_dims = set(hist.dims) - {"lead_time", "rank"}
+        if extra_dims:
+            msg = (
+                "rank_histogram_3d_plot expects the rank variable to reduce to two dimensions "
+                f"(lead_time x rank); got extra dimensions {sorted(extra_dims)}. Pass 'station' "
+                "to select a single station."
+            )
+            raise ValueError(msg)
+        # Orient as (lead_time, rank) so the surface z-grid matches y=lead_time, x=rank.
+        hist = hist.transpose("lead_time", "rank")
+
+        ranks = hist.coords["rank"].values
+        leads = lead_time_hours(ds)
+        fig.add_trace(
+            go.Surface(
+                x=ranks,
+                y=leads,
+                z=np.asarray(hist.values, dtype=float),
+                colorscale="Earth",
+                showscale=index == 0,
+                colorbar={"title": "Count"} if index == 0 else None,
+                hovertemplate=("Rank: %{x}<br>Lead time: %{y} h<br>Count: %{z}<extra></extra>"),
+            ),
+            row=row,
+            col=col,
+        )
+
+    fig.update_scenes(
+        xaxis_title_text="Rank",
+        yaxis_title_text="Lead time (h)",
+        zaxis_title_text="Count",
+    )
+    fig.update_layout(
+        template=template,
+        height=480 * n_rows,
+        title=f"3D Rank Histograms for {len(pairs)} Verification Pair(s)",
     )
     return fig
 
