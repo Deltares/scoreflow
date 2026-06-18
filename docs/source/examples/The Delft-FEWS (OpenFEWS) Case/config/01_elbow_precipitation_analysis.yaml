@@ -14,7 +14,6 @@ general:
       obs: observed
       sim: simulated_HRDPA
       variable: PC
-
 datasources:
   - import_adapter: fewswebservice
     source: observed

@@ -170,7 +170,10 @@ def run_pipeline(
             msg = f"Start getting data from {datasource.__class__.__name__}."
             logger.info(msg)
             datasource.get_data()
-            msg = f"Successfully got data from {datasource.__class__.__name__}."
+            msg = (
+                f"Successfully got {datasource.config.source} data from "
+                f"{datasource.__class__.__name__}."
+            )
             logger.info(msg)
 
         # Initialize the input dataset

@@ -27,7 +27,7 @@ Webservice.
 :::
 
 :::{grid-item-card} The Rhine Case
-:img-top: ../_static/gallery/rhine.jpg
+:img-top: _static/gallery/rhine.jpg
 :link: gallery/rhine
 :link-type: doc
 :class-card: sd-shadow-md
