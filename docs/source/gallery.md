@@ -12,7 +12,7 @@ banner at the top of each notebook page.
 :class-container: veriflow-gallery
 
 :::{grid-item-card} The Delft-FEWS (OpenFEWS) Case
-:img-top: _static/gallery/elbowwatershed.png
+:img-top: _static/gallery/openfews.png
 :link: gallery/delft_fews
 :link-type: doc
 :class-card: sd-shadow-md
