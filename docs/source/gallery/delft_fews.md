@@ -40,7 +40,7 @@ simple error metrics.
 Verify deterministic precipitation forecasts (GDPS) for the Elbow Watershed.
 :::
 
-:::{grid-item-card} 03 · Precipitation Ensemble (GEPS, GEFS, IFS)
+:::{grid-item-card} 03 · Precipitation Ensemble Forecasts (GEPS, GEFS, IFS)
 :img-top: ../_static/gallery/elbowforecastens.png
 :link: ../examples/The%20Delft-FEWS%20(OpenFEWS)%20Case/03_elbow_precipitation_ensemble.html
 :link-type: url
@@ -49,7 +49,7 @@ Move from deterministic to ensemble precipitation forecasts and verify forecast
 uncertainty.
 :::
 
-:::{grid-item-card} 04 · Raven Discharge Ensemble (GEPS, GEFS, IFS)
+:::{grid-item-card} 04 · Raven Discharge Ensemble Forecasts (GEPS, GEFS, IFS)
 :img-top: ../_static/gallery/ravenforecast.png
 :link: ../examples/The%20Delft-FEWS%20(OpenFEWS)%20Case/04_raven_elbow_discharge_ensemble.html
 :link-type: url
