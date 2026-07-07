@@ -96,7 +96,12 @@ class LeadTimes(BaseModel):
         """As datetime timedelta."""
 
         def convert_to_timedelta(value: int) -> timedelta:
-            return np.timedelta64(value, self.unit).astype(timedelta)  # type: ignore[no-any-return, misc, call-overload]
+            # ``np.timedelta64(...).astype(timedelta)`` returns an int (not a timedelta)
+            # when the unit is finer than microsecond (e.g. nanosecond), since stdlib
+            # ``timedelta`` has only microsecond precision. Coerce via microseconds to
+            # always return a proper ``timedelta``.
+            td_us = np.timedelta64(value, self.unit).astype("timedelta64[us]")  # type: ignore[call-overload, misc]
+            return timedelta(microseconds=int(td_us.astype("int64")))  # type: ignore[misc]
 
         return [convert_to_timedelta(v) for v in self.values]  # type:ignore[arg-type]
 

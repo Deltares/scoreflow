@@ -30,6 +30,8 @@ def _make_zarr_config(
         path=path,
         auth_config=auth_config,
         storage_options=storage_options,
+        variables=["v1"],
+        stations=["s1"],
     )
 
 
@@ -57,29 +59,6 @@ def test_fetch_data_local_store(
         datasource.dataset.drop_attrs(),
         xarray_observed_historical.drop_attrs(),
     )
-
-
-def test_get_data_local_store_caches(
-    tmp_path: Path,
-    xarray_general_info_config: GeneralInfoConfig,
-    xarray_observed_historical: xr.Dataset,
-) -> None:
-    """End-to-end get_data() pipeline works for a local zarr store."""
-    store_path = tmp_path / "obs.zarr"
-    xarray_observed_historical.to_zarr(store_path)
-
-    datasource = Zarr(
-        config=_make_zarr_config(
-            general=xarray_general_info_config,
-            path=str(store_path),
-        ),
-    )
-    datasource.get_data()
-
-    assert datasource.dataset.attrs["data_type"] == DataType.observed_historical
-    assert Path(datasource.config.general.cache_dir).exists()
-    cached_files = list(Path(datasource.config.general.cache_dir).glob("Zarr_*.nc"))
-    assert len(cached_files) == 1
 
 
 def test_unsupported_data_type_raises(

@@ -130,6 +130,7 @@ class TimeUnits(StrEnum):
     hour = "h"
     minute = "m"
     second = "s"
+    nanosecond = "ns"
 
 
 class StandardDim(StrEnum):

@@ -148,7 +148,7 @@ def test_id_mapping_rename_dataset(xarray_observed_historical: xr.Dataset) -> No
     config = IdMappingConfig(
         station=IdMap({"newstation1": {"observation_source": "station_0"}}),
     )
-    new_ds = config.rename_dataset(xarray_observed_historical)
+    new_ds = config.apply(xarray_observed_historical)
     assert next(iter(new_ds.station.to_numpy())) == "newstation1"  # type:ignore[misc]
 
 
@@ -160,7 +160,7 @@ def test_id_mapping_rename_dataset_fails_on_invalid_source(
         station=IdMap({"newstation1": {"invalid_observation_source": "station0"}}),
     )
     with pytest.raises(ValueError, match="No IdMapping found for source"):
-        config.rename_dataset(xarray_observed_historical)
+        config.apply(xarray_observed_historical)
 
 
 def test_score_config_with_invalid_pair_reference(
