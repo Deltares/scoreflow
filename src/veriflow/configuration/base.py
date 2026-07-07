@@ -53,7 +53,14 @@ class GeneralInfoConfig(BaseModel):
     ] = None
     cache: Annotated[
         ZarrCacheConfig | None,
-        Field(description="Configuration for the veriflow cache."),
+        Field(
+            description=(
+                "Veriflow has built-in support for caching data in a local or remote zarr archive "
+                "store. This allows you to reuse data across multiple runs of the pipeline, which "
+                "can speed up execution. See the docs for more details and configuration options: "
+                "https://deltares.github.io/veriflow/"
+            ),
+        ),
     ] = None
 
     def get_verification_pair(self, pair_id: str) -> VerificationPair:

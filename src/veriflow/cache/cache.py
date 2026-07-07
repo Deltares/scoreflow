@@ -362,9 +362,24 @@ class ForecastCacheRequest(BaseModel):
 
 
 class ZarrCache:
-    """The veriflow cache."""
+    """The veriflow zarr cache.
 
-    store = "veriflow-cache.zarr"
+    The ZarrCache can cache datasets from any datasource and can be materialized on both a local
+    filesystem and remote object storage (e.g. S3). The cache is configured in the
+    veriflow.configuration.base.GeneralInfoConfig.cache field. All caching logic is handled in the
+    veriflow.datasources.base.BaseDatasource.get_data method, which consults the cache configuration
+    and uses this ZarrCache class to read/write cached datasets as needed.
+
+    The current cache can handle the following scenarios:
+    1. Historical data with missing time steps, variables, or stations.
+    2. Forecast data with missing forecast reference times, lead times, variables, or stations
+
+    The current implementation has the following limitations:
+    1. When data is requested that is missing in the cache along multiple dimensions, the cache will
+       not retrieve data from the cache, but will instead fetch all data from the datasource.
+    2. The current cache does not (yet) support caching of computation results.
+
+    """
 
     def __init__(
         self,

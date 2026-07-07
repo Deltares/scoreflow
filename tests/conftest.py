@@ -107,19 +107,25 @@ thresholds = [f"warn_{x}" for x in range(threshold_n)]
 
 
 @pytest.fixture
-def cache_dir(tmp_path: Path) -> Path:
+def cache_dir_local(tmp_path: Path) -> Path:
     """Pytest cache directory."""
     return str(tmp_path / "sub")
 
 
+@pytest.fixture
+def cache_dir_remote() -> str:
+    """Remote cache directory (s3)."""
+    return "https://s3.dummy.com/veriflow-cache"
+
+
 # Before each test - remove the cache directory
 @pytest.fixture(autouse=True)
-def _ensure_empty_cache_dir_before_each_test(cache_dir: str) -> None:
+def _ensure_empty_cache_dir_before_each_test(cache_dir_local: str) -> None:
     """Remove the cache directory before each test."""
-    cache_dir = Path(cache_dir)
-    if cache_dir.exists():
-        shutil.rmtree(cache_dir)
-    cache_dir.mkdir(parents=True)
+    cache_dir_local = Path(cache_dir_local)
+    if cache_dir_local.exists():
+        shutil.rmtree(cache_dir_local)
+    cache_dir_local.mkdir(parents=True)
 
 
 class DummySource(StrEnum):
@@ -972,19 +978,19 @@ def fake_fetch_spy(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, object]]:
 
 
 @pytest.fixture
-def cache_zarr_config(cache_dir: str) -> ZarrCacheConfig:
+def cache_zarr_config(cache_dir_local: str) -> ZarrCacheConfig:
     """Return a writable local-disk ZarrCacheConfig under ``cache_dir``."""
     return ZarrCacheConfig(
-        path=str(Path(cache_dir) / "veriflow-cache.zarr"),
+        path=str(Path(cache_dir_local) / "veriflow-cache.zarr"),
         read_write_mode=ReadWriteMode.write,
     )
 
 
 @pytest.fixture
-def cache_zarr_config_readonly(cache_dir: str) -> ZarrCacheConfig:
+def cache_zarr_config_readonly(cache_dir_local: str) -> ZarrCacheConfig:
     """Return a read-only ZarrCacheConfig under ``cache_dir``."""
     return ZarrCacheConfig(
-        path=str(Path(cache_dir) / "veriflow-cache.zarr"),
+        path=str(Path(cache_dir_local) / "veriflow-cache.zarr"),
         read_write_mode=ReadWriteMode.read,
     )
 

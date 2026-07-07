@@ -96,7 +96,7 @@ class TestForecastNoCache:
         xarray_simulated_forecast_ensemble: xr.Dataset,
         fake_seed_registry: FakeSeedRegistry,
         fake_fetch_spy: FakeFetchSpy,
-        cache_dir: str,
+        cache_dir_local: str,
     ) -> None:
         """Verify ``get_data`` fetches and skips the cache when none is configured."""
         fake_seed_registry(
@@ -115,7 +115,7 @@ class TestForecastNoCache:
         assert len(fake_fetch_spy) == 1
         assert set(ds.dataset.data_vars) == {"var_0", "var_1"}
         # No zarr store written
-        assert not _zarr_store_has_data(cache_dir)
+        assert not _zarr_store_has_data(cache_dir_local)
 
 
 class TestForecastCacheMiss:
@@ -127,7 +127,7 @@ class TestForecastCacheMiss:
         xarray_simulated_forecast_ensemble: xr.Dataset,
         fake_seed_registry: FakeSeedRegistry,
         fake_fetch_spy: FakeFetchSpy,
-        cache_dir: str,
+        cache_dir_local: str,
     ) -> None:
         """Verify a writable cache miss persists data to the on-disk store."""
         fake_seed_registry(
@@ -142,7 +142,7 @@ class TestForecastCacheMiss:
         )
         ds = FakeDatasource(cfg).get_data()
         assert len(fake_fetch_spy) == 1
-        assert _zarr_store_has_data(cache_dir)
+        assert _zarr_store_has_data(cache_dir_local)
         assert set(ds.dataset.data_vars) == {"var_0", "var_1"}
 
     def test_miss_with_read_only_does_not_write(  # noqa: PLR0913
@@ -152,7 +152,7 @@ class TestForecastCacheMiss:
         cache_zarr_config_readonly: ZarrCacheConfig,
         fake_seed_registry: FakeSeedRegistry,
         fake_fetch_spy: FakeFetchSpy,
-        cache_dir: str,
+        cache_dir_local: str,
     ) -> None:
         """Verify a read-only cache miss leaves the on-disk store empty."""
         fake_seed_registry(
@@ -169,7 +169,7 @@ class TestForecastCacheMiss:
         )
         FakeDatasource(cfg).get_data()
         assert len(fake_fetch_spy) == 1
-        assert not _zarr_store_has_data(cache_dir)
+        assert not _zarr_store_has_data(cache_dir_local)
 
 
 class TestForecastCacheFullHit:
@@ -369,7 +369,7 @@ class TestHistoricalCache:
         xarray_observed_historical: xr.Dataset,
         fake_seed_registry: FakeSeedRegistry,
         fake_fetch_spy: FakeFetchSpy,
-        cache_dir: str,
+        cache_dir_local: str,
     ) -> None:
         """Verify a historical cache miss persists data to the on-disk store."""
         fake_seed_registry(
@@ -384,7 +384,7 @@ class TestHistoricalCache:
         )
         ds = FakeDatasource(cfg).get_data()
         assert len(fake_fetch_spy) == 1
-        assert _zarr_store_path(cache_dir).exists()
+        assert _zarr_store_path(cache_dir_local).exists()
         assert set(ds.dataset.data_vars) == {"var_0", "var_1"}
 
 

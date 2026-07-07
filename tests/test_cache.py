@@ -19,7 +19,7 @@ from veriflow.cache.config import ReadWriteMode, ZarrCacheConfig
 from veriflow.cache.utils import combine_cached_and_fetched_data
 from veriflow.configuration.base import GeneralInfoConfig
 from veriflow.configuration.default.datasources import NetCDFConfig
-from veriflow.configuration.utils import LeadTimes, TimePeriod
+from veriflow.configuration.utils import LeadTimes, S3AuthConfig, TimePeriod
 from veriflow.constants import DataSourceKind, DataType, StandardDim, TimeUnits
 
 _EXPECTED_MISSING_COUNT_MULTI = 2
@@ -388,10 +388,10 @@ class TestCombineCachedAndFetched:
 class TestZarrCache:
     """Round-trip behaviour of the local-disk ``ZarrCache``."""
 
-    def test_get_dataset_missing_returns_empty(self, cache_dir: str) -> None:
+    def test_get_dataset_missing_returns_empty(self, cache_dir_local: str) -> None:
         """Verify ``get_dataset`` on an unknown source returns an empty dataset."""
         cfg = ZarrCacheConfig(
-            path=str(Path(cache_dir) / "store.zarr"),
+            path=str(Path(cache_dir_local) / "store.zarr"),
             read_write_mode=ReadWriteMode.write,
         )
         cache = ZarrCache(cfg)
@@ -399,10 +399,10 @@ class TestZarrCache:
         assert isinstance(result, xr.Dataset)
         assert len(result.data_vars) == 0
 
-    def test_append_then_get_round_trip(self, cache_dir: str) -> None:
+    def test_append_then_get_round_trip(self, cache_dir_local: str) -> None:
         """Verify ``append`` followed by ``get_dataset`` returns the appended data."""
         cfg = ZarrCacheConfig(
-            path=str(Path(cache_dir) / "store.zarr"),
+            path=str(Path(cache_dir_local) / "store.zarr"),
             read_write_mode=ReadWriteMode.write,
         )
         cache = ZarrCache(cfg)
@@ -412,15 +412,76 @@ class TestZarrCache:
         assert "v1" in result.data_vars
         assert result["v1"].shape == ds["v1"].shape
 
-    def test_is_writable(self, cache_dir: str) -> None:
+    def test_is_writable(self, cache_dir_local: str) -> None:
         """Verify ``is_writable`` reflects the configured read/write mode."""
         cfg_w = ZarrCacheConfig(
-            path=str(Path(cache_dir) / "store_w.zarr"),
+            path=str(Path(cache_dir_local) / "store_w.zarr"),
             read_write_mode=ReadWriteMode.write,
         )
         cfg_r = ZarrCacheConfig(
-            path=str(Path(cache_dir) / "store_r.zarr"),
+            path=str(Path(cache_dir_local) / "store_r.zarr"),
             read_write_mode=ReadWriteMode.read,
         )
         assert ZarrCache(cfg_w).is_writable
         assert not ZarrCache(cfg_r).is_writable
+
+    # ------------------------------------------------------------------
+    # Remote (https / s3) cache configuration
+    # ------------------------------------------------------------------
+
+    def test_remote_is_remote_true(self, cache_dir_remote: str) -> None:
+        """Verify ``is_remote`` returns True for an HTTPS S3 URL."""
+        cfg = ZarrCacheConfig(path=cache_dir_remote)
+        assert ZarrCache(cfg).is_remote
+
+    def test_remote_validator_does_not_create_directory(
+        self,
+        cache_dir_remote: str,
+        tmp_path: Path,
+    ) -> None:
+        """Verify the path validator skips ``mkdir`` for remote URLs."""
+        # Sanity: tmp_path exists, cache_dir_remote is not a local path that
+        # would have been created by the validator.
+        cfg = ZarrCacheConfig(path=cache_dir_remote)
+        assert cfg.is_remote_path()
+        assert not Path(cache_dir_remote).exists()
+        # tmp_path is unrelated; just verifies the fixture did not interfere.
+        assert tmp_path.exists()
+
+    def test_remote_storage_options_empty_without_auth(
+        self,
+        cache_dir_remote: str,
+    ) -> None:
+        """Verify ``storage_options`` is an empty dict when no auth/options are configured."""
+        cfg = ZarrCacheConfig(path=cache_dir_remote)
+        assert ZarrCache(cfg).storage_options == {}
+
+    def test_remote_storage_options_merges_auth_and_extra(
+        self,
+        cache_dir_remote: str,
+    ) -> None:
+        """Verify auth_config and storage_options are merged for remote stores."""
+        cfg = ZarrCacheConfig(
+            path=cache_dir_remote,
+            auth_config=S3AuthConfig(
+                anon=True,
+                region_name="eu-west-1",
+                endpoint_url="https://s3.dummy.com",
+            ),
+            storage_options={"requester_pays": "true"},
+        )
+        options = ZarrCache(cfg).storage_options
+        assert options is not None
+        assert options["anon"] is True
+        assert options["requester_pays"] == "true"
+        assert options["client_kwargs"] == {
+            "region_name": "eu-west-1",
+            "endpoint_url": "https://s3.dummy.com/",
+        }
+
+    def test_remote_read_only_is_not_writable(self, cache_dir_remote: str) -> None:
+        """Verify a remote cache defaults to read-only and reports not writable."""
+        cfg = ZarrCacheConfig(path=cache_dir_remote)
+        cache = ZarrCache(cfg)
+        assert cache.is_remote
+        assert not cache.is_writable
