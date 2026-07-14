@@ -43,6 +43,7 @@ extensions = [
     "sphinx_design",
     "myst_parser",  # Markdown support
     "nbsphinx",
+    "sphinxcontrib.mermaid",  # Mermaid diagrams in docstrings/pages
 ]
 
 myst_enable_extensions = ["colon_fence"]

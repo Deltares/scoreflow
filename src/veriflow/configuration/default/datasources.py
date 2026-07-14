@@ -126,16 +126,6 @@ class FewsWebserviceConfig(BaseDatasourceConfig):
             raise ValueError(msg)
         return self
 
-    @property  # type: ignore[misc]
-    def stations(self) -> list[str]:
-        """Return the station ids."""
-        return self.location_ids
-
-    @property  # type: ignore[misc]
-    def variables(self) -> list[str]:
-        """Return the variable ids."""
-        return self.parameter_ids
-
 
 class FewsNetCDFConfig(BaseDatasourceConfig, LocalFiles):
     """A FEWS NetCDF config element."""
@@ -145,29 +135,13 @@ class FewsNetCDFConfig(BaseDatasourceConfig, LocalFiles):
     station_ids: Annotated[list[str], Field(min_length=1)] | None = None
     parameter_ids: Annotated[list[str], Field(min_length=1)] | None = None
 
-    @property  # type: ignore[misc]
-    def stations(self) -> list[str]:
-        """Return the station ids."""
-        if self.station_ids is None:
-            msg = "station_ids must be configured to access stations."
-            raise ValueError(msg)
-        return self.station_ids
-
-    @property  # type: ignore[misc]
-    def variables(self) -> list[str]:
-        """Return the variable ids."""
-        if self.parameter_ids is None:
-            msg = "parameter_ids must be configured to access variables."
-            raise ValueError(msg)
-        return self.parameter_ids
-
 
 class NetCDFConfig(BaseDatasourceConfig, LocalFiles):
     """A NetCDF config element."""
 
     import_adapter: Literal[DataSourceKind.NETCDF]
-    stations: Annotated[list[str], Field(min_length=1)] | None = None  # type: ignore[assignment]
-    variables: Annotated[list[str], Field(min_length=1)] | None = None  # type: ignore[assignment]
+    stations: Annotated[list[str], Field(min_length=1)] | None = None
+    variables: Annotated[list[str], Field(min_length=1)] | None = None
 
 
 class ZarrConfig(BaseDatasourceConfig):

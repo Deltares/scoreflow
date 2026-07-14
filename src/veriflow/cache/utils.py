@@ -24,7 +24,8 @@ def combine_cached_and_fetched_data(
         StandardDim.time,
     ]:
         # Update the dataset by updating values along the specified dimension.
-        return xr.concat([cached_dataset, fetched_dataset], dim=dim)
+        # Drop any duplicated coordinate (the split includes the boundary in both pieces).
+        return xr.concat([cached_dataset, fetched_dataset], dim=dim).drop_duplicates(dim)
     msg = (
         f"Unsupported dimension '{dim}' for cache update. Must be one of 'variable', "
         f"'{StandardDim.station}', '{StandardDim.forecast_reference_time}', "

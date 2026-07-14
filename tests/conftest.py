@@ -896,6 +896,26 @@ class FakeDatasource(BaseDatasource):
         DataType.simulated_forecast_ensemble,
     }
 
+    @property
+    def configured_stations(self) -> set[str] | None:
+        """Return the internal station identifiers configured for this datasource."""
+        return set(self.config.stations)
+
+    @configured_stations.setter
+    def configured_stations(self, stations: set[str]) -> None:
+        """Set the internal station identifiers configured for this datasource."""
+        self.config.stations = list(stations)
+
+    @property
+    def configured_variables(self) -> set[str] | None:
+        """Return the internal variable identifiers configured for this datasource."""
+        return set(self.config.variables)
+
+    @configured_variables.setter
+    def configured_variables(self, variables: set[str]) -> None:
+        """Set the internal variable identifiers configured for this datasource."""
+        self.config.variables = list(variables)
+
     def fetch_data(self) -> "FakeDatasource":
         """Slice the registered seed dataset and store the result on ``self.dataset``."""
         seed = _FAKE_SEEDS[(str(self.config.source), str(self.config.data_type))]
@@ -982,7 +1002,7 @@ def cache_zarr_config(cache_dir_local: str) -> ZarrCacheConfig:
     """Return a writable local-disk ZarrCacheConfig under ``cache_dir``."""
     return ZarrCacheConfig(
         path=str(Path(cache_dir_local) / "veriflow-cache.zarr"),
-        read_write_mode=ReadWriteMode.write,
+        read_write_mode=ReadWriteMode.read_write,
     )
 
 

@@ -111,7 +111,7 @@ def test_remote_minio_get_dataset_missing_returns_empty(remote_zarr_path: str) -
 
 def test_remote_minio_append_then_get_round_trip(remote_zarr_path: str) -> None:
     """Verify ``append`` followed by ``get_dataset`` round-trips through MinIO."""
-    cfg = _make_remote_config(remote_zarr_path, ReadWriteMode.write)
+    cfg = _make_remote_config(remote_zarr_path, ReadWriteMode.read_write)
     cache = ZarrCache(cfg)
     ds = _ds_one_var("v1")
 

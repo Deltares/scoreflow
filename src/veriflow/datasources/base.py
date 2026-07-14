@@ -8,9 +8,8 @@ import xarray as xr
 
 from veriflow.base import Base
 from veriflow.cache.cache import (
+    CacheRequest,
     DataRequest,
-    ForecastCacheRequest,
-    HistoricalCacheRequest,
     ZarrCache,
 )
 from veriflow.cache.utils import combine_cached_and_fetched_data
@@ -68,6 +67,42 @@ class BaseDatasource(Base):
         return (
             ZarrCache(self.config.general.cache) if self.config.general.cache is not None else None
         )
+
+    @property
+    @abstractmethod
+    def configured_stations(self) -> set[str] | None:
+        """Return the standardized internal station identifiers configured for this datasource.
+
+        This standardized format is needed for caching across different datasources.
+        """
+        raise NotImplementedError
+
+    @configured_stations.setter
+    @abstractmethod
+    def configured_stations(self, new_stations: set[str]) -> None:
+        """Set the standardized internal station identifiers configured for this datasource.
+
+        This standardized format is needed for caching across different datasources.
+        """
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def configured_variables(self) -> set[str] | None:
+        """Return the standardized internal variable identifiers configured for this datasource.
+
+        This standardized format is needed for caching across different datasources.
+        """
+        raise NotImplementedError
+
+    @configured_variables.setter
+    @abstractmethod
+    def configured_variables(self, new_variables: set[str]) -> None:
+        """Set the standardized internal variable identifiers configured for this datasource.
+
+        This standardized format is needed for caching across different datasources.
+        """
+        raise NotImplementedError
 
     @abstractmethod
     def fetch_data(self) -> Self:
@@ -147,12 +182,10 @@ class BaseDatasource(Base):
 
     def filter_dataset(self, dataset: xr.Dataset) -> xr.Dataset:
         """Filter the dataset on lead times and times outside the verification period."""
-        # Filter lead_times
         dataset = self._filter_lead_times(
             dataset,
             self.config.lead_times,
         )
-        # Filter times outside verification period
         return self._filter_times(
             dataset,
             self.config.verification_period_on_time,
@@ -162,25 +195,25 @@ class BaseDatasource(Base):
         """High-level wrapper to fetch, validate, filter and apply id mapping to the dataset."""
         self.fetch_data()
         self.validate_fetched_data()
-        dataset = self.filter_dataset(self.dataset)
+        self.dataset = self.filter_dataset(self.dataset)
         if self.config.id_mapping is not None:
-            self.dataset = self.config.id_mapping.apply(dataset)
+            self.dataset = self.config.id_mapping.apply(self.dataset)
         return self
 
     def create_cache_request(
         self,
         cached_dataset: xr.Dataset,
-    ) -> HistoricalCacheRequest | ForecastCacheRequest:
+    ) -> CacheRequest:
         """Get the cache request based on the cached dataset and the config."""
         # Determine what data is missing from the cache
         if self.data_type in HISTORICAL_DATA_TYPES:
-            return HistoricalCacheRequest(
+            return CacheRequest(
                 variables=DataRequest(
-                    requested=set(self.config.variables),
+                    requested=self.configured_variables,
                     cached=cast("set[str]", set(cached_dataset.data_vars)),
                 ),
                 stations=DataRequest(
-                    requested=set(self.config.stations),
+                    requested=self.configured_stations,
                     cached=set(cached_dataset[StandardDim.station].values),  # type: ignore[misc]
                 ),
                 time_period=DataRequest(
@@ -203,16 +236,16 @@ class BaseDatasource(Base):
                 msg = "lead_times must be configured for forecast data types."
                 raise ValueError(msg)
             cached_lead_times_array = cached_dataset[StandardDim.lead_time].to_numpy()  # type: ignore[misc]
-            return ForecastCacheRequest(
+            return CacheRequest(
                 variables=DataRequest(
-                    requested=set(self.config.variables),
+                    requested=self.configured_variables,
                     cached=cast("set[str]", set(cached_dataset.data_vars)),
                 ),
                 stations=DataRequest(
-                    requested=set(self.config.stations),
+                    requested=self.configured_stations,
                     cached=set(cached_dataset[StandardDim.station].values),  # type: ignore[misc]
                 ),
-                frt_period=DataRequest(
+                forecast_reference_time_period=DataRequest(
                     requested=TimePeriod(
                         start=self.config.verification_period_on_frt.start,
                         end=self.config.verification_period_on_frt.end,
@@ -245,39 +278,41 @@ class BaseDatasource(Base):
     @staticmethod
     def get_cached_data(
         cached_dataset: xr.Dataset,
-        config: BaseDatasourceConfig,
+        datasource: "BaseDatasource",
     ) -> xr.Dataset:
-        """Get the dataset from the cache based on the config."""
+        """Get the dataset from the cache based on the datasource configuration."""
+        config = datasource.config
+        variables = datasource.configured_variables
+        stations = datasource.configured_stations
+        subset = cached_dataset if variables is None else cached_dataset[sorted(variables)]
+
         # If all requested data is available in the cache, load directly.
         if config.data_type in FORECAST_DATA_TYPES:
             if config.lead_times is None:
                 msg = "lead_times must be configured for forecast data types."
                 raise ValueError(msg)
-            dataset = cached_dataset[config.variables].sel(
-                {  # type: ignore[misc]
-                    StandardDim.station: config.stations,
-                    StandardDim.forecast_reference_time: slice(  # type: ignore[misc]
-                        config.verification_period_on_frt.start,
-                        config.verification_period_on_frt.end,
-                    ),
-                    StandardDim.lead_time: config.lead_times.timedelta64,
-                },
-            )
+            frt = config.verification_period_on_frt
+            # Incremental appends place new coordinate values at the end of the store, which can
+            # leave the axis out of order; ``slice`` selection requires a monotonic index, so sort
+            # first. Sorting only touches the (small) coordinate, keeping the data lazy.
+            subset = subset.sortby(StandardDim.forecast_reference_time)
+            selection: dict[str, object] = {
+                StandardDim.forecast_reference_time: slice(frt.start, frt.end),  # type: ignore[misc]
+                StandardDim.lead_time: config.lead_times.timedelta64,
+            }
         elif config.data_type in HISTORICAL_DATA_TYPES:
-            # All requested data is available in the cache, so we can load it directly
-            dataset = cached_dataset[config.variables].sel(
-                {  # type: ignore[misc]
-                    StandardDim.station: config.stations,
-                    StandardDim.time: slice(  # type: ignore[misc]
-                        config.verification_period_on_time.start,
-                        config.verification_period_on_time.end,
-                    ),
-                },
-            )
+            time_period = config.verification_period_on_time
+            subset = subset.sortby(StandardDim.time)
+            selection = {
+                StandardDim.time: slice(time_period.start, time_period.end),  # type: ignore[misc]
+            }
         else:
             msg = f"Unsupported data type '{config.data_type}' for loading from cache."
             raise NotImplementedError(msg)
-        return dataset
+
+        if stations is not None:
+            selection[StandardDim.station] = sorted(stations)
+        return subset.sel(selection)
 
     def get_data(self) -> Self:
         """Get data and make use of cache if configured."""
@@ -296,11 +331,7 @@ class BaseDatasource(Base):
             # No data from cache, fetch from datasource
             self.fetch_validate_filter()
             if self.cache.is_writable:
-                self.cache.append(
-                    new_dataset=self.dataset,
-                    source=self.config.source,
-                    dim="variable",
-                )
+                self.cache.write(self.dataset, source=self.config.source)
             return self
 
         cache_request = self.create_cache_request(cached_dataset)
@@ -310,55 +341,53 @@ class BaseDatasource(Base):
         if cache_request.missing_count == 0:
             cached_dataset = self.get_cached_data(
                 cached_dataset=cached_dataset,
-                config=self.config,
+                datasource=self,
             )
             self.dataset = cached_dataset
             return self
 
-        # Some data is missing from the cache. Try to split the config so we only fetch the
+        # Some data is missing from the cache. Try to split the datasource so we only fetch the
         # missing data (works only when exactly one dim is missing). If split_config returns
         # None — either because multiple dims are missing or the missing data isn't expressible
-        # by tweaking the config — fall back to fetching the full requested dataset.
-        split_result = cache_request.split_config(self.config)
+        # by tweaking the datasource — fall back to fetching the full requested dataset.
+        split_result = cache_request.split_config(self)
         if split_result is None:
             self.fetch_validate_filter()
             if self.cache.is_writable:
-                self.cache.append(
-                    new_dataset=self.dataset,
-                    source=self.config.source,
-                    dim="variable",
-                )
+                self.cache.write(self.dataset, source=self.config.source)
             return self
 
         missing_dim = cache_request.missing_dims[0]
-        fetch_from_datasource_config, fetch_from_cache_config = split_result
+        fetch_from_datasource, fetch_from_cache = split_result
 
-        # If we get here, it means that some data is missing from the cache, but it can be
-        # fetched by modifying the config to only fetch the missing data.
-        cached_dataset_filtered = self.get_cached_data(
-            cached_dataset=cached_dataset,
-            config=fetch_from_cache_config,
-        )
+        # Fetch only the missing slice from the datasource.
+        fetch_from_datasource.fetch_validate_filter()
+        newly_fetched_dataset = fetch_from_datasource.dataset
 
-        datasource_modified = self.from_config(fetch_from_datasource_config.model_dump())  # type: ignore[misc]
-        datasource_modified.fetch_validate_filter()
-        newly_fetched_dataset = datasource_modified.dataset
-
-        # After fetching the missing data, we can combine it with the cached data to get the full
-        # dataset.
-        self.dataset = combine_cached_and_fetched_data(
-            cached_dataset=cached_dataset_filtered,
-            fetched_dataset=newly_fetched_dataset,
-            dim=missing_dim,
-        )
-
-        # If the cache is writable, we also write the newly fetched data to the cache for
-        # future use. We write
         if self.cache.is_writable:
+            # Incrementally append only the newly fetched slice to the store (no full-store
+            # read/rewrite and no in-memory load), then read the full requested window back
+            # lazily from the updated store.
             self.cache.append(
                 new_dataset=newly_fetched_dataset,
                 source=self.config.source,
                 dim=missing_dim,  # type: ignore[arg-type]
+            )
+            self.dataset = self.get_cached_data(
+                cached_dataset=self.cache.get_dataset(source=self.config.source),
+                datasource=self,
+            )
+        else:
+            # Read-only cache: combine the lazily-loaded cached slice with the freshly fetched
+            # data. The store is not modified, so the lazy cached reference stays valid.
+            cached_dataset_filtered = self.get_cached_data(
+                cached_dataset=cached_dataset,
+                datasource=fetch_from_cache,
+            )
+            self.dataset = combine_cached_and_fetched_data(
+                cached_dataset=cached_dataset_filtered,
+                fetched_dataset=newly_fetched_dataset,
+                dim=missing_dim,
             )
 
         return self

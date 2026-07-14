@@ -8,9 +8,11 @@ fixtures. The cache itself writes to a real local Zarr store under ``cache_dir``
 # mypy: ignore-errors
 
 from collections.abc import Callable
+from datetime import datetime
 from pathlib import Path
 from typing import Literal
 
+import numpy as np
 import pytest
 import xarray as xr
 
@@ -80,6 +82,11 @@ def _zarr_store_has_data(cache_dir: str) -> bool:
     if not p.exists():
         return False
     return any(p.iterdir())
+
+
+def _ts(day: int) -> datetime:
+    """Build a tz-naive ``2025-01-<day>`` timestamp matching the seed's tz-naive coordinates."""
+    return datetime(2025, 1, day)  # noqa: DTZ001
 
 
 # ---------------------------------------------------------------------------
@@ -320,6 +327,141 @@ class TestForecastPartialHit:
         # Resulting dataset should have all 4
         assert ds.dataset[StandardDim.lead_time].size == _EXPECTED_LEAD_TIMES_TOTAL
 
+    def test_missing_frt_period_only_fetches_missing(
+        self,
+        general_info_config_with_cache: GeneralInfoConfig,
+        xarray_simulated_forecast_ensemble: xr.Dataset,
+        fake_seed_registry: FakeSeedRegistry,
+        fake_fetch_spy: FakeFetchSpy,
+    ) -> None:
+        """Verify a rolling forecast-reference-time window only fetches missing FRTs and merges.
+
+        Operational scenario: a previous run cached forecasts issued up to "yesterday"; the current
+        run requests a window rolled one day forward ("last week until now"), so only the most
+        recent forecast reference times are missing and must be fetched, then merged with the
+        cached remainder.
+        """
+        fake_seed_registry(
+            "source_single",
+            DataType.simulated_forecast_ensemble,
+            xarray_simulated_forecast_ensemble,
+        )
+
+        # First run caches forecasts with reference times in [01-05 .. 01-08].
+        general_cached = general_info_config_with_cache.model_copy(deep=True)
+        general_cached.verification_period.start = _ts(5)
+        general_cached.verification_period.end = _ts(8)
+        cfg_a = _make_fake_forecast_config(
+            general_cached,
+            variables=["var_0", "var_1"],
+            stations=["station_0", "station_1"],
+        )
+        FakeDatasource(cfg_a).get_data()
+        assert len(fake_fetch_spy) == 1
+        fake_fetch_spy.clear()
+
+        # Second run rolls the window forward to [01-06 .. 01-09]: the most recent forecast
+        # reference time day (01-08 .. 01-09) is missing from the cache.
+        general_now = general_info_config_with_cache.model_copy(deep=True)
+        general_now.verification_period.start = _ts(6)
+        general_now.verification_period.end = _ts(9)
+        cfg_b = _make_fake_forecast_config(
+            general_now,
+            variables=["var_0", "var_1"],
+            stations=["station_0", "station_1"],
+        )
+        ds = FakeDatasource(cfg_b).get_data()
+
+        # Only the missing FRT tail is fetched from the datasource.
+        assert len(fake_fetch_spy) == 1
+        assert fake_fetch_spy[0]["vp_start"] == _ts(8)
+        assert fake_fetch_spy[0]["vp_end"] == _ts(9)
+
+        # The merged result covers all requested reference times with no gaps (proper merge).
+        merged = ds.dataset.sortby(StandardDim.forecast_reference_time).load()
+        frts = merged[StandardDim.forecast_reference_time].values
+        assert frts.min() == np.datetime64("2025-01-06")
+        assert frts.max() == np.datetime64("2025-01-09")
+        for var in ("var_0", "var_1"):
+            assert not merged[var].isnull().any().item()
+
+        # Values match the seed over the requested FRT window (cached + fetched merged correctly).
+        expected = xarray_simulated_forecast_ensemble.sel(
+            station=["station_0", "station_1"],
+            forecast_reference_time=slice(
+                np.datetime64("2025-01-06"),
+                np.datetime64("2025-01-09"),
+            ),
+            lead_time=merged[StandardDim.lead_time].values,
+        ).sortby(StandardDim.forecast_reference_time)
+        order = (
+            StandardDim.station,
+            StandardDim.forecast_reference_time,
+            StandardDim.lead_time,
+            StandardDim.realization,
+        )
+        for var in ("var_0", "var_1"):
+            np.testing.assert_allclose(
+                merged[var].transpose(*order).values,
+                expected[var].transpose(*order).values,
+            )
+
+    def test_missing_earlier_frt_period_reads_back_sorted(
+        self,
+        general_info_config_with_cache: GeneralInfoConfig,
+        xarray_simulated_forecast_ensemble: xr.Dataset,
+        fake_seed_registry: FakeSeedRegistry,
+        fake_fetch_spy: FakeFetchSpy,
+    ) -> None:
+        """Verify an earlier (backward) window works despite the append leaving the axis unsorted.
+
+        Incremental ``append_dim`` writes new forecast reference times at the end of the store, so
+        requesting an *earlier* window makes the store's coordinate non-monotonic. The read-back
+        must sort first for the slice selection to succeed.
+        """
+        fake_seed_registry(
+            "source_single",
+            DataType.simulated_forecast_ensemble,
+            xarray_simulated_forecast_ensemble,
+        )
+
+        # First run caches forecasts with reference times in [01-05 .. 01-08].
+        general_cached = general_info_config_with_cache.model_copy(deep=True)
+        general_cached.verification_period.start = _ts(5)
+        general_cached.verification_period.end = _ts(8)
+        cfg_a = _make_fake_forecast_config(
+            general_cached,
+            variables=["var_0", "var_1"],
+            stations=["station_0", "station_1"],
+        )
+        FakeDatasource(cfg_a).get_data()
+        fake_fetch_spy.clear()
+
+        # Second run requests an EARLIER window [01-03 .. 01-06] (left overlap): 01-03/01-04 are
+        # missing and get appended at the end of the store, leaving it out of order.
+        general_now = general_info_config_with_cache.model_copy(deep=True)
+        general_now.verification_period.start = _ts(3)
+        general_now.verification_period.end = _ts(6)
+        cfg_b = _make_fake_forecast_config(
+            general_now,
+            variables=["var_0", "var_1"],
+            stations=["station_0", "station_1"],
+        )
+        ds = FakeDatasource(cfg_b).get_data()
+
+        # Only the missing (earlier) reference times are fetched.
+        assert len(fake_fetch_spy) == 1
+        assert fake_fetch_spy[0]["vp_start"] == _ts(3)
+        assert fake_fetch_spy[0]["vp_end"] == _ts(5)
+
+        # The read-back sorts the store, so the full requested window is returned with no gaps.
+        merged = ds.dataset.sortby(StandardDim.forecast_reference_time).load()
+        frts = merged[StandardDim.forecast_reference_time].values
+        assert frts.min() == np.datetime64("2025-01-03")
+        assert frts.max() == np.datetime64("2025-01-06")
+        for var in ("var_0", "var_1"):
+            assert not merged[var].isnull().any().item()
+
     def test_multi_missing_dims_full_refetch(
         self,
         general_info_config_with_cache: GeneralInfoConfig,
@@ -386,6 +528,73 @@ class TestHistoricalCache:
         assert len(fake_fetch_spy) == 1
         assert _zarr_store_path(cache_dir_local).exists()
         assert set(ds.dataset.data_vars) == {"var_0", "var_1"}
+
+    def test_missing_recent_time_period_is_fetched_and_merged(
+        self,
+        general_info_config_historical_with_cache: GeneralInfoConfig,
+        xarray_observed_historical: xr.Dataset,
+        fake_seed_registry: FakeSeedRegistry,
+        fake_fetch_spy: FakeFetchSpy,
+    ) -> None:
+        """Verify a rolling time window reuses cached observations and fetches only the new tail.
+
+        Operational scenario: a previous run cached observations up to "yesterday"; the current
+        run requests a window rolled one day forward, so only the most recent day is missing from
+        the cache and must be fetched, then merged with the cached remainder.
+        """
+        fake_seed_registry(
+            "observed",
+            DataType.observed_historical,
+            xarray_observed_historical,
+        )
+
+        # First run caches observations for [01-02 .. 01-09].
+        general_cached = general_info_config_historical_with_cache.model_copy(deep=True)
+        general_cached.verification_period.start = _ts(2)
+        general_cached.verification_period.end = _ts(9)
+        cfg_a = _make_fake_historical_config(
+            general_cached,
+            variables=["var_0", "var_1"],
+            stations=["station_0", "station_1"],
+        )
+        FakeDatasource(cfg_a).get_data()
+        assert len(fake_fetch_spy) == 1
+        fake_fetch_spy.clear()
+
+        # Second run rolls the window forward to [01-03 .. 01-10]: the most recent day
+        # (01-09 .. 01-10) is missing from the cache.
+        general_now = general_info_config_historical_with_cache.model_copy(deep=True)
+        general_now.verification_period.start = _ts(3)
+        general_now.verification_period.end = _ts(10)
+        cfg_b = _make_fake_historical_config(
+            general_now,
+            variables=["var_0", "var_1"],
+            stations=["station_0", "station_1"],
+        )
+        ds = FakeDatasource(cfg_b).get_data()
+
+        # Only the missing tail is fetched from the datasource.
+        assert len(fake_fetch_spy) == 1
+        assert fake_fetch_spy[0]["vp_start"] == _ts(9)
+        assert fake_fetch_spy[0]["vp_end"] == _ts(10)
+
+        # The merged result spans the full requested window with no gaps (proper merge).
+        merged = ds.dataset.sortby(StandardDim.time).load()
+        assert merged[StandardDim.time].min().values == np.datetime64("2025-01-03")
+        assert merged[StandardDim.time].max().values == np.datetime64("2025-01-10")
+        for var in ("var_0", "var_1"):
+            assert not merged[var].isnull().any().item()
+
+        # Values match the seed over the requested window (cached + fetched merged correctly).
+        expected = xarray_observed_historical.sel(
+            station=["station_0", "station_1"],
+            time=slice(np.datetime64("2025-01-03"), np.datetime64("2025-01-10")),
+        ).sortby(StandardDim.time)
+        for var in ("var_0", "var_1"):
+            np.testing.assert_allclose(
+                merged[var].transpose(StandardDim.time, StandardDim.station).values,
+                expected[var].transpose(StandardDim.time, StandardDim.station).values,
+            )
 
 
 # ---------------------------------------------------------------------------

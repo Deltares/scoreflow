@@ -1,7 +1,7 @@
 """The base configuration definitions for the veriflow pipeline."""
 
 from collections.abc import Iterable
-from typing import TYPE_CHECKING, Annotated, Self, cast
+from typing import TYPE_CHECKING, Annotated, Self
 
 import xarray as xr
 from pydantic import BaseModel, ConfigDict, Field, RootModel, model_validator
@@ -224,51 +224,6 @@ class BaseDatasourceConfig(BaseConfig):
     @property
     def verification_period_on_time(self) -> TimePeriod:
         return self.general.verification_period_on_time
-
-    @property
-    def stations(self) -> list[str]:
-        """Return the station identifiers available for this datasource.
-
-        This is needed for standardization of station identifiers across sources.
-        """
-        if "stations" in self.__dict__:  # type:ignore[misc]
-            return cast("list[str]", self.__dict__["stations"])  # type:ignore[misc]
-        msg = (
-            "Datasource config should have a stations property defined."
-            "If your datasource config has a different name for this property, "
-            "please make sure to implement a stations property that returns the "
-            "correct station identifiers."
-        )
-        raise NotImplementedError(msg)
-
-    # Add a stations setter
-    @stations.setter
-    def stations(self, value: list[str]) -> None:
-        """Set the station identifiers for this datasource."""
-        self.__dict__["stations"] = value  # type:ignore[misc]
-
-    @property
-    def variables(self) -> list[str]:
-        """Return the variable identifiers available for this datasource.
-
-        This is needed for standardization of variable identifiers across sources.
-        """
-        if "variables" in self.__dict__:  # type:ignore[misc]
-            return cast("list[str]", self.__dict__["variables"])  # type:ignore[misc]
-
-        msg = (
-            "Datasource config should have a variables property defined."
-            "If your datasource config has a different name for this property, "
-            "please make sure to implement a variables property that returns the "
-            "correct variable identifiers."
-        )
-        raise NotImplementedError(msg)
-
-    # Add a variables setter
-    @variables.setter
-    def variables(self, value: list[str]) -> None:
-        """Set the variable identifiers for this datasource."""
-        self.__dict__["variables"] = value  # type:ignore[misc]
 
 
 class BaseDatasinkConfig(BaseConfig):

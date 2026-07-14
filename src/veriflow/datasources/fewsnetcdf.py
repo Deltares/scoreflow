@@ -454,6 +454,38 @@ class FewsNetCDF(BaseDatasource):
     def __init__(self, config: FewsNetCDFConfig) -> None:
         self.config: FewsNetCDFConfig = config
 
+    @property
+    def configured_stations(self) -> set[str] | None:
+        """Return the internal station identifiers configured for this datasource.
+
+        This is needed for standardization of station identifiers across sources.
+        """
+        return set(self.config.station_ids) if self.config.station_ids is not None else None
+
+    @configured_stations.setter
+    def configured_stations(self, stations: set[str]) -> None:
+        """Set the internal station identifiers configured for this datasource.
+
+        This is needed for standardization of station identifiers across sources.
+        """
+        self.config.station_ids = list(stations)
+
+    @property
+    def configured_variables(self) -> set[str] | None:
+        """Return the internal variable identifiers configured for this datasource.
+
+        This is needed for standardization of variable identifiers across sources.
+        """
+        return set(self.config.parameter_ids) if self.config.parameter_ids is not None else None
+
+    @configured_variables.setter
+    def configured_variables(self, variables: set[str]) -> None:
+        """Set the internal variable identifiers configured for this datasource.
+
+        This is needed for standardization of variable identifiers across sources.
+        """
+        self.config.parameter_ids = list(variables)
+
     @staticmethod
     def standardize_dataset(
         dataset: xr.Dataset,

@@ -10,9 +10,8 @@ import pytest
 import xarray as xr
 
 from veriflow.cache.cache import (
+    CacheRequest,
     DataRequest,
-    ForecastCacheRequest,
-    HistoricalCacheRequest,
     ZarrCache,
 )
 from veriflow.cache.config import ReadWriteMode, ZarrCacheConfig
@@ -21,6 +20,7 @@ from veriflow.configuration.base import GeneralInfoConfig
 from veriflow.configuration.default.datasources import NetCDFConfig
 from veriflow.configuration.utils import LeadTimes, S3AuthConfig, TimePeriod
 from veriflow.constants import DataSourceKind, DataType, StandardDim, TimeUnits
+from veriflow.datasources.netcdf import NetCDF
 
 _EXPECTED_MISSING_COUNT_MULTI = 2
 _EXPECTED_COMBINED_TIME_SIZE = 3
@@ -181,11 +181,11 @@ class TestDataRequestLeadTimes:
 
 
 # ---------------------------------------------------------------------------
-# HistoricalCacheRequest / ForecastCacheRequest
+# CacheRequest
 # ---------------------------------------------------------------------------
 
 
-def _all_match_request() -> HistoricalCacheRequest:
+def _all_match_request() -> CacheRequest:
     """Build a historical request where everything matches the cache.
 
     Cache strictly envelopes the requested period (cache logic doesn't
@@ -199,7 +199,7 @@ def _all_match_request() -> HistoricalCacheRequest:
         start=datetime(2020, 1, 1, tzinfo=UTC),
         end=datetime(2020, 1, 10, tzinfo=UTC),
     )
-    return HistoricalCacheRequest(
+    return CacheRequest(
         variables=DataRequest(requested={"a"}, cached={"a"}),
         stations=DataRequest(requested={"s"}, cached={"s"}),
         time_period=DataRequest(requested=requested, cached=cached),
@@ -207,7 +207,7 @@ def _all_match_request() -> HistoricalCacheRequest:
 
 
 class TestHistoricalCacheRequest:
-    """Behaviour of ``HistoricalCacheRequest.missing_count``/``missing_dims``."""
+    """Behaviour of historical ``CacheRequest.missing_count``/``missing_dims``."""
 
     def test_no_missing(self) -> None:
         """Verify a fully-cached request reports zero missing."""
@@ -261,18 +261,19 @@ class TestHistoricalCacheRequest:
             stations=["s1", "s2"],
             variables=["a", "b"],
         )
+        datasource = NetCDF(config)
         req = _all_match_request()
         req.variables = DataRequest(requested={"a", "b"}, cached={"a"})
         req.stations = DataRequest(requested={"s1", "s2"}, cached={"s1"})
         assert req.missing_count == _EXPECTED_MISSING_COUNT_MULTI
-        assert req.split_config(config) is None
+        assert req.split_config(datasource) is None
 
 
 class TestForecastCacheRequest:
-    """Behaviour of ``ForecastCacheRequest.missing_count``/``missing_dims``."""
+    """Behaviour of forecast ``CacheRequest.missing_count``/``missing_dims``."""
 
     @staticmethod
-    def _empty() -> ForecastCacheRequest:
+    def _empty() -> CacheRequest:
         # Cache strictly envelopes requested period.
         requested_period = TimePeriod(
             start=datetime(2020, 1, 2, tzinfo=UTC),
@@ -283,10 +284,13 @@ class TestForecastCacheRequest:
             end=datetime(2020, 1, 10, tzinfo=UTC),
         )
         lt = LeadTimes(unit=TimeUnits.day, values=[1, 2])
-        return ForecastCacheRequest(
+        return CacheRequest(
             variables=DataRequest(requested={"a"}, cached={"a"}),
             stations=DataRequest(requested={"s"}, cached={"s"}),
-            frt_period=DataRequest(requested=requested_period, cached=cached_period),
+            forecast_reference_time_period=DataRequest(
+                requested=requested_period,
+                cached=cached_period,
+            ),
             lead_times=DataRequest(requested=lt, cached=lt),
         )
 
@@ -309,7 +313,7 @@ class TestForecastCacheRequest:
     def test_missing_frt(self) -> None:
         """Verify a missing FRT period bumps ``missing_count`` and ``missing_dims``."""
         req = self._empty()
-        req.frt_period = DataRequest(
+        req.forecast_reference_time_period = DataRequest(
             requested=TimePeriod(
                 start=datetime(2020, 1, 5, tzinfo=UTC),
                 end=datetime(2020, 2, 1, tzinfo=UTC),
@@ -392,7 +396,7 @@ class TestZarrCache:
         """Verify ``get_dataset`` on an unknown source returns an empty dataset."""
         cfg = ZarrCacheConfig(
             path=str(Path(cache_dir_local) / "store.zarr"),
-            read_write_mode=ReadWriteMode.write,
+            read_write_mode=ReadWriteMode.read_write,
         )
         cache = ZarrCache(cfg)
         result = cache.get_dataset(source="not_there")
@@ -403,7 +407,7 @@ class TestZarrCache:
         """Verify ``append`` followed by ``get_dataset`` returns the appended data."""
         cfg = ZarrCacheConfig(
             path=str(Path(cache_dir_local) / "store.zarr"),
-            read_write_mode=ReadWriteMode.write,
+            read_write_mode=ReadWriteMode.read_write,
         )
         cache = ZarrCache(cfg)
         ds = _ds_one_var("v1")
@@ -416,7 +420,7 @@ class TestZarrCache:
         """Verify ``is_writable`` reflects the configured read/write mode."""
         cfg_w = ZarrCacheConfig(
             path=str(Path(cache_dir_local) / "store_w.zarr"),
-            read_write_mode=ReadWriteMode.write,
+            read_write_mode=ReadWriteMode.read_write,
         )
         cfg_r = ZarrCacheConfig(
             path=str(Path(cache_dir_local) / "store_r.zarr"),

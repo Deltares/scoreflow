@@ -298,20 +298,22 @@ class S3AuthConfig(BaseSettings):
         Only keys with non-``None`` values are included. ``SecretStr`` values are
         unwrapped to their plain string form so that ``s3fs`` can use them.
 
-        We currently assume a minio config, such as:
-        storage_options={
-            "key": "****",
-            "secret": "*****",
-            "client_kwargs": {
-                "endpoint_url": "https://s3.deltares.nl",
-                "region_name": "eu-west-1"
-            },
-            "config_kwargs": {
-                "s3": {
-                    "addressing_style": "path"
-                }
+        We currently assume a minio config, such as::
+
+            storage_options = {
+                "key": "****",
+                "secret": "*****",
+                "client_kwargs": {
+                    "endpoint_url": "https://s3.deltares.nl",
+                    "region_name": "eu-west-1",
+                },
+                "config_kwargs": {
+                    "s3": {
+                        "addressing_style": "path",
+                    },
+                },
             }
-        },
+
         """
         client_kwargs: dict[str, str] = {}
         if self.endpoint_url is not None:

@@ -120,6 +120,7 @@ dev = [
     "sphinx>=9.0.4",
     "sphinx-design>=0.7.0",
     "sphinx-gallery>=0.20.0",
+    "sphinxcontrib-mermaid>=1.0.0",
     "types-pyyaml==6.0.12.20240311",
     "types-requests==2.32.0.20240712",
 ]

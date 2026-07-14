@@ -331,6 +331,8 @@
         "data_type",
         "directory",
         "filename",
+        "stations",
+        "variables",
         "thresholds"
       ],
       "title": "CsvConfig",
@@ -858,7 +860,7 @@
       "description": "The veriflow cache read/write modes.",
       "enum": [
         "r",
-        "w"
+        "rw"
       ],
       "title": "ReadWriteMode",
       "type": "string"
@@ -1097,7 +1099,7 @@
       "type": "object"
     },
     "ZarrCacheConfig": {
-      "description": "Configuration for the veriflow cache.",
+      "description": "Configuration for the veriflow cache.\n\nThe cache will be materialized as a Zarr store on the local filesystem or remote object storage\n(e.g. S3). When configured, the cache will be used to store and retrieve datasets from any\ndatasource. For example: when requesting forecast data from a datasource, and part of the data\nis already cached, the cache will be used to retrieve the cached data and only the missing data\nwill be fetched from the datasource.",
       "properties": {
         "read_write_mode": {
           "$ref": "#/$defs/ReadWriteMode",
@@ -1245,7 +1247,9 @@
         "import_adapter",
         "source",
         "data_type",
-        "path"
+        "path",
+        "variables",
+        "stations"
       ],
       "title": "ZarrConfig",
       "type": "object"

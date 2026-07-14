@@ -44,6 +44,38 @@ class Zarr(BaseDatasource):
     def __init__(self, config: ZarrConfig) -> None:
         self.config: ZarrConfig = config
 
+    @property
+    def configured_stations(self) -> set[str]:
+        """Return the internal station identifiers configured for this datasource.
+
+        This is needed for standardization of station identifiers across sources.
+        """
+        return set(self.config.stations)
+
+    @configured_stations.setter
+    def configured_stations(self, stations: set[str]) -> None:
+        """Set the internal station identifiers configured for this datasource.
+
+        This is needed for standardization of station identifiers across sources.
+        """
+        self.config.stations = list(stations)
+
+    @property
+    def configured_variables(self) -> set[str]:
+        """Return the internal variable identifiers configured for this datasource.
+
+        This is needed for standardization of variable identifiers across sources.
+        """
+        return set(self.config.variables)
+
+    @configured_variables.setter
+    def configured_variables(self, variables: set[str]) -> None:
+        """Set the internal variable identifiers configured for this datasource.
+
+        This is needed for standardization of variable identifiers across sources.
+        """
+        self.config.variables = list(variables)
+
     def _build_storage_options(self) -> dict[str, object] | None:
         """Build storage_options for xr.open_zarr based on path and config.
 
