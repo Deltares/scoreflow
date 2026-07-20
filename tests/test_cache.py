@@ -24,6 +24,7 @@ from veriflow.datasources.netcdf import NetCDF
 
 _EXPECTED_MISSING_COUNT_MULTI = 2
 _EXPECTED_COMBINED_TIME_SIZE = 3
+_EXPECTED_FRT_SIZE = 4
 
 # ---------------------------------------------------------------------------
 # DataRequest.get_missing_and_available
@@ -342,6 +343,24 @@ def _ds_one_var(name: str = "v1") -> xr.Dataset:
     )
 
 
+def _forecast_ds(frt_dates: list[str], name: str = "v1") -> xr.Dataset:
+    """Build a small forecast dataset indexed by forecast reference time, lead time and station."""
+    frts = np.array(frt_dates, dtype="datetime64[ns]")
+    lead_times = np.array([0, 3600], dtype="timedelta64[s]").astype("timedelta64[ns]")
+    stations = ["s1", "s2"]
+    shape = (len(frts), len(lead_times), len(stations))
+    arr = np.arange(int(np.prod(shape)), dtype="float32").reshape(shape)
+    dims = (StandardDim.forecast_reference_time, StandardDim.lead_time, StandardDim.station)
+    return xr.Dataset(
+        {name: (dims, arr)},
+        coords={
+            StandardDim.forecast_reference_time: frts,
+            StandardDim.lead_time: lead_times,
+            StandardDim.station: stations,
+        },
+    )
+
+
 class TestCombineCachedAndFetched:
     """Behaviour of ``combine_cached_and_fetched_data``."""
 
@@ -489,3 +508,57 @@ class TestZarrCache:
         cache = ZarrCache(cfg)
         assert cache.is_remote
         assert not cache.is_writable
+
+    def test_double_round_trip_sorts_forecast_reference_time(
+        self,
+        cache_dir_local: str,
+    ) -> None:
+        """Verify appending older forecasts after newer ones yields a sorted, sliceable frt axis.
+
+        Simulates two runs: the first caches the most recent forecast reference times, the
+        second (later) run fetches and appends older forecast reference times. Because Zarr
+        appends place new coordinate values at the end of the store, the frt axis is left
+        non-monotonic on disk; ``get_dataset`` must return it sorted so that ``slice`` based
+        selection works.
+        """
+        cfg = ZarrCacheConfig(
+            path=str(Path(cache_dir_local) / "store_frt.zarr"),
+            read_write_mode=ReadWriteMode.read_write,
+        )
+        cache = ZarrCache(cfg)
+
+        # First run: cache the most recent forecasts.
+        recent = _forecast_ds(["2020-01-05", "2020-01-06"])
+        cache.append(recent, source="fc", dim=StandardDim.forecast_reference_time)
+
+        # Second (later) run: fetch and append older forecasts.
+        older = _forecast_ds(["2020-01-01", "2020-01-02"])
+        cache.append(older, source="fc", dim=StandardDim.forecast_reference_time)
+
+        result = cache.get_dataset(source="fc")
+
+        # All four forecast reference times are present and sorted strictly ascending.
+        frt = result[StandardDim.forecast_reference_time].to_numpy()
+        assert frt.size == _EXPECTED_FRT_SIZE
+        assert (np.diff(frt) > np.timedelta64(0)).all()
+        np.testing.assert_array_equal(
+            frt,
+            np.array(
+                ["2020-01-01", "2020-01-02", "2020-01-05", "2020-01-06"],
+                dtype="datetime64[ns]",
+            ),
+        )
+
+        # A slice selection over the (now monotonic) axis works and spans both runs.
+        selected = result.sel(
+            {
+                StandardDim.forecast_reference_time: slice(
+                    np.datetime64("2020-01-02", "ns"),
+                    np.datetime64("2020-01-05", "ns"),
+                ),
+            },
+        )
+        np.testing.assert_array_equal(
+            selected[StandardDim.forecast_reference_time].to_numpy(),
+            np.array(["2020-01-02", "2020-01-05"], dtype="datetime64[ns]"),
+        )

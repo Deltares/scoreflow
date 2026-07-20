@@ -22,7 +22,6 @@ Test-specific:
 
 # mypy: ignore-errors
 
-import os
 import uuid
 from collections.abc import Iterator
 from pathlib import Path
@@ -41,12 +40,9 @@ from veriflow.configuration.utils import S3AuthConfig
 
 load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
-RUN_MINIO_TESTS = os.environ.get("RUN_MINIO_TESTS")
-
-pytestmark = pytest.mark.skipif(
-    not RUN_MINIO_TESTS,
-    reason=f"Skipping MinIO integration tests; ${RUN_MINIO_TESTS} not set",
-)
+# Gate the whole module behind the ``minio`` marker. These tests need a live S3-compatible
+# endpoint; skip them with ``pytest -m 'not minio'``.
+pytestmark = pytest.mark.minio
 
 
 def _build_unique_remote_path() -> str:

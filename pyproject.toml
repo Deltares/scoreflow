@@ -97,6 +97,14 @@ known-first-party = ["my-project-name"]  # again, not needed with a 'flat' proje
     "SLF001",  # Private member access
 ]
 
+[tool.pytest.ini_options]
+# Register custom markers. The MinIO integration tests are tagged ``minio`` so they
+# can be skipped without a live S3 endpoint via ``pytest -m 'not minio'`` while still
+# being discoverable in editors / test explorers.
+markers = [
+    "minio: integration tests that require a live S3-compatible (MinIO) endpoint",
+]
+
 [build-system]
 requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"

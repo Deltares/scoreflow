@@ -36,7 +36,7 @@ from pydantic import BaseModel, model_validator
 
 from veriflow.cache.config import ReadWriteMode, ZarrCacheConfig
 from veriflow.configuration.utils import LeadTimes, TimePeriod
-from veriflow.constants import StandardDim, TimeUnits
+from veriflow.constants import FORECAST_DATA_TYPES, HISTORICAL_DATA_TYPES, StandardDim, TimeUnits
 
 if TYPE_CHECKING:
     from veriflow.datasources.base import BaseDatasource
@@ -154,7 +154,7 @@ class DataRequest(BaseModel):
     @property
     def get_missing_and_available(  # noqa: PLR0911
         self,
-    ) -> tuple[set[str] | TimePeriod | LeadTimes | None, set[str] | TimePeriod | LeadTimes | None]:
+    ) -> tuple[DataRequestValue, DataRequestValue]:
         """Return the missing and available data given what is cached."""
         requested, cached = self.requested, self.cached
         if requested is None:
@@ -178,9 +178,9 @@ class DataRequest(BaseModel):
             cached_values = cached.timedelta64
             missing_lts = [lt for lt in requested.timedelta64 if lt not in cached_values]
             available_lts = [lt for lt in requested.timedelta64 if lt in cached_values]
-            if not missing_lts:
+            if not len(missing_lts) > 0:
                 return None, requested
-            if not available_lts:
+            if not len(available_lts) > 0:
                 return requested, None
             return self._to_lead_times(missing_lts) if len(
                 missing_lts,
@@ -296,6 +296,12 @@ class ZarrCache:
     1. When data is requested that is missing in the cache along more than one dimension, the cache
     will not retrieve data from the cache, but will instead fetch all data from the datasource.
     2. The current cache does not (yet) support caching of computation results.
+    3. Large Zarr files on local filesystems may be slow to open due to the overhead of opening many
+    small files. This is a known limitation of Zarr and is not specific to this implementation.
+    However, using consolidated metadata (``consolidated=True``) can help mitigate this issue by
+    reducing the number of files that need to be opened. However, datasets with a size of below
+    1TB should be fine. See: https://github.com/zarr-developers/zarr-python/issues/86. Also note
+    that caching is optional and can always be turned off.
 
     """
 
@@ -325,7 +331,7 @@ class ZarrCache:
     def get_dataset(self, source: str) -> xr.Dataset:
         """Open a dataset from the cache."""
         try:
-            return xr.open_zarr(  # type: ignore[no-any-return, misc]
+            ds: xr.Dataset = xr.open_zarr(
                 self.config.path,
                 group=f"datasets/{source}",
                 storage_options=self.storage_options,
@@ -333,6 +339,27 @@ class ZarrCache:
             )
         except (FileNotFoundError, KeyError):
             return xr.Dataset()
+
+        # Incremental appends place new coordinate values at the end of the store, which can
+        # leave the axis out of order; ``slice`` selection requires a monotonic index, so sort
+        # first. Sorting only touches the (small) coordinate, keeping the data lazy.
+        if ds.data_type in FORECAST_DATA_TYPES:
+            sort_dims = (
+                StandardDim.forecast_reference_time,
+                StandardDim.lead_time,
+                StandardDim.station,
+            )
+        elif ds.data_type in HISTORICAL_DATA_TYPES:
+            sort_dims = (StandardDim.time, StandardDim.station)
+        else:
+            sort_dims = ()
+
+        # Sort the proper dimensions, depending on the data_type.
+        for dim in sort_dims:
+            if dim in ds.coords:
+                ds = ds.sortby(dim)
+
+        return ds
 
     def write(self, dataset: xr.Dataset, source: str) -> None:
         """Create or overwrite the cached dataset for ``source``.

@@ -73,7 +73,8 @@ class BaseDatasource(Base):
     def configured_stations(self) -> set[str] | None:
         """Return the standardized internal station identifiers configured for this datasource.
 
-        This standardized format is needed for caching across different datasources.
+        This standardized format is needed for caching across different datasources. If your
+        datasource implementation does not have any configurable stations, return None.
         """
         raise NotImplementedError
 
@@ -82,7 +83,8 @@ class BaseDatasource(Base):
     def configured_stations(self, new_stations: set[str]) -> None:
         """Set the standardized internal station identifiers configured for this datasource.
 
-        This standardized format is needed for caching across different datasources.
+        This standardized format is needed for caching across different datasources.If your
+        datasource implementation does not have any configurable stations, return None.
         """
         raise NotImplementedError
 
@@ -91,7 +93,8 @@ class BaseDatasource(Base):
     def configured_variables(self) -> set[str] | None:
         """Return the standardized internal variable identifiers configured for this datasource.
 
-        This standardized format is needed for caching across different datasources.
+        This standardized format is needed for caching across different datasources. If your
+        datasource implementation does not have any configurable variables, return None.
         """
         raise NotImplementedError
 
@@ -100,7 +103,8 @@ class BaseDatasource(Base):
     def configured_variables(self, new_variables: set[str]) -> None:
         """Set the standardized internal variable identifiers configured for this datasource.
 
-        This standardized format is needed for caching across different datasources.
+        This standardized format is needed for caching across different datasources. If your
+        datasource implementation does not have any configurable variables, return None.
         """
         raise NotImplementedError
 
@@ -175,7 +179,7 @@ class BaseDatasource(Base):
         return dataset
 
     def validate_fetched_data(self) -> None:
-        """Validate that the dataset is consistent with the config, and apply filtering."""
+        """Validate that the dataset is consistent with the config."""
         self._validate_data_type()
         self._validate_source()
         self._validate_lead_times()
@@ -292,10 +296,7 @@ class BaseDatasource(Base):
                 msg = "lead_times must be configured for forecast data types."
                 raise ValueError(msg)
             frt = config.verification_period_on_frt
-            # Incremental appends place new coordinate values at the end of the store, which can
-            # leave the axis out of order; ``slice`` selection requires a monotonic index, so sort
-            # first. Sorting only touches the (small) coordinate, keeping the data lazy.
-            subset = subset.sortby(StandardDim.forecast_reference_time)
+
             selection: dict[str, object] = {
                 StandardDim.forecast_reference_time: slice(frt.start, frt.end),  # type: ignore[misc]
                 StandardDim.lead_time: config.lead_times.timedelta64,

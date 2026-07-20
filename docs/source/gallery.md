@@ -23,7 +23,7 @@ forecasts, and Raven discharge forecasts — all accessed through the Delft-FEWS
 Webservice.
 
 +++
-7 notebooks · beginner friendly
+5 notebooks · beginner friendly
 :::
 
 :::{grid-item-card} The Rhine Case
