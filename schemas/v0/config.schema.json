@@ -1122,7 +1122,7 @@
             }
           ],
           "default": null,
-          "description": "Authentication configuration for remote stores. Only consulted when 'path' points to an 's3://' location. Credentials are loaded from S3_-prefixed environment variables; instantiate as 'auth_config: {}' in YAML to enable env-based loading."
+          "description": "Authentication configuration for remote stores. Only consulted when 'path' points to an 's3://' location. When the path is remote and this is left unset, credentials are loaded automatically from S3_-prefixed environment variables, so configuring 'auth_config: {}' in YAML is not required."
         },
         "storage_options": {
           "anyOf": [
@@ -1227,29 +1227,43 @@
           "title": "Consolidated"
         },
         "variables": {
-          "items": {
-            "type": "string"
-          },
-          "minItems": 1,
-          "title": "Variables",
-          "type": "array"
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Variables"
         },
         "stations": {
-          "items": {
-            "type": "string"
-          },
-          "minItems": 1,
-          "title": "Stations",
-          "type": "array"
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Stations"
         }
       },
       "required": [
         "import_adapter",
         "source",
         "data_type",
-        "path",
-        "variables",
-        "stations"
+        "path"
       ],
       "title": "ZarrConfig",
       "type": "object"
