@@ -105,6 +105,6 @@ scores:
 id_mapping:
   variable:
     PC:
-      observed: PC_obs
-      simulated_RDPA: PC_sim
-      simulated_HRDPA: PC_sim
+      observed: PC.obs
+      simulated_RDPA: PC.sim
+      simulated_HRDPA: PC.sim
