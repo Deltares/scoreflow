@@ -16,7 +16,7 @@ __all__ = [
 
 
 class CFCompliantNetCDF(BaseDatasink):
-    """For writing data to a fews netcdf file."""
+    """For writing data to a CF-compliant netcdf file."""
 
     kind = "cf_compliant_netcdf"
     config_class = CFCompliantNetCDFConfig
