@@ -1,6 +1,7 @@
 """Read and write NetCDF files in a fews compatible format."""
 
 from collections.abc import Iterator
+from datetime import datetime
 from enum import StrEnum
 from pathlib import Path
 from typing import ClassVar, Self
@@ -22,6 +23,10 @@ __all__ = [
     "FewsNetCDF",
     "FewsNetCDFConfig",
 ]
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class FewsNetcdfDims(StrEnum):
@@ -486,8 +491,8 @@ class FewsNetCDF(BaseDatasource):
         """
         self.config.parameter_ids = list(variables)
 
-    @staticmethod
     def standardize_dataset(
+        self,
         dataset: xr.Dataset,
         data_type: DataType,
     ) -> xr.Dataset:
@@ -509,6 +514,42 @@ class FewsNetCDF(BaseDatasource):
         for var_name in dataset.data_vars:
             if "units" not in dataset[var_name].attrs:  # type:ignore[misc]
                 dataset[var_name].attrs["units"] = "unknown"  # type:ignore[misc]
+
+            # This is a bit hacky. When a user uses the FEWS-Webservice to retrieve data, and the
+            # configured parameter_id contains a "." (e.g. "discharge.obs"), the returned NetCDF
+            # will contain a data variable with the name "discharge_obs". This is because the "."
+            # is not a valid character in NetCDF variable names according to the CF-conventions,
+            # and FEWS auto-converts all variable names in NetCDF responses to "_".
+            # This creates a diversion between a users configured parameter_id and the
+            # actual data variable name in the NetCDF, which breaks our IdMapping logic applied
+            # in the base class. As a workaround, when a user has configured an IdMapping logic
+            # for a parameter containing a ".", we will back-convert the variable name by replacing
+            # the "_" with a "." in the data variable name, so that it can be aligned with the
+            # to match the configured parameter_id and the IdMapping.
+            if not isinstance(var_name, str):
+                msg = (
+                    f"Data variable name is not a string: {var_name}. "
+                    "This is unexpected and may indicate a problem with the NetCDF file."
+                )
+                raise TypeError(msg)
+
+            if (
+                self.config.id_mapping is not None
+                and self.config.id_mapping.variable is not None
+                and self.config.source in self.config.id_mapping.variable.sources
+                and "_" in var_name
+                and var_name.replace("_", ".")
+                in list(
+                    self.config.id_mapping.variable.get_external_to_internal_mapping(
+                        self.config.source,
+                    ),
+                )
+            ):
+                dataset = dataset.rename(
+                    {
+                        var_name: var_name.replace("_", "."),  # type:ignore[misc]
+                    },
+                )
 
         # Standardize dim order per data variable
         if data_type in FORECAST_DATA_TYPES:
@@ -548,6 +589,7 @@ class FewsNetCDF(BaseDatasource):
             )
         # Simulations - per forecast reference time
         if self.config.netcdf_kind == FewsNetCDFKind.simulated_forecast_per_forecast_reference_time:
+            time_start = datetime.now()  # noqa: DTZ005
             dataset = xr.open_mfdataset(
                 self.config.paths,  # type:ignore[arg-type] # generator is acceptable argument
                 combine="by_coords",
@@ -555,6 +597,12 @@ class FewsNetCDF(BaseDatasource):
                 coords="minimal",
                 compat="override",
             )
+            time_end = datetime.now()  # noqa: DTZ005
+            msg = (
+                f"Opened dataset for source '{self.config.source}' from {self.config.paths} "
+                f"(took {(time_end - time_start).total_seconds():.2f} seconds)"
+            )
+            logger.info(msg)
 
         # Simulations - per lead time
         if self.config.netcdf_kind == FewsNetCDFKind.simulated_forecast_per_lead_time:
