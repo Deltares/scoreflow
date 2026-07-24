@@ -340,6 +340,7 @@ def _ds_one_var(name: str = "v1") -> xr.Dataset:
     return xr.Dataset(
         {name: (("time", "station"), arr)},
         coords={"time": times, "station": stations},
+        attrs={"data_type": DataType.observed_historical},
     )
 
 
@@ -358,6 +359,7 @@ def _forecast_ds(frt_dates: list[str], name: str = "v1") -> xr.Dataset:
             StandardDim.lead_time: lead_times,
             StandardDim.station: stations,
         },
+        attrs={"data_type": DataType.simulated_forecast_single},
     )
 
 
@@ -411,7 +413,7 @@ class TestCombineCachedAndFetched:
 class TestZarrCache:
     """Round-trip behaviour of the local-disk ``ZarrCache``."""
 
-    def test_get_dataset_missing_returns_empty(self, cache_dir_local: str) -> None:
+    def test_get_dataset_missing_returns_none(self, cache_dir_local: str) -> None:
         """Verify ``get_dataset`` on an unknown source returns an empty dataset."""
         cfg = ZarrCacheConfig(
             path=str(Path(cache_dir_local) / "store.zarr"),
@@ -419,8 +421,7 @@ class TestZarrCache:
         )
         cache = ZarrCache(cfg)
         result = cache.get_dataset(source="not_there")
-        assert isinstance(result, xr.Dataset)
-        assert len(result.data_vars) == 0
+        assert result is None
 
     def test_append_then_get_round_trip(self, cache_dir_local: str) -> None:
         """Verify ``append`` followed by ``get_dataset`` returns the appended data."""
@@ -430,7 +431,7 @@ class TestZarrCache:
         )
         cache = ZarrCache(cfg)
         ds = _ds_one_var("v1")
-        cache.append(ds, source="src1", dim="variable")
+        cache.append(ds, source="src1")
         result = cache.get_dataset(source="src1")
         assert "v1" in result.data_vars
         assert result["v1"].shape == ds["v1"].shape
@@ -470,14 +471,6 @@ class TestZarrCache:
         assert not Path(cache_dir_remote).exists()
         # tmp_path is unrelated; just verifies the fixture did not interfere.
         assert tmp_path.exists()
-
-    def test_remote_storage_options_empty_without_auth(
-        self,
-        cache_dir_remote: str,
-    ) -> None:
-        """Verify ``storage_options`` is an empty dict when no auth/options are configured."""
-        cfg = ZarrCacheConfig(path=cache_dir_remote)
-        assert ZarrCache(cfg).storage_options == {}
 
     def test_remote_storage_options_merges_auth_and_extra(
         self,
@@ -529,11 +522,11 @@ class TestZarrCache:
 
         # First run: cache the most recent forecasts.
         recent = _forecast_ds(["2020-01-05", "2020-01-06"])
-        cache.append(recent, source="fc", dim=StandardDim.forecast_reference_time)
+        cache.append(recent, source="fc", append_dim=StandardDim.forecast_reference_time)
 
         # Second (later) run: fetch and append older forecasts.
         older = _forecast_ds(["2020-01-01", "2020-01-02"])
-        cache.append(older, source="fc", dim=StandardDim.forecast_reference_time)
+        cache.append(older, source="fc", append_dim=StandardDim.forecast_reference_time)
 
         result = cache.get_dataset(source="fc")
 

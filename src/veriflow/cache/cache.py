@@ -1,42 +1,21 @@
-"""Zarr cache implementation.
+"""Zarr cache implementation."""
 
-This is a special datasource implementation that is used to cache datasets fetched from other
-datasources. The cache is implemented as a Zarr store, and is designed to be flexible in
-terms of the structure of the store and the types of data that can be cached. The cache is not
-meant to be used directly by users, but rather as an internal helper class used in the get_data
-method of the BaseDatasource abstract class.
-
-The high-level caching flow, orchestrated by
-:meth:`veriflow.datasources.base.BaseDatasource.get_data`, is summarized below:
-
-.. mermaid::
-
-    flowchart TD
-        A([get_data]) --> B{Cache configured and<br/>data type cacheable?}
-        B -- no --> F[Fetch all data<br/>from datasource]
-        B -- yes --> C[Open cached dataset<br/>from the Zarr store]
-        C --> D{Any data cached<br/>for this source?}
-        D -- no --> F
-        D -- yes --> E[Build CacheRequest and<br/>determine missing dimensions]
-        E --> G{How many dimensions<br/>are missing?}
-        G -- none --> H["Load requested data from cache<br/>(full hit)"]
-        G -- one --> I["Fetch missing, append to cache,<br/>read back window (partial hit)"]
-        G -- many --> F
-        F --> W[(Write to cache<br/>if writable)]
-        I --> W
-        H --> R([Return dataset])
-        W --> R
-"""
-
+import logging
+from datetime import datetime
 from typing import TYPE_CHECKING, ClassVar, Literal, Self
 
+import fsspec  # type:ignore[import-untyped]
 import numpy as np
 import xarray as xr
+import zarr
 from pydantic import BaseModel, model_validator
+from zarr.errors import GroupNotFoundError
 
 from veriflow.cache.config import ReadWriteMode, ZarrCacheConfig
 from veriflow.configuration.utils import LeadTimes, TimePeriod
 from veriflow.constants import FORECAST_DATA_TYPES, HISTORICAL_DATA_TYPES, StandardDim, TimeUnits
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from veriflow.datasources.base import BaseDatasource
@@ -281,12 +260,22 @@ class CacheRequest(BaseModel):
 class ZarrCache:
     """The Zarr cache.
 
-    The ZarrCache can cache datasets from any datasource and can be materialized on both a local
-    filesystem and remote object storage (e.g. S3). The cache is configured in the
-    :attr:`veriflow.configuration.base.GeneralInfoConfig.cache` field. All caching logic is handled
-    in the :meth:`veriflow.datasources.base.BaseDatasource.get_data` method, which consults the
-    cache configuration
-    and uses this ZarrCache class to read/write cached datasets as needed.
+    In veriflow, you can cache datasets fetched from any datasource using a Zarr store. The cache
+    enables incremental appends of new data along a single dimension
+    (e.g. time, lead time, or station), and can be materialized on both a local filesystem and
+    remote object storage (e.g. S3). An example use-case for using the cache is the operational
+    application of veriflow, where new forecast data is generated and added to the cache on a daily
+    basis, or when working with multiple people on a centralized verification project, where
+    high-speed access to a shared cache is desired.
+
+    For now, the cache is only used to store datasets fetched from other datasources, and is not
+    used to cache computation results.
+
+    The cache is configured in the :attr:`veriflow.configuration.base.GeneralInfoConfig.cache`
+    field. All caching logic is handled in the
+    :meth:`veriflow.datasources.base.BaseDatasource.get_data` method, which consults the cache
+    configuration and uses this ZarrCache class to read/write cached datasets as needed.
+
 
     The current cache can handle the following scenarios:
     1. Historical data with missing time steps, variables, or stations.
@@ -303,6 +292,46 @@ class ZarrCache:
     1TB should be fine. See: https://github.com/zarr-developers/zarr-python/issues/86. Also note
     that caching is optional and can always be turned off.
 
+    The layout of the Zarr cache is as follows, where each source has its own subgroup under the
+    ``datasets`` group. The source name is identical to the ``source`` field in the datasource
+    configuration.
+    ::
+
+        example_cache.zarr/
+        ├── datasets/
+        │   ├── observations/
+        │   │   ├── temperature/
+        │   │   ├── precipitation/
+        │   │   └── discharge/
+        │   └── forecasts_model_a
+        │   │   ├── temperature/
+        │   │   ├── precipitation/
+        │   │   └── discharge/
+        │   └── forecasts_model_b
+        │   │   ├── temperature/
+        │   │   ├── precipitation/
+        │   │   └── discharge/
+
+    A flowchart of the caching logic is shown below, which is implemented in the
+    :meth:`veriflow.datasources.base.BaseDatasource.get_data` method.
+
+    .. mermaid::
+
+        flowchart TD
+            A([get_data]) --> B{Cache configured and<br/>data type cacheable?}
+            B -- no --> F[Fetch all data<br/>from datasource]
+            B -- yes --> C[Open cached dataset<br/>from the Zarr store]
+            C --> D{Any data cached<br/>for this source?}
+            D -- no --> F
+            D -- yes --> E[Build CacheRequest and<br/>determine missing dimensions]
+            E --> G{How many dimensions<br/>are missing?}
+            G -- none --> H["Load requested data from cache<br/>(full hit)"]
+            G -- one --> I["Fetch missing, append to cache,<br/>read back dataset"]
+            G -- many --> F
+            F --> W[(Write to cache<br/>if writable)]
+            I --> W
+            H --> R([Return dataset])
+            W --> R
     """
 
     def __init__(
@@ -311,6 +340,8 @@ class ZarrCache:
     ) -> None:
         self.config = config
         self.storage_options = self._build_storage_options()
+        msg = f"Zarr cache initialized with path: {self.config.path}"
+        logger.info(msg)
 
     def _build_storage_options(self) -> dict[str, object] | None:
         """Build storage_options for xr.open_zarr based on path and config.
@@ -328,31 +359,50 @@ class ZarrCache:
             options.update(self.config.storage_options)
         return options
 
-    def get_dataset(self, source: str) -> xr.Dataset:
+    def get_dataset(self, source: str) -> xr.Dataset | None:
         """Open a dataset from the cache."""
         try:
+            time_start = datetime.now()  # noqa: DTZ005
             ds: xr.Dataset = xr.open_zarr(
                 self.config.path,
                 group=f"datasets/{source}",
                 storage_options=self.storage_options,
                 consolidated=self.config.consolidated,
             )
+            time_end = datetime.now()  # noqa: DTZ005
+            msg = (
+                f"Opened dataset for source '{source}' from {self.config.path} "
+                f"(took {(time_end - time_start).total_seconds():.2f} seconds)"
+            )
+            logger.info(msg)
         except (FileNotFoundError, KeyError):
-            return xr.Dataset()
+            return None
+
+        if not hasattr(ds, "data_type"):
+            msg = (
+                f"Dataset for source '{source}' in {self.config.path} is missing the 'data_type' "
+                "attribute. This is required for proper sorting of the dataset."
+            )
+            raise ValueError(msg)
 
         # Incremental appends place new coordinate values at the end of the store, which can
         # leave the axis out of order; ``slice`` selection requires a monotonic index, so sort
         # first. Sorting only touches the (small) coordinate, keeping the data lazy.
-        if ds.data_type in FORECAST_DATA_TYPES:
+        sort_dims: tuple = ()
+        if ds.data_type in FORECAST_DATA_TYPES:  # type:ignore[misc]
             sort_dims = (
                 StandardDim.forecast_reference_time,
                 StandardDim.lead_time,
                 StandardDim.station,
             )
-        elif ds.data_type in HISTORICAL_DATA_TYPES:
+        elif ds.data_type in HISTORICAL_DATA_TYPES:  # type:ignore[misc]
             sort_dims = (StandardDim.time, StandardDim.station)
         else:
-            sort_dims = ()
+            msg = (
+                f"Dataset for source '{source}' in {self.config.path} has an unknown "
+                f"data_type: {ds.data_type}"  # type:ignore[misc]
+            )
+            raise ValueError(msg)
 
         # Sort the proper dimensions, depending on the data_type.
         for dim in sort_dims:
@@ -361,31 +411,17 @@ class ZarrCache:
 
         return ds
 
-    def write(self, dataset: xr.Dataset, source: str) -> None:
-        """Create or overwrite the cached dataset for ``source``.
-
-        Writes ``dataset`` as the entire cache entry (``mode="w"``). The existing store is never
-        read, so this does not load previously cached data into memory.
-        """
-        dataset.to_zarr(  # type: ignore[call-overload]
-            self.config.path,
-            group=f"datasets/{source}",
-            mode="w",
-            storage_options=self.storage_options,
-            consolidated=self.config.consolidated,
-        )
-
     def append(
         self,
         new_dataset: xr.Dataset,
         source: str,
-        dim: Literal[
+        append_dim: Literal[
             StandardDim.station,
             StandardDim.forecast_reference_time,
             StandardDim.lead_time,
             StandardDim.time,
-            "variable",
-        ],
+        ]
+        | None = None,
     ) -> None:
         """Incrementally add ``new_dataset`` to the cache along a single dimension.
 
@@ -397,40 +433,38 @@ class ZarrCache:
         cached = self.get_dataset(source)
         group = f"datasets/{source}"
 
-        # Nothing cached yet: create the store from the new data.
-        if not cached.data_vars:
-            self.write(new_dataset, source)
-            return
+        time_start = datetime.now()  # noqa: DTZ005
+        # Dataset does not yet exist in store
+        if cached is None or append_dim is None or append_dim not in cached.coords:
+            to_add = new_dataset
+            # Force append_dim to None if no dataset exists yet, since the first write creates the
+            # store and cannot append along a non-existent dimension.
+            append_dim = None
 
-        # A new variable: add it in place without touching existing arrays.
-        if dim == "variable":
-            new_vars = [name for name in new_dataset.data_vars if name not in cached.data_vars]
-            if not new_vars:
+        # Append only the coordinate values not already cached.
+        else:
+            existing = cached[append_dim].to_numpy()  # type: ignore[misc]
+            incoming = new_dataset[append_dim].to_numpy()  # type: ignore[misc]
+            is_new = ~np.isin(incoming, existing)  # type: ignore[misc]
+            if not bool(is_new.any()):
                 return
-            new_dataset[new_vars].to_zarr(  # type: ignore[call-overload]
-                self.config.path,
-                group=group,
-                mode="a",
-                storage_options=self.storage_options,
-                consolidated=self.config.consolidated,
-            )
-            return
+            to_add = new_dataset.sel({append_dim: incoming[is_new]})  # type: ignore[misc]
 
-        # A coordinate dimension: append only the coordinate values not already cached.
-        existing = cached[dim].to_numpy()  # type: ignore[misc]
-        incoming = new_dataset[dim].to_numpy()  # type: ignore[misc]
-        is_new = ~np.isin(incoming, existing)  # type: ignore[misc]
-        if not bool(is_new.any()):
-            return
-        to_add = new_dataset.sel({dim: incoming[is_new]})  # type: ignore[misc]
         to_add.to_zarr(  # type: ignore[call-overload]
             self.config.path,
             group=group,
             mode="a",
-            append_dim=dim,
+            append_dim=append_dim,
             storage_options=self.storage_options,
             consolidated=self.config.consolidated,
         )
+        time_end = datetime.now()  # noqa: DTZ005
+        total_time_seconds = (time_end - time_start).total_seconds()
+        msg = (
+            f"Appended dataset for source '{source}' along dimension '{append_dim}' to "
+            f"{self.config.path} (took {total_time_seconds:.2f} seconds)"
+        )
+        logger.info(msg)
 
     @property
     def is_remote(self) -> bool:
@@ -441,3 +475,41 @@ class ZarrCache:
     def is_writable(self) -> bool:
         """Return True if the cache is writable."""
         return self.config.read_write_mode == ReadWriteMode.read_write
+
+    @property
+    def sources(self) -> list[str]:
+        """Return the list of sources (subgroups) cached in the ``datasets`` group."""
+        try:
+            group = zarr.open_group(  # type:ignore[misc]
+                self.config.path,
+                mode="r",
+                path="datasets",
+                storage_options=self.storage_options,
+                use_consolidated=self.config.consolidated,
+            )
+        except (FileNotFoundError, KeyError, GroupNotFoundError):  # type:ignore[misc]
+            return []
+
+        return sorted(group.group_keys())  # type:ignore[misc]
+
+    def clear(self, source: str | None = None) -> None:
+        """Delete a Zarr archive from either a local filesystem or a remote MinIO server.
+
+        If ``source`` is specified, only the corresponding subgroup is deleted.
+        """
+        options = self.config.storage_options or {}
+
+        # Automatically infers protocol (e.g., 's3' or 'file') from the path
+        fs, clean_path = fsspec.core.url_to_fs(self.config.path, **options)  # type:ignore[misc]
+
+        if source is None:
+            if fs.exists(clean_path):  # type:ignore[misc]
+                fs.rm(clean_path, recursive=True)  # type:ignore[misc]
+                msg = f"Cleared Zarr cache at {self.config.path}"
+                logger.info(msg)
+        else:
+            group_path = f"{clean_path}/datasets/{source}"  # type:ignore[misc]
+            if fs.exists(group_path):  # type:ignore[misc]
+                fs.rm(group_path, recursive=True)  # type:ignore[misc]
+                msg = f"Cleared Zarr cache for source '{source}' at {self.config.path}"
+                logger.info(msg)

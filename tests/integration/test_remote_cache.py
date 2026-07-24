@@ -35,6 +35,7 @@ from dotenv import load_dotenv
 from veriflow.cache.cache import ZarrCache
 from veriflow.cache.config import ReadWriteMode, ZarrCacheConfig
 from veriflow.configuration.utils import S3AuthConfig
+from veriflow.constants import DataType
 
 # Load .env from the repo root (tests/integration/test_remote_cache.py -> ../../).
 
@@ -85,6 +86,7 @@ def _ds_one_var(name: str = "v1") -> xr.Dataset:
     return xr.Dataset(
         {name: (("time", "station"), arr)},
         coords={"time": times, "station": stations},
+        attrs={"data_type": DataType.observed_historical},
     )
 
 
@@ -96,13 +98,12 @@ def test_remote_minio_is_remote(remote_zarr_path: str) -> None:
     assert cache.storage_options is not None
 
 
-def test_remote_minio_get_dataset_missing_returns_empty(remote_zarr_path: str) -> None:
+def test_remote_minio_get_dataset_missing_returns_none(remote_zarr_path: str) -> None:
     """Verify ``get_dataset`` against a fresh remote prefix returns an empty dataset."""
     cfg = _make_remote_config(remote_zarr_path, ReadWriteMode.read)
     cache = ZarrCache(cfg)
     result = cache.get_dataset(source="does_not_exist")
-    assert isinstance(result, xr.Dataset)
-    assert len(result.data_vars) == 0
+    assert result is None
 
 
 def test_remote_minio_append_then_get_round_trip(remote_zarr_path: str) -> None:
@@ -111,7 +112,7 @@ def test_remote_minio_append_then_get_round_trip(remote_zarr_path: str) -> None:
     cache = ZarrCache(cfg)
     ds = _ds_one_var("v1")
 
-    cache.append(ds, source="src1", dim="variable")
+    cache.append(ds, source="src1")
     result = cache.get_dataset(source="src1")
 
     assert "v1" in result.data_vars

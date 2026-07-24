@@ -22,6 +22,7 @@ __all__ = [
     # "BaseScoreConfig",
     # "BaseCategoricalScoreConfig",
     "GeneralInfoConfig",
+    "IdMap",
     "IdMappingConfig",
 ]
 
@@ -118,6 +119,19 @@ class IdMap(RootModel[dict[str, dict[str, str]]]):
 
         return {v[source]: k for k, v in self.root.items()}
 
+    def rename_external_to_internal(self, external_ids: set[str], source: str) -> set[str]:
+        """Apply the mapping to a set of external IDs for a given source.
+
+        Returns the corresponding internal IDs.
+        """
+        ext_to_int = self.get_external_to_internal_mapping(source)
+        return {ext_to_int[ext] for ext in external_ids if ext in ext_to_int}
+
+    @property
+    def sources(self) -> set[str]:
+        """Return the set of all sources defined in the IdMap."""
+        return {source for inner in self.root.values() for source in inner}
+
 
 class IdMappingConfig(BaseModel):
     """Config for mapping external ids to their internal definition."""
@@ -156,6 +170,7 @@ class IdMappingConfig(BaseModel):
             }
             if len(rename_map) > 0:
                 dataset = dataset.rename_vars(rename_map)
+
         # Re-assign station coordinates, if mapping is provided for source
         if self.station is not None:
             dataset = dataset.assign_coords(

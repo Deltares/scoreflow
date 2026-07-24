@@ -147,7 +147,9 @@ class TestForecastCacheMiss:
             variables=["var_0", "var_1"],
             stations=["station_0", "station_1"],
         )
-        ds = FakeDatasource(cfg).get_data()
+        ds = FakeDatasource(cfg)
+        ds.cache = ZarrCache(general_info_config_with_cache.cache)  # type: ignore[arg-type]
+        ds.get_data()
         assert len(fake_fetch_spy) == 1
         assert _zarr_store_has_data(cache_dir_local)
         assert set(ds.dataset.data_vars) == {"var_0", "var_1"}
@@ -201,7 +203,9 @@ class TestForecastCacheFullHit:
             stations=["station_0", "station_1"],
         )
         # First call populates cache
-        FakeDatasource(cfg).get_data()
+        ds = FakeDatasource(cfg)
+        ds.cache = ZarrCache(general_info_config_with_cache.cache)  # type: ignore[arg-type]
+        ds.get_data()
         assert len(fake_fetch_spy) == 1
         fake_fetch_spy.clear()
         # Second call with the same config is a full cache hit — no fetch.
@@ -210,7 +214,9 @@ class TestForecastCacheFullHit:
             variables=["var_0", "var_1"],
             stations=["station_0", "station_1"],
         )
-        ds2 = FakeDatasource(cfg2).get_data()
+        ds2 = FakeDatasource(cfg2)
+        ds2.cache = ZarrCache(general_info_config_with_cache.cache)  # type: ignore[arg-type]
+        ds2.get_data()
         assert len(fake_fetch_spy) == 0
         assert set(ds2.dataset.data_vars) == {"var_0", "var_1"}
 
@@ -237,7 +243,9 @@ class TestForecastPartialHit:
             variables=["var_0"],
             stations=["station_0", "station_1"],
         )
-        FakeDatasource(cfg_a).get_data()
+        ds_a = FakeDatasource(cfg_a)
+        ds_a.cache = ZarrCache(general_info_config_with_cache.cache)  # type: ignore[arg-type]
+        ds_a.get_data()
         assert len(fake_fetch_spy) == 1
         fake_fetch_spy.clear()
         # Now request both var_0 and var_1 — should fetch only var_1
@@ -246,7 +254,9 @@ class TestForecastPartialHit:
             variables=["var_0", "var_1"],
             stations=["station_0", "station_1"],
         )
-        ds = FakeDatasource(cfg_b).get_data()
+        ds = FakeDatasource(cfg_b)
+        ds.cache = ZarrCache(general_info_config_with_cache.cache)  # type: ignore[arg-type]
+        ds.get_data()
         assert len(fake_fetch_spy) == 1
         assert fake_fetch_spy[0]["variables"] == ["var_1"]
         assert set(ds.dataset.data_vars) == {"var_0", "var_1"}
@@ -270,7 +280,9 @@ class TestForecastPartialHit:
             variables=["var_0", "var_1"],
             stations=["station_0"],
         )
-        FakeDatasource(cfg_a).get_data()
+        ds_a = FakeDatasource(cfg_a)
+        ds_a.cache = ZarrCache(general_info_config_with_cache.cache)  # type: ignore[arg-type]
+        ds_a.get_data()
         fake_fetch_spy.clear()
         # Request station_0 + station_1
         cfg_b = _make_fake_forecast_config(
@@ -278,10 +290,12 @@ class TestForecastPartialHit:
             variables=["var_0", "var_1"],
             stations=["station_0", "station_1"],
         )
-        ds = FakeDatasource(cfg_b).get_data()
+        ds_b = FakeDatasource(cfg_b)
+        ds_b.cache = ZarrCache(general_info_config_with_cache.cache)  # type: ignore[arg-type]
+        ds_b.get_data()
         assert len(fake_fetch_spy) == 1
         assert fake_fetch_spy[0]["stations"] == ["station_1"]
-        assert set(ds.dataset[StandardDim.station].values) == {"station_0", "station_1"}
+        assert set(ds_b.dataset[StandardDim.station].values) == {"station_0", "station_1"}
 
     def test_missing_lead_times_only_fetches_missing(
         self,
@@ -307,7 +321,9 @@ class TestForecastPartialHit:
             variables=["var_0"],
             stations=["station_0"],
         )
-        FakeDatasource(cfg_a).get_data()
+        ds_a = FakeDatasource(cfg_a)
+        ds_a.cache = ZarrCache(general_info_config_with_cache.cache)  # type: ignore[arg-type]
+        ds_a.get_data()
         fake_fetch_spy.clear()
         # Now request lead-times one through four.
         general_lt1234 = general_info_config_with_cache.model_copy(deep=True)
@@ -317,7 +333,9 @@ class TestForecastPartialHit:
             variables=["var_0"],
             stations=["station_0"],
         )
-        ds = FakeDatasource(cfg_b).get_data()
+        ds_b = FakeDatasource(cfg_b)
+        ds_b.cache = ZarrCache(general_info_config_with_cache.cache)  # type: ignore[arg-type]
+        ds_b.get_data()
         assert len(fake_fetch_spy) == 1
         # Spy records lead_times.values - after split, missing should be [3, 4] in some unit
         # The split converts to nanoseconds. Verify by length of timedelta64.
@@ -325,7 +343,7 @@ class TestForecastPartialHit:
         assert spy_lt is not None
         assert len(spy_lt.timedelta64) == _EXPECTED_LEAD_TIMES_SPLIT
         # Resulting dataset should have all 4
-        assert ds.dataset[StandardDim.lead_time].size == _EXPECTED_LEAD_TIMES_TOTAL
+        assert ds_b.dataset[StandardDim.lead_time].size == _EXPECTED_LEAD_TIMES_TOTAL
 
     def test_missing_frt_period_only_fetches_missing(
         self,
@@ -356,7 +374,9 @@ class TestForecastPartialHit:
             variables=["var_0", "var_1"],
             stations=["station_0", "station_1"],
         )
-        FakeDatasource(cfg_a).get_data()
+        _ = FakeDatasource(cfg_a)
+        _.cache = ZarrCache(general_info_config_with_cache.cache)  # type: ignore[arg-type]
+        _.get_data()
         assert len(fake_fetch_spy) == 1
         fake_fetch_spy.clear()
 
@@ -370,7 +390,9 @@ class TestForecastPartialHit:
             variables=["var_0", "var_1"],
             stations=["station_0", "station_1"],
         )
-        ds = FakeDatasource(cfg_b).get_data()
+        ds_b = FakeDatasource(cfg_b)
+        ds_b.cache = ZarrCache(general_info_config_with_cache.cache)  # type: ignore[arg-type]
+        ds_b.get_data()
 
         # Only the missing FRT tail is fetched from the datasource.
         assert len(fake_fetch_spy) == 1
@@ -378,7 +400,7 @@ class TestForecastPartialHit:
         assert fake_fetch_spy[0]["vp_end"] == _ts(9)
 
         # The merged result covers all requested reference times with no gaps (proper merge).
-        merged = ds.dataset.sortby(StandardDim.forecast_reference_time).load()
+        merged = ds_b.dataset.sortby(StandardDim.forecast_reference_time).load()
         frts = merged[StandardDim.forecast_reference_time].values
         assert frts.min() == np.datetime64("2025-01-06")
         assert frts.max() == np.datetime64("2025-01-09")
@@ -434,7 +456,9 @@ class TestForecastPartialHit:
             variables=["var_0", "var_1"],
             stations=["station_0", "station_1"],
         )
-        FakeDatasource(cfg_a).get_data()
+        ds_a = FakeDatasource(cfg_a)
+        ds_a.cache = ZarrCache(general_info_config_with_cache.cache)  # type: ignore[arg-type]
+        ds_a.get_data()
         fake_fetch_spy.clear()
 
         # Second run requests an EARLIER window [01-03 .. 01-06] (left overlap): 01-03/01-04 are
@@ -447,7 +471,9 @@ class TestForecastPartialHit:
             variables=["var_0", "var_1"],
             stations=["station_0", "station_1"],
         )
-        ds = FakeDatasource(cfg_b).get_data()
+        ds = FakeDatasource(cfg_b)
+        ds.cache = ZarrCache(general_info_config_with_cache.cache)  # type: ignore[arg-type]
+        ds.get_data()
 
         # Only the missing (earlier) reference times are fetched.
         assert len(fake_fetch_spy) == 1
@@ -481,7 +507,9 @@ class TestForecastPartialHit:
             variables=["var_0"],
             stations=["station_0"],
         )
-        FakeDatasource(cfg_a).get_data()
+        ds_a = FakeDatasource(cfg_a)
+        ds_a.cache = ZarrCache(general_info_config_with_cache.cache)  # type: ignore[arg-type]
+        ds_a.get_data()
         fake_fetch_spy.clear()
         # Request both extensions
         cfg_b = _make_fake_forecast_config(
@@ -489,7 +517,9 @@ class TestForecastPartialHit:
             variables=["var_0", "var_1"],
             stations=["station_0", "station_1"],
         )
-        ds = FakeDatasource(cfg_b).get_data()
+        ds = FakeDatasource(cfg_b)
+        ds.cache = ZarrCache(general_info_config_with_cache.cache)  # type: ignore[arg-type]
+        ds.get_data()
         # Multi-missing → split_config returns None → full re-fetch with original config
         assert len(fake_fetch_spy) == 1
         assert fake_fetch_spy[0]["variables"] == ["var_0", "var_1"]
@@ -524,7 +554,9 @@ class TestHistoricalCache:
             variables=["var_0", "var_1"],
             stations=["station_0", "station_1"],
         )
-        ds = FakeDatasource(cfg).get_data()
+        ds = FakeDatasource(cfg)
+        ds.cache = ZarrCache(general_info_config_historical_with_cache.cache)  # type: ignore[arg-type]
+        ds.get_data()
         assert len(fake_fetch_spy) == 1
         assert _zarr_store_path(cache_dir_local).exists()
         assert set(ds.dataset.data_vars) == {"var_0", "var_1"}
@@ -557,7 +589,9 @@ class TestHistoricalCache:
             variables=["var_0", "var_1"],
             stations=["station_0", "station_1"],
         )
-        FakeDatasource(cfg_a).get_data()
+        ds_a = FakeDatasource(cfg_a)
+        ds_a.cache = ZarrCache(general_info_config_historical_with_cache.cache)  # type: ignore[arg-type]
+        ds_a.get_data()
         assert len(fake_fetch_spy) == 1
         fake_fetch_spy.clear()
 
@@ -571,7 +605,9 @@ class TestHistoricalCache:
             variables=["var_0", "var_1"],
             stations=["station_0", "station_1"],
         )
-        ds = FakeDatasource(cfg_b).get_data()
+        ds = FakeDatasource(cfg_b)
+        ds.cache = ZarrCache(general_info_config_historical_with_cache.cache)  # type: ignore[arg-type]
+        ds.get_data()
 
         # Only the missing tail is fetched from the datasource.
         assert len(fake_fetch_spy) == 1
@@ -625,7 +661,9 @@ class TestCacheWriteBack:
             variables=["var_0"],
             stations=["station_0"],
         )
-        FakeDatasource(cfg_a).get_data()
+        ds_a = FakeDatasource(cfg_a)
+        ds_a.cache = ZarrCache(general_info_config_with_cache.cache)  # type: ignore[arg-type]
+        ds_a.get_data()
         fake_fetch_spy.clear()
 
         # Spy on cache.append
@@ -636,7 +674,7 @@ class TestCacheWriteBack:
             self: ZarrCache,
             new_dataset: xr.Dataset,
             source: str,
-            dim: Literal[
+            append_dim: Literal[
                 StandardDim.station,
                 StandardDim.forecast_reference_time,
                 StandardDim.lead_time,
@@ -648,10 +686,10 @@ class TestCacheWriteBack:
                 {
                     "vars": list(new_dataset.data_vars),
                     "source": source,
-                    "dim": dim,
+                    "dim": append_dim,
                 },
             )
-            return original_append(self, new_dataset, source, dim)
+            return original_append(self, new_dataset, source, append_dim)
 
         monkeypatch.setattr(ZarrCache, "append", append_spy)
 
@@ -661,7 +699,8 @@ class TestCacheWriteBack:
             variables=["var_0", "var_1"],
             stations=["station_0"],
         )
-        FakeDatasource(cfg_b).get_data()
+        ds_b = FakeDatasource(cfg_b)
+        ds_b.cache = ZarrCache(general_info_config_with_cache.cache)  # type: ignore[arg-type]
+        ds_b.get_data()
         assert len(appended) == 1
         assert appended[0]["vars"] == ["var_1"]
-        assert appended[0]["dim"] == "variable"

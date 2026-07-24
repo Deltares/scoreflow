@@ -58,9 +58,9 @@ class ZarrCacheConfig(BaseModel):
         Field(
             default=None,
             description="Authentication configuration for remote stores. Only consulted "
-            "when 'path' points to an 's3://' location. Credentials are loaded from "
-            "S3_-prefixed environment variables; instantiate as 'auth_config: {}' in YAML "
-            "to enable env-based loading.",
+            "when 'path' points to an 's3://' location. When the path is remote and this is "
+            "left unset, credentials are loaded automatically from S3_-prefixed environment "
+            "variables, so configuring 'auth_config: {}' in YAML is not required.",
         ),
     ] = None
     storage_options: Annotated[
@@ -87,8 +87,13 @@ class ZarrCacheConfig(BaseModel):
 
     @model_validator(mode="after")
     def validate_cache_path_accessible(self) -> Self:
-        """Check that cache dir exists and is a directory."""
-        if not self.is_remote_path():
+        """Check that a local cache dir exists, or initialize S3 auth for remote paths."""
+        if self.is_remote_path():
+            # Auto-load S3 credentials from S3_-prefixed environment variables so users do
+            # not have to explicitly configure 'auth_config: {}' for remote stores.
+            if self.auth_config is None:
+                self.auth_config = S3AuthConfig()
+        else:
             path = Path(self.path)
             if not path.exists():
                 path.mkdir(parents=True)

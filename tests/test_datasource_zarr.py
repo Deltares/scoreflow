@@ -30,8 +30,6 @@ def _make_zarr_config(
         path=path,
         auth_config=auth_config,
         storage_options=storage_options,
-        variables=["v1"],
-        stations=["s1"],
     )
 
 

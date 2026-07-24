@@ -140,8 +140,8 @@ class NetCDFConfig(BaseDatasourceConfig, LocalFiles):
     """A NetCDF config element."""
 
     import_adapter: Literal[DataSourceKind.NETCDF]
-    stations: Annotated[list[str], Field(min_length=1)] | None = None
-    variables: Annotated[list[str], Field(min_length=1)] | None = None
+    stations: Annotated[list[str] | None, Field(min_length=1)] = None
+    variables: Annotated[list[str] | None, Field(min_length=1)] = None
 
 
 class ZarrConfig(BaseDatasourceConfig):
@@ -192,8 +192,8 @@ class ZarrConfig(BaseDatasourceConfig):
         ),
     ] = None
 
-    variables: Annotated[list[str], Field(min_length=1)]
-    stations: Annotated[list[str], Field(min_length=1)]
+    variables: Annotated[list[str] | None, Field(min_length=1)] = None
+    stations: Annotated[list[str] | None, Field(min_length=1)] = None
 
 
 class CsvConfig(LocalFile, BaseDatasourceConfig):

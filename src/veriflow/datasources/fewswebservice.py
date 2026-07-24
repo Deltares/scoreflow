@@ -245,8 +245,10 @@ class FewsWebservice(BaseDatasource):
                         id_mapping=self.config.id_mapping,
                         source=self.config.source,
                         parameter_ids=self.config.parameter_ids,
+                        station_ids=self.config.location_ids,
                     ),
                 )
+                datasource.cache = None
 
                 # Call get_data directly, to immediately cache the xr.Dataset and break links to
                 #   to tmpdir. This prevents os.PermissionErrors upon __exit__ of the current
@@ -409,8 +411,11 @@ class FewsWebservice(BaseDatasource):
                         netcdf_kind=FewsNetCDFKind.simulated_forecast_per_forecast_reference_time,
                         id_mapping=self.config.id_mapping,
                         source=self.config.source,
+                        parameter_ids=self.config.parameter_ids,
+                        station_ids=self.config.location_ids,
                     ),
                 )
+                datasource.cache = None
 
                 # Call get_data directly, to immediately cache the xr.Dataset and break links to
                 #   to tmpdir. This prevents os.PermissionErrors upon __exit__ of the current

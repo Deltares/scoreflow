@@ -1,5 +1,6 @@
 """Module with the base class that all datasources should inherit from."""
 
+import logging
 from abc import abstractmethod
 from typing import ClassVar, Self, cast
 
@@ -25,6 +26,9 @@ from veriflow.constants import (
     TimeUnits,
 )
 
+logger = logging.getLogger(__name__)
+
+
 __all__ = [
     "BaseDatasource",
     "BaseDatasourceConfig",
@@ -39,6 +43,7 @@ class BaseDatasource(Base):
     kind: str = ""
     config_class: type[BaseDatasourceConfig] = BaseDatasourceConfig
     supported_data_types: ClassVar[set[DataType]] = set()
+    _cache: ZarrCache | None = None
 
     def __init__(self, config: BaseDatasourceConfig) -> None:
         self.config: BaseDatasourceConfig = config
@@ -63,10 +68,13 @@ class BaseDatasource(Base):
 
     @property
     def cache(self) -> ZarrCache | None:
-        """The cache instance if configured, else None."""
-        return (
-            ZarrCache(self.config.general.cache) if self.config.general.cache is not None else None
-        )
+        """Return the cache instance if caching is enabled, otherwise None."""
+        return self._cache
+
+    @cache.setter
+    def cache(self, new_cache: ZarrCache | None) -> None:
+        """Set the cache instance for this datasource."""
+        self._cache = new_cache
 
     @property
     @abstractmethod
@@ -107,6 +115,27 @@ class BaseDatasource(Base):
         datasource implementation does not have any configurable variables, return None.
         """
         raise NotImplementedError
+
+    @property
+    def configured_variables_internal(self) -> set[str] | None:
+        """Return the standardized internal variable identifiers configured for this datasource.
+
+        This standardized format is needed for caching across different datasources. If your
+        datasource implementation does not have any configurable variables, return None.
+        """
+        if (
+            self.config.id_mapping is not None
+            and self.config.id_mapping.variable is not None
+            and self.configured_variables is not None
+        ):
+            if self.config.source in self.config.id_mapping.variable.sources:
+                return self.config.id_mapping.variable.rename_external_to_internal(
+                    self.configured_variables,
+                    self.config.source,
+                )
+        else:
+            return self.configured_variables
+        return self.configured_variables
 
     @abstractmethod
     def fetch_data(self) -> Self:
@@ -195,13 +224,29 @@ class BaseDatasource(Base):
             self.config.verification_period_on_time,
         )
 
-    def fetch_validate_filter(self) -> Self:
+    def fetch_validate_filter_cache(self, *, clear_cache: bool = False) -> Self:
         """High-level wrapper to fetch, validate, filter and apply id mapping to the dataset."""
         self.fetch_data()
         self.validate_fetched_data()
         self.dataset = self.filter_dataset(self.dataset)
+
         if self.config.id_mapping is not None:
             self.dataset = self.config.id_mapping.apply(self.dataset)
+
+        if self.cache is not None and self.cache.is_writable:
+            if clear_cache:
+                msg = (
+                    f"Clearing existing cache for source '{self.config.source}' before writing "
+                    f"the full requested dataset."
+                )
+                self.cache.clear(source=self.config.source)
+                logger.info(msg)
+            msg = f"Writing fetched dataset to cache for source '{self.config.source}'."
+            self.cache.append(
+                self.dataset,
+                source=self.config.source,
+            )
+            logger.info(msg)
         return self
 
     def create_cache_request(
@@ -213,7 +258,7 @@ class BaseDatasource(Base):
         if self.data_type in HISTORICAL_DATA_TYPES:
             return CacheRequest(
                 variables=DataRequest(
-                    requested=self.configured_variables,
+                    requested=self.configured_variables_internal,
                     cached=cast("set[str]", set(cached_dataset.data_vars)),
                 ),
                 stations=DataRequest(
@@ -242,7 +287,7 @@ class BaseDatasource(Base):
             cached_lead_times_array = cached_dataset[StandardDim.lead_time].to_numpy()  # type: ignore[misc]
             return CacheRequest(
                 variables=DataRequest(
-                    requested=self.configured_variables,
+                    requested=self.configured_variables_internal,
                     cached=cast("set[str]", set(cached_dataset.data_vars)),
                 ),
                 stations=DataRequest(
@@ -286,9 +331,15 @@ class BaseDatasource(Base):
     ) -> xr.Dataset:
         """Get the dataset from the cache based on the datasource configuration."""
         config = datasource.config
-        variables = datasource.configured_variables
+        variables = datasource.configured_variables_internal
         stations = datasource.configured_stations
         subset = cached_dataset if variables is None else cached_dataset[sorted(variables)]
+
+        if len(subset.data_vars) == 0:
+            msg = (
+                f"No data found in cache for source '{config.source}' with the requested variables."
+            )
+            raise ValueError(msg)
 
         # If all requested data is available in the cache, load directly.
         if config.data_type in FORECAST_DATA_TYPES:
@@ -315,31 +366,75 @@ class BaseDatasource(Base):
             selection[StandardDim.station] = sorted(stations)
         return subset.sel(selection)
 
+    def _check_reason_to_skip_getting_data_from_cache(
+        self,
+    ) -> str | None:
+        """Return why the cache cannot be used for this request, or None if it can."""
+        if self.cache is None:
+            return "no cache configured"
+        if self.data_type not in CACHABLE_DATA_TYPES:  # type:ignore[misc]
+            return f"data type '{self.data_type}' is not cacheable"
+        if self.config.source not in self.cache.sources:
+            return f"source '{self.config.source}' is not registered in the cache"
+        if self.configured_stations is None:
+            return "configured stations are None"
+        if self.configured_variables is None:
+            return "configured variables are None"
+
+        return None
+
+    @staticmethod
+    def _validate_type(instance: object, expected_type: type) -> None:
+        """Check that the instance is of the expected type."""
+        if not isinstance(instance, expected_type):
+            msg = (
+                f"Expected instance of {expected_type.__name__}, got "
+                f"{type(instance).__name__} instead."
+            )
+            raise TypeError(msg)
+
     def get_data(self) -> Self:
         """Get data and make use of cache if configured."""
         # If no cache is configured, or the data type is not cacheable, fetch and process the data
         # directly from the datasource, without using the cache.
-        if self.cache is None or self.data_type not in CACHABLE_DATA_TYPES:  # type: ignore[misc]
-            self.fetch_validate_filter()
-            return self
+        msg = f"Starting data fetch for {self.config.source} from {self.__class__.__name__}."
+        logger.info(msg)
 
-        # Get the dataset from cache
-        cached_dataset = self.cache.get_dataset(source=self.config.source)
+        # Check if we should skip fetching data from the cache, and if so, fetch and process the
+        # data directly from the datasource.
+        reason = self._check_reason_to_skip_getting_data_from_cache()
 
-        # If no data is found in the cache for the given source, fetch and process the data directly
-        # from the datasource, and write to cache if configured to do so.
-        if not cached_dataset.data_vars:
-            # No data from cache, fetch from datasource
-            self.fetch_validate_filter()
-            if self.cache.is_writable:
-                self.cache.write(self.dataset, source=self.config.source)
-            return self
+        if reason is not None:
+            msg = (
+                f"Skipped reading data from cache for datasource {self.__class__.__name__}: "
+                f" {reason}."
+            )
+            logger.debug(msg)
+            return self.fetch_validate_filter_cache()
+
+        # Validate and cast type of the cache to ensure it is a ZarrCache instance.
+        self._validate_type(self.cache, ZarrCache)
+        self.cache = cast("ZarrCache", self.cache)
+
+        # Get the cached dataset for the configured source.
+        cached_dataset: xr.Dataset = self.cache.get_dataset(  # type:ignore[assignment]
+            source=self.config.source,
+        )
+
+        # Validate and cast type of the cached dataset to ensure it is an xarray Dataset.
+        self._validate_type(cached_dataset, xr.Dataset)  # type: ignore[misc]
+        cached_dataset = cast("xr.Dataset", cached_dataset)
 
         cache_request = self.create_cache_request(cached_dataset)
 
         # No data is missing from the cache, so we can load it directly and skip fetching from the
         # datasource.
         if cache_request.missing_count == 0:
+            msg = (
+                f"All requested data is available in the cache for source '{self.config.source}', "
+                "skipping fetch from datasource."
+            )
+            logger.info(msg)
             cached_dataset = self.get_cached_data(
                 cached_dataset=cached_dataset,
                 datasource=self,
@@ -353,42 +448,67 @@ class BaseDatasource(Base):
         # by tweaking the datasource — fall back to fetching the full requested dataset.
         split_result = cache_request.split_config(self)
         if split_result is None:
-            self.fetch_validate_filter()
-            if self.cache.is_writable:
-                self.cache.write(self.dataset, source=self.config.source)
-            return self
+            msg = (
+                f"Some requested data is missing from the cache for source '{self.config.source}', "
+                "but the datasource cannot be split to fetch only the missing data. Fetching the "
+                "full requested dataset from the datasource."
+            )
+            logger.info(msg)
+            return self.fetch_validate_filter_cache(clear_cache=True)
 
         missing_dim = cache_request.missing_dims[0]
         fetch_from_datasource, fetch_from_cache = split_result
 
+        msg = (
+            f"Some requested data is missing from the cache for source '{self.config.source}', "
+            f"fetching only the missing slice along dim '{missing_dim}' from the datasource."
+        )
+        logger.info(msg)
         # Fetch only the missing slice from the datasource.
-        fetch_from_datasource.fetch_validate_filter()
+        fetch_from_datasource.fetch_validate_filter_cache()
         newly_fetched_dataset = fetch_from_datasource.dataset
 
         if self.cache.is_writable:
             # Incrementally append only the newly fetched slice to the store (no full-store
             # read/rewrite and no in-memory load), then read the full requested window back
             # lazily from the updated store.
+            msg = (
+                f"Writing newly fetched slice along dim '{missing_dim}' to cache for source "
+                f"'{self.config.source}'."
+            )
+            logger.info(msg)
+
+            # The cache append method expects None for the append_dim if the dimension is not
+            # present in the dataset.
+            append_dim = missing_dim if missing_dim != "variable" else None
             self.cache.append(
                 new_dataset=newly_fetched_dataset,
                 source=self.config.source,
-                dim=missing_dim,  # type: ignore[arg-type]
+                append_dim=append_dim,  # type: ignore[arg-type]
             )
-            self.dataset = self.get_cached_data(
-                cached_dataset=self.cache.get_dataset(source=self.config.source),
+            self.dataset: xr.Dataset = self.get_cached_data(  # type: ignore[no-redef]
+                cached_dataset=self.cache.get_dataset(  # type:ignore[arg-type]
+                    source=self.config.source,
+                ),
                 datasource=self,
             )
         else:
+            msg = (
+                f"Cache is read-only, skipping write of newly fetched slice along dim "
+                f"'{missing_dim}' for source '{self.config.source}'."
+            )
+            logger.info(msg)
             # Read-only cache: combine the lazily-loaded cached slice with the freshly fetched
             # data. The store is not modified, so the lazy cached reference stays valid.
-            cached_dataset_filtered = self.get_cached_data(
+            cached_dataset = self.get_cached_data(
                 cached_dataset=cached_dataset,
                 datasource=fetch_from_cache,
             )
             self.dataset = combine_cached_and_fetched_data(
-                cached_dataset=cached_dataset_filtered,
+                cached_dataset=cached_dataset,
                 fetched_dataset=newly_fetched_dataset,
                 dim=missing_dim,
             )
-
+        msg = f"Successfully got {self.config.source} data from {self.__class__.__name__}."
+        logger.info(msg)
         return self
