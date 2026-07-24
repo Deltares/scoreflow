@@ -74,7 +74,7 @@ scores:
 id_mapping: 
   variable:
     PC:
-      observed: PC_obs
-      simulated_GEFS: PC_nwp
-      simulated_GEPS: PC_nwp
-      simulated_IFS: PC_nwp
+      observed: PC.obs
+      simulated_GEFS: PC.nwp
+      simulated_GEPS: PC.nwp
+      simulated_IFS: PC.nwp

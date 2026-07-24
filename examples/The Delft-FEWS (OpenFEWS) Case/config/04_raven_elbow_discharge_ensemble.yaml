@@ -72,7 +72,7 @@ scores:
 id_mapping: 
   variable:
     discharge:
-      observed: QR_obs
-      simulated_GEFS: QR_sim
-      simulated_GEPS: QR_sim
-      simulated_IFS: QR_sim
+      observed: QR.obs
+      simulated_GEFS: QR.sim
+      simulated_GEPS: QR.sim
+      simulated_IFS: QR.sim

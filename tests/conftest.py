@@ -107,19 +107,25 @@ thresholds = [f"warn_{x}" for x in range(threshold_n)]
 
 
 @pytest.fixture
-def cache_dir(tmp_path: Path) -> Path:
+def cache_dir_local(tmp_path: Path) -> Path:
     """Pytest cache directory."""
     return str(tmp_path / "sub")
 
 
+@pytest.fixture
+def cache_dir_remote() -> str:
+    """Remote cache directory (s3)."""
+    return "https://s3.dummy.com/veriflow-cache"
+
+
 # Before each test - remove the cache directory
 @pytest.fixture(autouse=True)
-def _ensure_empty_cache_dir_before_each_test(cache_dir: str) -> None:
+def _ensure_empty_cache_dir_before_each_test(cache_dir_local: str) -> None:
     """Remove the cache directory before each test."""
-    cache_dir = Path(cache_dir)
-    if cache_dir.exists():
-        shutil.rmtree(cache_dir)
-    cache_dir.mkdir(parents=True)
+    cache_dir_local = Path(cache_dir_local)
+    if cache_dir_local.exists():
+        shutil.rmtree(cache_dir_local)
+    cache_dir_local.mkdir(parents=True)
 
 
 class DummySource(StrEnum):
@@ -325,7 +331,7 @@ test_data_meuse_module_instance_ids = {
 
 
 @pytest.fixture
-def fews_general_info_config_single(cache_dir: Path) -> GeneralInfoConfig:
+def fews_general_info_config_single() -> GeneralInfoConfig:
     """GeneralInfoConfig for a single forecast."""
     return GeneralInfoConfig(
         verification_period=VerificationPeriod(
@@ -341,12 +347,11 @@ def fews_general_info_config_single(cache_dir: Path) -> GeneralInfoConfig:
                 variable="discharge",
             ),
         ],
-        cache_dir=cache_dir,
     )
 
 
 @pytest.fixture
-def xarray_general_info_config(cache_dir: Path) -> GeneralInfoConfig:
+def xarray_general_info_config() -> GeneralInfoConfig:
     """GeneralInfoConfig for a single forecast."""
     return GeneralInfoConfig(
         verification_period=VerificationPeriod(
@@ -362,12 +367,11 @@ def xarray_general_info_config(cache_dir: Path) -> GeneralInfoConfig:
                 variable="var_1",
             ),
         ],
-        cache_dir=cache_dir,
     )
 
 
 @pytest.fixture
-def xarray_general_info_config_historical(cache_dir: Path) -> GeneralInfoConfig:
+def xarray_general_info_config_historical() -> GeneralInfoConfig:
     """GeneralInfoConfig for a single forecast."""
     return GeneralInfoConfig(
         verification_period=VerificationPeriod(
@@ -383,12 +387,11 @@ def xarray_general_info_config_historical(cache_dir: Path) -> GeneralInfoConfig:
                 variable="var_1",
             ),
         ],
-        cache_dir=cache_dir,
     )
 
 
 @pytest.fixture
-def fews_general_info_config_ensemble(cache_dir: Path) -> GeneralInfoConfig:
+def fews_general_info_config_ensemble() -> GeneralInfoConfig:
     """GeneralInfoConfig for an ensemble."""
     return GeneralInfoConfig(
         verification_period=VerificationPeriod(
@@ -404,12 +407,11 @@ def fews_general_info_config_ensemble(cache_dir: Path) -> GeneralInfoConfig:
                 variable="discharge",
             ),
         ],
-        cache_dir=cache_dir,
     )
 
 
 @pytest.fixture
-def fews_general_info_config_probabilistic(cache_dir: Path) -> GeneralInfoConfig:
+def fews_general_info_config_probabilistic() -> GeneralInfoConfig:
     """GeneralInfoConfig for probabilistic forecast."""
     return GeneralInfoConfig(
         verification_period=VerificationPeriod(
@@ -425,7 +427,6 @@ def fews_general_info_config_probabilistic(cache_dir: Path) -> GeneralInfoConfig
                 variable="discharge",
             ),
         ],
-        cache_dir=cache_dir,
     )
 
 
@@ -851,6 +852,202 @@ def score_config_categorical(
         verification_pair_ids=["pair1"],
         reduce_dims=[StandardDim.forecast_reference_time],
     )
+
+
+# ----------------------------------------------------------------------------
+# Fake datasource & cache fixtures (for cache tests)
+# ----------------------------------------------------------------------------
+
+from collections.abc import Callable, Iterator  # noqa: E402
+from copy import deepcopy as _deepcopy  # noqa: E402
+from typing import ClassVar  # noqa: E402
+
+from veriflow.cache.config import ReadWriteMode, ZarrCacheConfig  # noqa: E402
+from veriflow.configuration.base import BaseDatasourceConfig  # noqa: E402
+from veriflow.datasources.base import BaseDatasource  # noqa: E402
+
+# Module-level registry mapping (source, data_type) → seed dataset.
+# Allows from_config(model_dump()) to find the right seed without
+# embedding xarray data in pydantic config.
+_FAKE_SEEDS: dict[tuple[str, str], xr.Dataset] = {}
+
+
+class FakeDatasourceConfig(BaseDatasourceConfig):
+    """Pydantic config for the in-test FakeDatasource."""
+
+    import_adapter: str = "fake"
+    stations: list[str]
+    variables: list[str]
+
+
+class FakeDatasource(BaseDatasource):
+    """In-test datasource that returns slices of a pre-registered seed dataset.
+
+    The seed dataset is looked up via the module-level ``_FAKE_SEEDS`` registry
+    using ``(source, data_type)``. ``fetch_data`` slices on
+    variables/stations/verification-period/lead_times based on ``self.config``.
+    """
+
+    kind: str = "fake"
+    config_class = FakeDatasourceConfig
+    supported_data_types: ClassVar[set[DataType]] = {
+        DataType.observed_historical,
+        DataType.simulated_forecast_single,
+        DataType.simulated_forecast_ensemble,
+    }
+
+    @property
+    def configured_stations(self) -> set[str] | None:
+        """Return the internal station identifiers configured for this datasource."""
+        return set(self.config.stations)
+
+    @configured_stations.setter
+    def configured_stations(self, stations: set[str]) -> None:
+        """Set the internal station identifiers configured for this datasource."""
+        self.config.stations = list(stations)
+
+    @property
+    def configured_variables(self) -> set[str] | None:
+        """Return the internal variable identifiers configured for this datasource."""
+        return set(self.config.variables)
+
+    @configured_variables.setter
+    def configured_variables(self, variables: set[str]) -> None:
+        """Set the internal variable identifiers configured for this datasource."""
+        self.config.variables = list(variables)
+
+    def fetch_data(self) -> "FakeDatasource":
+        """Slice the registered seed dataset and store the result on ``self.dataset``."""
+        seed = _FAKE_SEEDS[(str(self.config.source), str(self.config.data_type))]
+        ds = seed
+        # variables
+        ds = ds[list(self.config.variables)]
+        # stations
+        if StandardDim.station in ds.dims:
+            ds = ds.sel({StandardDim.station: list(self.config.stations)})
+        # frt period (forecast)
+        if StandardDim.forecast_reference_time in ds.dims:
+            vp = self.config.verification_period_on_frt
+            ds = ds.sel(
+                {
+                    StandardDim.forecast_reference_time: slice(
+                        np.datetime64(vp.start),
+                        np.datetime64(vp.end),
+                    ),
+                },
+            )
+            if self.config.lead_times is not None:
+                # Filter to requested lead times present in the seed
+                requested = list(self.config.lead_times.timedelta64)
+                seed_lt = ds[StandardDim.lead_time].to_numpy()
+                keep = [lt for lt in requested if lt in seed_lt]
+                ds = ds.sel({StandardDim.lead_time: keep})
+        # historical time slice
+        if StandardDim.time in ds.dims and StandardDim.forecast_reference_time not in ds.dims:
+            vp = self.config.verification_period_on_time
+            ds = ds.sel(
+                {StandardDim.time: slice(np.datetime64(vp.start), np.datetime64(vp.end))},
+            )
+
+        ds = ds.copy()
+        ds.attrs["data_type"] = self.config.data_type
+        ds.attrs["source"] = self.config.source
+        self.dataset = ds
+        return self
+
+
+def register_fake_seed(source: str, data_type: DataType, dataset: xr.Dataset) -> None:
+    """Register a seed dataset for FakeDatasource lookup."""
+    _FAKE_SEEDS[(str(source), str(data_type))] = dataset
+
+
+@pytest.fixture
+def fake_seed_registry() -> Iterator[Callable[[str, DataType, xr.Dataset], None]]:
+    """Yield a registration callable; clear ``_FAKE_SEEDS`` before and after the test."""
+    _FAKE_SEEDS.clear()
+    yield register_fake_seed
+    _FAKE_SEEDS.clear()
+
+
+@pytest.fixture
+def fake_fetch_spy(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, object]]:
+    """Record every ``fetch_data`` call's config (deep-copied).
+
+    Returns a list of dicts: ``[{"variables": [...], "stations": [...], ...}]``.
+    """
+    calls: list[dict[str, object]] = []
+    original = FakeDatasource.fetch_data
+
+    def spy(self: FakeDatasource) -> "FakeDatasource":
+        calls.append(
+            {
+                "variables": list(self.config.variables),
+                "stations": list(self.config.stations),
+                "vp_start": self.config.verification_period.start,
+                "vp_end": self.config.verification_period.end,
+                "lead_times": (
+                    list(self.config.lead_times.values) if self.config.lead_times else None
+                ),
+                "config": _deepcopy(self.config),
+            },
+        )
+        return original(self)
+
+    monkeypatch.setattr(FakeDatasource, "fetch_data", spy)
+    return calls
+
+
+@pytest.fixture
+def cache_zarr_config(cache_dir_local: str) -> ZarrCacheConfig:
+    """Return a writable local-disk ZarrCacheConfig under ``cache_dir``."""
+    return ZarrCacheConfig(
+        path=str(Path(cache_dir_local) / "veriflow-cache.zarr"),
+        read_write_mode=ReadWriteMode.read_write,
+    )
+
+
+@pytest.fixture
+def cache_zarr_config_readonly(cache_dir_local: str) -> ZarrCacheConfig:
+    """Return a read-only ZarrCacheConfig under ``cache_dir``."""
+    return ZarrCacheConfig(
+        path=str(Path(cache_dir_local) / "veriflow-cache.zarr"),
+        read_write_mode=ReadWriteMode.read,
+    )
+
+
+@pytest.fixture
+def general_info_config_with_cache(
+    xarray_general_info_config: GeneralInfoConfig,
+    cache_zarr_config: ZarrCacheConfig,
+) -> GeneralInfoConfig:
+    """Forecast general config with a writable cache.
+
+    Uses a tighter verification period than ``xarray_general_info_config`` so that
+    ``verification_period_on_frt`` is strictly inside the seed dataset's frt range
+    [2025-01-01..2025-01-10]. This is required for cache hit/partial-hit tests:
+    requested frt range must be ⊆ cached frt range.
+    """
+    cfg = xarray_general_info_config.model_copy(deep=True)
+    # Default vp.dimension="forecast_reference_time": vp_on_frt = vp directly.
+    # Seed has frts at midnight in [2025-01-01..2025-01-10]. Use vp = (01-05..01-10)
+    # so cached frts after first fetch = vp = requested vp_on_frt on second call.
+    cfg.verification_period = VerificationPeriod(
+        start=pd.Timestamp("2025-01-05"),
+        end=pd.Timestamp("2025-01-10"),
+    )
+    cfg.cache = cache_zarr_config
+    return cfg
+
+
+@pytest.fixture
+def general_info_config_historical_with_cache(
+    xarray_general_info_config_historical: GeneralInfoConfig,
+    cache_zarr_config: ZarrCacheConfig,
+) -> GeneralInfoConfig:
+    """Historical general config with a writable cache."""
+    cfg = xarray_general_info_config_historical.model_copy(deep=True)
+    cfg.cache = cache_zarr_config
+    return cfg
 
 
 # Datasink fixtures

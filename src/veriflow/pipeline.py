@@ -9,6 +9,7 @@ from typing import TypeVar, cast
 from cftime import CFWarning  # type:ignore[import-untyped]
 from xarray import SerializationWarning
 
+from veriflow.cache import ZarrCache
 from veriflow.configuration.config import Config
 from veriflow.configuration.file import ConfigFile, ConfigKind
 from veriflow.datamodel import InputDataset, OutputDataset
@@ -135,6 +136,9 @@ def run_pipeline(
     )
     logger.info(msg)
 
+    # Initialize the cache if caching is enabled in the configuration
+    cache = ZarrCache(config.general.cache) if config.general.cache is not None else None
+
     # Collect and initialize all datasources
     datasources: list[BaseDatasource] = []
     for datasource_config in config.datasources:
@@ -145,6 +149,11 @@ def run_pipeline(
         datasource = source_kind.from_config(
             datasource_config.model_dump(),  # type: ignore[misc] # Allow Any
         )
+
+        # If caching is enabled, assign the cache to the datasource, so it can use it to store and
+        # retrieve data
+        datasource.cache = cache
+
         datasources.append(datasource)
 
     with warnings.catch_warnings():
@@ -167,14 +176,7 @@ def run_pipeline(
 
         # Get data for each datasource
         for datasource in datasources:
-            msg = f"Start getting data from {datasource.__class__.__name__}."
-            logger.info(msg)
             datasource.get_data()
-            msg = (
-                f"Successfully got {datasource.config.source} data from "
-                f"{datasource.__class__.__name__}."
-            )
-            logger.info(msg)
 
         # Initialize the input dataset
         input_dataset = InputDataset(

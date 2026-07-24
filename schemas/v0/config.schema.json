@@ -634,14 +634,17 @@
           ],
           "default": null
         },
-        "cache_dir": {
-          "default": ".verification_cache",
-          "description": [
-            "Path pointing to a cache directory. ",
-            "Will be automatically created if it doesn't yet exist."
+        "cache": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ZarrCacheConfig"
+            },
+            {
+              "type": "null"
+            }
           ],
-          "title": "Cache Dir",
-          "type": "string"
+          "default": null,
+          "description": "Veriflow has built-in support for caching data in a local or remote zarr archive store. This allows you to reuse data across multiple runs of the pipeline, which can speed up execution. See the docs for more details and configuration options: https://deltares.github.io/veriflow/"
         }
       },
       "required": [
@@ -748,6 +751,38 @@
         },
         "data_type": {
           "$ref": "#/$defs/DataType"
+        },
+        "stations": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Stations"
+        },
+        "variables": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Variables"
         }
       },
       "required": [
@@ -820,6 +855,15 @@
       ],
       "title": "RankHistogramConfig",
       "type": "object"
+    },
+    "ReadWriteMode": {
+      "description": "The veriflow cache read/write modes.",
+      "enum": [
+        "r",
+        "rw"
+      ],
+      "title": "ReadWriteMode",
+      "type": "string"
     },
     "S3AuthConfig": {
       "additionalProperties": false,
@@ -978,7 +1022,8 @@
         "D",
         "h",
         "m",
-        "s"
+        "s",
+        "ns"
       ],
       "title": "TimeUnits",
       "type": "string"
@@ -1053,6 +1098,68 @@
       "title": "VerificationPeriod",
       "type": "object"
     },
+    "ZarrCacheConfig": {
+      "description": "Configuration for the veriflow cache.\n\nThe cache will be materialized as a Zarr store on the local filesystem or remote object storage\n(e.g. S3). When configured, the cache will be used to store and retrieve datasets from any\ndatasource. For example: when requesting forecast data from a datasource, and part of the data\nis already cached, the cache will be used to retrieve the cached data and only the missing data\nwill be fetched from the datasource.",
+      "properties": {
+        "read_write_mode": {
+          "$ref": "#/$defs/ReadWriteMode",
+          "default": "r",
+          "description": "The read/write mode for the cache."
+        },
+        "path": {
+          "description": "Path to a single Zarr store. Local filesystem path (absolute or relative) or a remote URL such as 's3://bucket/key/store.zarr'.",
+          "minLength": 1,
+          "title": "Path",
+          "type": "string"
+        },
+        "auth_config": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/S3AuthConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Authentication configuration for remote stores. Only consulted when 'path' points to an 's3://' location. When the path is remote and this is left unset, credentials are loaded automatically from S3_-prefixed environment variables, so configuring 'auth_config: {}' in YAML is not required."
+        },
+        "storage_options": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Additional storage_options forwarded to xr.open_zarr. Merged on top of the options derived from 'auth_config'. Use this for advanced fsspec / s3fs settings not exposed by S3AuthConfig.",
+          "title": "Storage Options"
+        },
+        "consolidated": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Whether to use consolidated metadata when opening the store. Forwarded to xr.open_zarr. Default ('None') lets xarray auto-detect.",
+          "title": "Consolidated"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "title": "ZarrCacheConfig",
+      "type": "object"
+    },
     "ZarrConfig": {
       "additionalProperties": true,
       "description": "A Zarr config element.\n\nReads a single Zarr store via :func:`xarray.open_zarr`. The ``path`` may point to a\nlocal directory or a remote location (e.g. ``s3://bucket/key/store.zarr``). When the\npath uses an ``s3://`` URL, credentials and connection details are taken from\n``auth_config`` (an :class:`S3AuthConfig`), which is populated from environment\nvariables prefixed with ``S3_``. Additional ``storage_options`` are merged on top of\nthe ones derived from ``auth_config`` and forwarded to ``xr.open_zarr``.",
@@ -1118,6 +1225,38 @@
           "default": null,
           "description": "Whether to use consolidated metadata when opening the store. Forwarded to xr.open_zarr. Default ('None') lets xarray auto-detect.",
           "title": "Consolidated"
+        },
+        "variables": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Variables"
+        },
+        "stations": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Stations"
         }
       },
       "required": [

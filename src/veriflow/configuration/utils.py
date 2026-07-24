@@ -96,7 +96,12 @@ class LeadTimes(BaseModel):
         """As datetime timedelta."""
 
         def convert_to_timedelta(value: int) -> timedelta:
-            return np.timedelta64(value, self.unit).astype(timedelta)  # type: ignore[no-any-return, misc, call-overload]
+            # ``np.timedelta64(...).astype(timedelta)`` returns an int (not a timedelta)
+            # when the unit is finer than microsecond (e.g. nanosecond), since stdlib
+            # ``timedelta`` has only microsecond precision. Coerce via microseconds to
+            # always return a proper ``timedelta``.
+            td_us = np.timedelta64(value, self.unit).astype("timedelta64[us]")  # type: ignore[call-overload, misc]
+            return timedelta(microseconds=int(td_us.astype("int64")))  # type: ignore[misc]
 
         return [convert_to_timedelta(v) for v in self.values]  # type:ignore[arg-type]
 
@@ -292,6 +297,23 @@ class S3AuthConfig(BaseSettings):
 
         Only keys with non-``None`` values are included. ``SecretStr`` values are
         unwrapped to their plain string form so that ``s3fs`` can use them.
+
+        We currently assume a minio config, such as::
+
+            storage_options = {
+                "key": "****",
+                "secret": "*****",
+                "client_kwargs": {
+                    "endpoint_url": "https://s3.deltares.nl",
+                    "region_name": "eu-west-1",
+                },
+                "config_kwargs": {
+                    "s3": {
+                        "addressing_style": "path",
+                    },
+                },
+            }
+
         """
         client_kwargs: dict[str, str] = {}
         if self.endpoint_url is not None:
@@ -308,4 +330,5 @@ class S3AuthConfig(BaseSettings):
             options["token"] = self.session_token.get_secret_value()
         if client_kwargs:
             options["client_kwargs"] = client_kwargs
+
         return options

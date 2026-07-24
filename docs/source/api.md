@@ -11,4 +11,5 @@ api/scores
 api/datasinks
 api/datamodel
 api/constants
+api/cache
 ```

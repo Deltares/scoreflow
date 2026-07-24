@@ -1,0 +1,21 @@
+version: 2
+updates:
+  # Keep GitHub Actions used in workflows up to date.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      actions:
+        patterns:
+          - "*"
+
+  # Keep Python dependencies (uv.lock / pyproject.toml) up to date.
+  - package-ecosystem: "uv"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      python-dependencies:
+        patterns:
+          - "*"

@@ -106,6 +106,38 @@ class FewsWebservice(BaseDatasource):
             password=self.config.auth_config.password.get_secret_value(),
         )
 
+    @property
+    def configured_stations(self) -> set[str]:
+        """Return the internal station identifiers configured for this datasource.
+
+        This is needed for standardization of station identifiers across sources.
+        """
+        return set(self.config.location_ids)
+
+    @configured_stations.setter
+    def configured_stations(self, stations: set[str]) -> None:
+        """Set the internal station identifiers configured for this datasource.
+
+        This is needed for standardization of station identifiers across sources.
+        """
+        self.config.location_ids = list(stations)
+
+    @property
+    def configured_variables(self) -> set[str]:
+        """Return the internal variable identifiers configured for this datasource.
+
+        This is needed for standardization of variable identifiers across sources.
+        """
+        return set(self.config.parameter_ids)
+
+    @configured_variables.setter
+    def configured_variables(self, variables: set[str]) -> None:
+        """Set the internal variable identifiers configured for this datasource.
+
+        This is needed for standardization of variable identifiers across sources.
+        """
+        self.config.parameter_ids = list(variables)
+
     @staticmethod
     def write_netcdf_response_to_dir(
         response: requests.Response,
@@ -213,8 +245,10 @@ class FewsWebservice(BaseDatasource):
                         id_mapping=self.config.id_mapping,
                         source=self.config.source,
                         parameter_ids=self.config.parameter_ids,
+                        station_ids=self.config.location_ids,
                     ),
                 )
+                datasource.cache = None
 
                 # Call get_data directly, to immediately cache the xr.Dataset and break links to
                 #   to tmpdir. This prevents os.PermissionErrors upon __exit__ of the current
@@ -377,8 +411,11 @@ class FewsWebservice(BaseDatasource):
                         netcdf_kind=FewsNetCDFKind.simulated_forecast_per_forecast_reference_time,
                         id_mapping=self.config.id_mapping,
                         source=self.config.source,
+                        parameter_ids=self.config.parameter_ids,
+                        station_ids=self.config.location_ids,
                     ),
                 )
+                datasource.cache = None
 
                 # Call get_data directly, to immediately cache the xr.Dataset and break links to
                 #   to tmpdir. This prevents os.PermissionErrors upon __exit__ of the current

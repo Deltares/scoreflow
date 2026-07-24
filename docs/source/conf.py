@@ -17,6 +17,10 @@ if DOC_NOTEBOOKS.exists():
 
 shutil.copytree(NOTEBOOKS, DOC_NOTEBOOKS)
 
+is_github_main = (
+    os.environ.get("GITHUB_ACTIONS") == "true" and os.environ.get("GITHUB_REF_NAME") == "main"
+)
+
 # Configuration file for the Sphinx documentation builder.
 #
 # For the full list of built-in configuration values, see the documentation:
@@ -43,6 +47,7 @@ extensions = [
     "sphinx_design",
     "myst_parser",  # Markdown support
     "nbsphinx",
+    "sphinxcontrib.mermaid",  # Mermaid diagrams in docstrings/pages
 ]
 
 myst_enable_extensions = ["colon_fence"]
@@ -96,12 +101,18 @@ autodoc_default_options = {
     "exclude-members": "model_config",
     "members": True,
     "undoc-members": True,  # show StrEnum members from constants
+    # Document fields inherited from our own base classes (e.g. the shared
+    # ``import_adapter``/``source``/``data_type`` fields on BaseDatasourceConfig,
+    # or the ``score_adapter`` field on BaseScoreConfig) instead of only the
+    # attributes redefined on the leaf class. The listed ancestors are excluded
+    # so Pydantic's ``BaseModel``/``BaseSettings`` internals stay out of the docs.
+    "inherited-members": "BaseModel, BaseSettings",
 }
 
-
-# nbsphinx
-nb_execution_mode = "auto"  # or "auto"
-nbsphinx_execute = "auto"  # options: 'auto', 'always', 'never'
+# We always execute notebooks in the docs build on GitHub main, to make sure they are up to date
+# and working. Locally, it can take a long time to execute all notebooks, so we skip execution
+# unless explicitly requested.
+nbsphinx_execute = "auto" if is_github_main else "never"  # options: 'auto', 'always', 'never'
 nbsphinx_kernel_name = "python3"  # kernel to use for notebook execution
 nbsphinx_timeout = 600  # seconds per notebook
 
@@ -141,11 +152,3 @@ nbsphinx_prolog = (
     Download this notebook: :download:`{{ notebook }} <{{ notebook }}>`
 """
 )
-
-
-#     This page was generated from
-#     <a class="reference external" href="https://github.com/"""
-# + GITHUB_REPO
-# + r"""/blob/"""
-# + GITHUB_BRANCH
-# + r"""/{{ urlpath }}">{{ displaypath }}</a>.

@@ -7,6 +7,7 @@ import xarray as xr
 from pydantic import BaseModel, ConfigDict, Field, RootModel, model_validator
 from pydantic.json_schema import SkipJsonSchema
 
+from veriflow.cache.config import ZarrCacheConfig
 from veriflow.constants import DataType, StandardDim
 
 from .utils import LeadTimes, Source, TimePeriod, VerificationPair, VerificationPeriod
@@ -21,6 +22,7 @@ __all__ = [
     # "BaseScoreConfig",
     # "BaseCategoricalScoreConfig",
     "GeneralInfoConfig",
+    "IdMap",
     "IdMappingConfig",
 ]
 
@@ -50,15 +52,17 @@ class GeneralInfoConfig(BaseModel):
             "and is also known as: lead time or forecast horizon)",
         ),
     ] = None
-    cache_dir: Annotated[
-        str,
+    cache: Annotated[
+        ZarrCacheConfig | None,
         Field(
             description=(
-                "Path pointing to a cache directory. ",
-                "Will be automatically created if it doesn't yet exist.",
+                "Veriflow has built-in support for caching data in a local or remote zarr archive "
+                "store. This allows you to reuse data across multiple runs of the pipeline, which "
+                "can speed up execution. See the docs for more details and configuration options: "
+                "https://deltares.github.io/veriflow/"
             ),
         ),
-    ] = ".verification_cache"
+    ] = None
 
     def get_verification_pair(self, pair_id: str) -> VerificationPair:
         """Get one verification_pair by its id."""
@@ -115,6 +119,19 @@ class IdMap(RootModel[dict[str, dict[str, str]]]):
 
         return {v[source]: k for k, v in self.root.items()}
 
+    def rename_external_to_internal(self, external_ids: set[str], source: str) -> set[str]:
+        """Apply the mapping to a set of external IDs for a given source.
+
+        Returns the corresponding internal IDs.
+        """
+        ext_to_int = self.get_external_to_internal_mapping(source)
+        return {ext_to_int[ext] for ext in external_ids if ext in ext_to_int}
+
+    @property
+    def sources(self) -> set[str]:
+        """Return the set of all sources defined in the IdMap."""
+        return {source for inner in self.root.values() for source in inner}
+
 
 class IdMappingConfig(BaseModel):
     """Config for mapping external ids to their internal definition."""
@@ -136,7 +153,7 @@ class IdMappingConfig(BaseModel):
         ),
     ] = None
 
-    def rename_dataset(self, dataset: xr.Dataset) -> xr.Dataset:
+    def apply(self, dataset: xr.Dataset) -> xr.Dataset:
         """Apply the configured id mapping to a dataset.
 
         Variable names (data variable names) and station identifiers are renamed from the
@@ -153,6 +170,7 @@ class IdMappingConfig(BaseModel):
             }
             if len(rename_map) > 0:
                 dataset = dataset.rename_vars(rename_map)
+
         # Re-assign station coordinates, if mapping is provided for source
         if self.station is not None:
             dataset = dataset.assign_coords(

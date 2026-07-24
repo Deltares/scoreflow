@@ -1,0 +1,48 @@
+name: Build docs (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      upload-pages-artifact:
+        description: "Upload the built HTML as a GitHub Pages artifact (for deployment)."
+        type: boolean
+        default: false
+
+jobs:
+  build:
+    name: Build docs
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.11"
+          enable-cache: true
+
+      - name: Install dependencies (dev group)
+        run: uv sync --dev --frozen
+
+      - name: Install dash (for rendering notebooks)
+        run: uv pip install dash
+
+      - name: Install Pandoc
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pandoc
+
+      - name: Build Sphinx HTML (fail on warnings)
+        run: uv run make -C docs html SPHINXOPTS="-W --keep-going"
+
+      - name: Setup Pages
+        if: ${{ inputs.upload-pages-artifact }}
+        uses: actions/configure-pages@v6
+
+      - name: Upload artifact
+        if: ${{ inputs.upload-pages-artifact }}
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: docs/build/html

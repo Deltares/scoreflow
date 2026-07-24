@@ -72,5 +72,5 @@ scores:
 id_mapping:
   variable:
     PC:
-      observed: PC_obs
-      simulated: PC_nwp
+      observed: PC.obs
+      simulated: PC.nwp

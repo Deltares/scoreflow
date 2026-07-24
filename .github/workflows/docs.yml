@@ -2,58 +2,36 @@ name: Build and deploy docs
 
 on:
   push:
+    branches: [main]
+  pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
-  group: "pages"
+  group: "pages-${{ github.ref }}"
   cancel-in-progress: true
 
 jobs:
   build:
     name: Build docs
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
-        with:
-          python-version: "3.11"
-
-      - name: Install dependencies (dev group)
-        run: uv sync --dev
-
-      - name: Install dash (for rendering notebooks)
-        run: uv pip install dash
-
-      - name: Install Pandoc
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y pandoc
-
-      - name: Build Sphinx HTML
-        run: uv run make -C docs html
-
-      - name: Setup Pages
-        uses: actions/configure-pages@v6
-
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v4
-        with:
-          path: docs/build/html
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/docs-build.yml
+    with:
+      upload-pages-artifact: ${{ github.event_name == 'push' }}
 
   deploy:
     name: Deploy to GitHub Pages
     needs: build
     if: github.ref == 'refs/heads/main' # Deploy on push to main or manual dispatch from main
     runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

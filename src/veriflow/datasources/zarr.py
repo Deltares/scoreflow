@@ -44,6 +44,38 @@ class Zarr(BaseDatasource):
     def __init__(self, config: ZarrConfig) -> None:
         self.config: ZarrConfig = config
 
+    @property
+    def configured_stations(self) -> set[str] | None:
+        """Return the internal station identifiers configured for this datasource.
+
+        This is needed for standardization of station identifiers across sources.
+        """
+        return set(self.config.stations) if self.config.stations is not None else None
+
+    @configured_stations.setter
+    def configured_stations(self, stations: set[str] | None) -> None:
+        """Set the internal station identifiers configured for this datasource.
+
+        This is needed for standardization of station identifiers across sources.
+        """
+        self.config.stations = list(stations) if stations is not None else None
+
+    @property
+    def configured_variables(self) -> set[str] | None:
+        """Return the internal variable identifiers configured for this datasource.
+
+        This is needed for standardization of variable identifiers across sources.
+        """
+        return set(self.config.variables) if self.config.variables is not None else None
+
+    @configured_variables.setter
+    def configured_variables(self, variables: set[str] | None) -> None:
+        """Set the internal variable identifiers configured for this datasource.
+
+        This is needed for standardization of variable identifiers across sources.
+        """
+        self.config.variables = list(variables) if variables is not None else None
+
     def _build_storage_options(self) -> dict[str, object] | None:
         """Build storage_options for xr.open_zarr based on path and config.
 
@@ -73,6 +105,14 @@ class Zarr(BaseDatasource):
             storage_options=storage_options,
             consolidated=self.config.consolidated,
         )
+        # Filter the dataset by configured stations and variables, if any. Set the
+        # data_type attribute to the configured value, if any.
+        if self.config.stations is not None:
+            dataset = dataset.sel(station=self.config.stations)  # type:ignore[misc]
+        if self.config.variables is not None:
+            dataset = dataset[self.config.variables]  # type:ignore[misc]
         dataset.attrs["data_type"] = self.config.data_type  # type: ignore[misc]
+
+        # Assign the dataset to the instance and return self for chaining.
         self.dataset = dataset
         return self
