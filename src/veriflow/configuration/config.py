@@ -48,6 +48,7 @@ from veriflow.configuration.default.scores import (
     CrpsCDFConfig,
     CrpsForEnsembleConfig,
     RankHistogramConfig,
+    SALScoreConfig,
 )
 from veriflow.constants import SCHEMA_VERSION
 
@@ -136,6 +137,7 @@ class Config(BaseModel):
             CrpsCDFConfig,
             ContinuousScoresConfig,
             CategoricalScoresConfig,
+            SALScoreConfig,
         ]
         default_datasinks_config: list[type[BaseDatasinkConfig]] = [CFCompliantNetCDFConfig]
 

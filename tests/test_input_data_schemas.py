@@ -7,6 +7,7 @@ import pytest
 import xarray as xr
 from pydantic import ValidationError
 
+from veriflow.constants import DataType, SpatialType
 from veriflow.datasources.inputschemas import (
     INPUT_SCHEMAS,
     HistoricalTimeCoord,
@@ -46,7 +47,7 @@ def test_xarray_simulation_ensemble(
     xarray_simulated_forecast_ensemble: xr.Dataset,
 ) -> None:
     ds = xarray_simulated_forecast_ensemble
-    schema = INPUT_SCHEMAS[ds.attrs["data_type"]]
+    schema = INPUT_SCHEMAS[(DataType(ds.attrs["data_type"]), SpatialType.point)]
     schema.model_validate(ds.to_dict(data=False))
 
 
@@ -54,7 +55,7 @@ def test_xarray_simulation_no_ensemble(
     xarray_simulated_forecast_ensemble: xr.Dataset,
 ) -> None:
     ds = xarray_simulated_forecast_ensemble.drop_vars("realization")
-    schema = INPUT_SCHEMAS[ds.attrs["data_type"]]
+    schema = INPUT_SCHEMAS[(DataType(ds.attrs["data_type"]), SpatialType.point)]
 
     with pytest.raises(ValidationError):
         schema.model_validate(ds.to_dict(data=False))

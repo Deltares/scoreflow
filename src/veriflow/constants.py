@@ -42,6 +42,19 @@ class DataType(StrEnum):
     threshold = "threshold"
 
 
+@unique
+class SpatialType(StrEnum):
+    """Spatial structure of a dataset.
+
+    This is orthogonal to :class:`DataType`. Together, ``data_type`` (temporal kind) and
+    ``spatial_type`` (spatial structure) fully describe an input dataset. Defaults to
+    ``point`` so that existing station-based data and configuration keep working unchanged.
+    """
+
+    point = "point"
+    gridded = "gridded"
+
+
 FORECAST_DATA_TYPES = (
     DataType.simulated_forecast_single,
     DataType.simulated_forecast_ensemble,
@@ -62,6 +75,7 @@ class ScoreKind(StrEnum):
     crps_cdf = "crps_cdf"
     continuous_scores = "continuous_scores"
     categorical_scores = "categorical_scores"
+    sal = "sal"
 
 
 @unique
@@ -146,6 +160,8 @@ class StandardDim(StrEnum):
     forecast_reference_time = "forecast_reference_time"
     lead_time = "lead_time"
     threshold = "threshold"
+    lat = "lat"
+    lon = "lon"
 
 
 class StandardCoord:

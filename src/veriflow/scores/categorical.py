@@ -23,7 +23,7 @@ from veriflow.configuration.default.scores import (
     EventOperator,
     ThresholdEvent,
 )
-from veriflow.constants import DataType, SupportedCategoricalScores
+from veriflow.constants import DataType, SpatialType, SupportedCategoricalScores
 from veriflow.scores.base import BaseCategoricalScore
 
 __all__ = [
@@ -117,8 +117,8 @@ class CategoricalScores(BaseCategoricalScore):
 
     kind = "categorical_scores"
     config_class = CategoricalScoresConfig
-    supported_data_types: ClassVar[set[DataType]] = {
-        DataType.simulated_forecast_single,
+    supported_data_specs: ClassVar[set[tuple[DataType, SpatialType]]] = {
+        (DataType.simulated_forecast_single, SpatialType.point),
     }
 
     def __init__(self, config: CategoricalScoresConfig) -> None:

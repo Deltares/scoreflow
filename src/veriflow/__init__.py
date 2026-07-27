@@ -11,6 +11,7 @@ from .constants import (
     DataSourceKind,
     DataType,
     ScoreKind,
+    SpatialType,
     StandardAttribute,
     StandardCoord,
     StandardDim,
@@ -36,3 +37,4 @@ from .scores.probabilistic import (
     RankHistogram,
     RankHistogramConfig,
 )
+from .scores.spatial import SALScore, SALScoreConfig

@@ -7,7 +7,7 @@ import pandas as pd
 import xarray as xr
 
 from veriflow.configuration.default.datasources import CsvConfig
-from veriflow.constants import DataSourceKind, DataType, StandardDim
+from veriflow.constants import DataSourceKind, DataType, SpatialType, StandardDim
 from veriflow.datasources.base import BaseDatasource
 
 __all__ = [
@@ -21,8 +21,8 @@ class Csv(BaseDatasource):
 
     kind: str = DataSourceKind.CSV
     config_class = CsvConfig
-    supported_data_types: ClassVar[set[DataType]] = {
-        DataType.threshold,
+    supported_data_specs: ClassVar[set[tuple[DataType, SpatialType]]] = {
+        (DataType.threshold, SpatialType.point),
     }
 
     def __init__(self, config: CsvConfig) -> None:

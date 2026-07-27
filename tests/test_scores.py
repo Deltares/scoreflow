@@ -1,7 +1,10 @@
 """Module to test the available scores."""
 
+import importlib
+import sys
 from copy import deepcopy
 
+import pytest
 import xarray as xr
 
 from veriflow.configuration.default.scores import (
@@ -10,13 +13,21 @@ from veriflow.configuration.default.scores import (
     CrpsCDFConfig,
     CrpsForEnsembleConfig,
     RankHistogramConfig,
+    SALScoreConfig,
 )
-from veriflow.constants import DataType
+from veriflow.constants import DataType, ScoreKind, SpatialType
 from veriflow.datamodel.main import InputDataset
 from veriflow.datasources.fewsnetcdf import FewsNetCDF
 from veriflow.scores.categorical import CategoricalScores
 from veriflow.scores.continuous import ContinuousScores
 from veriflow.scores.probabilistic import CrpsCDF, CrpsForEnsemble, RankHistogram
+from veriflow.scores.spatial import SALScore
+
+pysteps_available = importlib.util.find_spec("pysteps") is not None
+
+_SKIP_PYSTEPS = (
+    sys.version_info >= (3, 13) or not pysteps_available
+)  # pysteps pip install build fails on Windows for Python 3.13/3.14
 
 
 def test_ensemble_crps(
@@ -133,3 +144,35 @@ def test_categorical_scores(
         sim=sim,
         thresholds=xarray_thresholds.dataset[variable],  # type:ignore[misc]
     )
+
+
+@pytest.mark.skipif(
+    _SKIP_PYSTEPS,
+    reason="pysteps not installed or Python version >= 3.13 (pysteps pip install build fails on "
+    "Windows for Python 3.13/3.14)",
+)
+def test_sal_score_computes(
+    xarray_simulated_forecast_single_gridded: xr.Dataset,
+    xarray_general_info_config: object,
+) -> None:
+    """The SAL score computes structure/amplitude/location on gridded forecasts."""
+    pytest.importorskip("pysteps")
+
+    variable = "var_0"
+    sim = xarray_simulated_forecast_single_gridded[variable]
+    obs = xarray_simulated_forecast_single_gridded["var_1"]
+    sim.attrs.update(  # type:ignore[misc]
+        {"data_type": DataType.simulated_forecast_single, "spatial_type": SpatialType.gridded},  # type:ignore[misc]
+    )
+    obs.attrs.update(  # type:ignore[misc]
+        {"data_type": DataType.observed_historical, "spatial_type": SpatialType.gridded},  # type:ignore[misc]
+    )
+
+    config = SALScoreConfig(
+        score_adapter=ScoreKind.sal,
+        general=xarray_general_info_config.model_dump(),  # type:ignore[misc, attr-defined]
+    )
+    result = SALScore(config).validate_and_compute(obs=obs, sim=sim)
+
+    assert isinstance(result, xr.Dataset)  # type:ignore[misc]
+    assert set(result.data_vars) == {"structure", "amplitude", "location"}

@@ -18,7 +18,7 @@ from veriflow.configuration.default.scores import (
     CrpsForEnsembleConfig,
     RankHistogramConfig,
 )
-from veriflow.constants import DataType, StandardDim
+from veriflow.constants import DataType, SpatialType, StandardDim
 from veriflow.scores.base import BaseScore
 
 __all__ = [
@@ -36,8 +36,8 @@ class CrpsForEnsemble(BaseScore):
 
     kind = "crps_for_ensemble"
     config_class = CrpsForEnsembleConfig
-    supported_data_types: ClassVar[set[DataType]] = {
-        DataType.simulated_forecast_ensemble,
+    supported_data_specs: ClassVar[set[tuple[DataType, SpatialType]]] = {
+        (DataType.simulated_forecast_ensemble, SpatialType.point),
     }
 
     def __init__(self, config: CrpsForEnsembleConfig) -> None:
@@ -63,8 +63,8 @@ class CrpsCDF(BaseScore):
 
     kind = "crps_cdf"
     config_class = CrpsCDFConfig
-    supported_data_types: ClassVar[set[DataType]] = {
-        DataType.simulated_forecast_probabilistic,
+    supported_data_specs: ClassVar[set[tuple[DataType, SpatialType]]] = {
+        (DataType.simulated_forecast_probabilistic, SpatialType.point),
     }
 
     def __init__(self, config: CrpsCDFConfig) -> None:
@@ -91,8 +91,8 @@ class RankHistogram(BaseScore):
 
     kind = "rank_histogram"
     config_class = RankHistogramConfig
-    supported_data_types: ClassVar[set[DataType]] = {
-        DataType.simulated_forecast_ensemble,
+    supported_data_specs: ClassVar[set[tuple[DataType, SpatialType]]] = {
+        (DataType.simulated_forecast_ensemble, SpatialType.point),
     }
 
     def __init__(self, config: RankHistogramConfig) -> None:

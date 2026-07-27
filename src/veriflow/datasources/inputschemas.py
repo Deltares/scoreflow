@@ -21,7 +21,7 @@ from typing import Annotated, Literal
 import xarray as xr
 from pydantic import AfterValidator, BaseModel, Field, RootModel
 
-from veriflow.constants import DataType, StandardDim
+from veriflow.constants import DataType, SpatialType, StandardDim
 
 AllowedDTypeInt = Literal["int8", "int16", "int32", "int64", "uint8", "uint16", "uint32", "uint64"]
 AllowedDTypeFloat = Literal["float16", "float32", "float64"]
@@ -150,6 +150,40 @@ class ThresholdCoords(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Gridded (spatial_type=gridded) coordinate schemas
+#
+# For gridded data, ``lat`` and ``lon`` are dimension coordinates (each with its
+# own dimension), in contrast to point data where they are auxiliary coordinates
+# along the ``station`` dimension.
+# ---------------------------------------------------------------------------
+
+
+class LatDimCoord(BaseModel):
+    dims: Annotated[tuple[str, ...], AfterValidator(check_dims({StandardDim.lat}))]
+    dtype: AllowedDTypeFloat
+
+
+class LonDimCoord(BaseModel):
+    dims: Annotated[tuple[str, ...], AfterValidator(check_dims({StandardDim.lon}))]
+    dtype: AllowedDTypeFloat
+
+
+class BaseGriddedCoords(BaseModel):
+    lat: LatDimCoord
+    lon: LonDimCoord
+
+
+class GriddedHistoricalCoords(BaseGriddedCoords):
+    time: HistoricalTimeCoord
+
+
+class GriddedForecastSingleCoords(BaseGriddedCoords):
+    forecast_reference_time: ForecastReferenceTimeCoord
+    lead_time: LeadTimeCoord
+    time: ForecastTimeCoord
+
+
+# ---------------------------------------------------------------------------
 # Data variable schemas
 # ---------------------------------------------------------------------------
 
@@ -251,6 +285,33 @@ class ThresholdDataVar(BaseModel):
     attrs: dict | None = None
 
 
+class GriddedHistoricalDataVar(BaseModel):
+    dims: Annotated[
+        tuple[str, ...],
+        AfterValidator(
+            check_dims({StandardDim.lat, StandardDim.lon, StandardDim.time}),
+        ),
+    ]
+    attrs: DataVarAttrs
+
+
+class GriddedForecastSingleDataVar(BaseModel):
+    dims: Annotated[
+        tuple[str, ...],
+        AfterValidator(
+            check_dims(
+                {
+                    StandardDim.lat,
+                    StandardDim.lon,
+                    StandardDim.forecast_reference_time,
+                    StandardDim.lead_time,
+                },
+            ),
+        ),
+    ]
+    attrs: DataVarAttrs
+
+
 # ---------------------------------------------------------------------------
 # Data variable collections (dict of CF-compliant name -> DataVar schema)
 #
@@ -269,6 +330,8 @@ SimulatedForecastProbabilisticDataVars = RootModel[
     dict[CFCompliantName, SimulatedForecastProbabilisticDataVar]
 ]
 ThresholdDataVars = RootModel[dict[CFCompliantName, ThresholdDataVar]]
+GriddedHistoricalDataVars = RootModel[dict[CFCompliantName, GriddedHistoricalDataVar]]
+GriddedForecastSingleDataVars = RootModel[dict[CFCompliantName, GriddedForecastSingleDataVar]]
 
 
 # ---------------------------------------------------------------------------
@@ -278,6 +341,7 @@ ThresholdDataVars = RootModel[dict[CFCompliantName, ThresholdDataVar]]
 
 class BaseAttrs(BaseModel):
     data_type: str
+    spatial_type: SpatialType = SpatialType.point
 
     model_config = {"extra": "allow"}
 
@@ -323,21 +387,40 @@ class Thresholds(BaseModel):
     attrs: BaseAttrs
 
 
-# All input schemas, keyed by the corresponding data type
-INPUT_SCHEMAS: dict[DataType, BaseModel] = {
-    DataType.observed_historical: ObservedHistorical,
-    DataType.simulated_historical: SimulatedHistorical,
-    DataType.simulated_forecast_single: SimulatedForecastSingle,
-    DataType.simulated_forecast_ensemble: SimulatedForecastEnsemble,
-    DataType.simulated_forecast_probabilistic: SimulatedForecastProbabilistic,
-    DataType.threshold: Thresholds,
+class ObservedHistoricalGridded(BaseModel):
+    coords: GriddedHistoricalCoords
+    data_vars: GriddedHistoricalDataVars
+    attrs: BaseAttrs
+
+
+class SimulatedForecastSingleGridded(BaseModel):
+    coords: GriddedForecastSingleCoords
+    data_vars: GriddedForecastSingleDataVars
+    attrs: BaseAttrs
+
+
+# All input schemas, keyed by the (data_type, spatial_type) pair that fully describes
+# a dataset. ``spatial_type`` defaults to ``point`` so existing station-based data and
+# configuration keep working unchanged.
+INPUT_SCHEMAS: dict[tuple[DataType, SpatialType], BaseModel] = {
+    (DataType.observed_historical, SpatialType.point): ObservedHistorical,
+    (DataType.simulated_historical, SpatialType.point): SimulatedHistorical,
+    (DataType.simulated_forecast_single, SpatialType.point): SimulatedForecastSingle,
+    (DataType.simulated_forecast_ensemble, SpatialType.point): SimulatedForecastEnsemble,
+    (DataType.simulated_forecast_probabilistic, SpatialType.point): SimulatedForecastProbabilistic,
+    (DataType.threshold, SpatialType.point): Thresholds,
+    (DataType.observed_historical, SpatialType.gridded): ObservedHistoricalGridded,
+    (DataType.simulated_forecast_single, SpatialType.gridded): SimulatedForecastSingleGridded,
 }
 
 
 def validate_input_data(dataset: xr.Dataset) -> None:
     """Validate an input ``xr.Dataset`` against its schema.
 
-    The data type is determined from the ``data_type`` attribute on the dataset.
+    The schema is determined from the ``data_type`` (temporal kind) and ``spatial_type``
+    (spatial structure) attributes on the dataset. ``spatial_type`` defaults to ``point``
+    when absent, and is backfilled onto ``dataset.attrs`` so the full data type is always
+    retrievable downstream.
     """
     if not isinstance(dataset, xr.Dataset):
         msg = f"Expected an xarray Dataset. Got: {type(dataset)}"
@@ -347,10 +430,19 @@ def validate_input_data(dataset: xr.Dataset) -> None:
         msg = "Input dataset is missing required 'data_type' attribute."
         raise ValueError(msg)
 
-    data_type = dataset.attrs["data_type"]
-    schema_class = INPUT_SCHEMAS.get(data_type)
+    data_type = DataType(dataset.attrs["data_type"])
+    spatial_type = SpatialType(dataset.attrs.get("spatial_type", SpatialType.point))
+    # Always persist spatial_type on the dataset so the full (temporal + spatial) data
+    # type can be determined at any later stage.
+    dataset.attrs["spatial_type"] = spatial_type
+
+    schema_class = INPUT_SCHEMAS.get((data_type, spatial_type))
     if not schema_class:
-        msg = f"No input schema defined for data type: {data_type}"
+        supported = sorted(f"({dt}, {st})" for dt, st in INPUT_SCHEMAS)
+        msg = (
+            f"No input schema defined for (data_type, spatial_type) = "
+            f"({data_type}, {spatial_type}). Supported combinations: {', '.join(supported)}."
+        )
         raise ValueError(msg)
 
     data_dict = dataset.to_dict(data=False)

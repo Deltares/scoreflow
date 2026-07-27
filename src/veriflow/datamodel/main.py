@@ -10,6 +10,7 @@ from veriflow.constants import (
     FORECAST_DATA_TYPES,
     HISTORICAL_DATA_TYPES,
     DataType,
+    SpatialType,
     StandardDim,
 )
 from veriflow.datasources.inputschemas import INPUT_SCHEMAS
@@ -35,12 +36,17 @@ class InputDatasetExtension:
         self._obj = xarray_obj
 
     @property
-    def data_type(self) -> str:
+    def data_type(self) -> DataType:
         """The data type of the dataset."""
         if "data_type" not in self._obj.attrs:  # type:ignore[misc]
             msg = f"No data type set on {self._obj} attrs."
             raise ValueError(msg)
         return DataType(self._obj.attrs["data_type"])  # type:ignore[misc]
+
+    @property
+    def spatial_type(self) -> SpatialType:
+        """The spatial type of the dataset (defaults to ``point`` when unset)."""
+        return SpatialType(self._obj.attrs.get("spatial_type", SpatialType.point))  # type:ignore[misc]
 
     @property
     def is_thresholds(self) -> bool:
@@ -67,12 +73,23 @@ class InputDatasetExtension:
 
     def validate(self) -> None:
         """Validate the data according to schema."""
-        schema = INPUT_SCHEMAS[self.data_type]  # type:ignore[index] # str is compatible with StrEnum index
+        spatial_type = self.spatial_type
+        # Always persist spatial_type so the full (temporal + spatial) data type is
+        # retrievable at any later stage.
+        self._obj.attrs["spatial_type"] = spatial_type  # type:ignore[misc]
+        schema = INPUT_SCHEMAS.get((self.data_type, spatial_type))
+        if schema is None:
+            supported = sorted(f"({dt}, {st})" for dt, st in INPUT_SCHEMAS)
+            msg = (
+                f"No input schema defined for (data_type, spatial_type) = "
+                f"({self.data_type}, {spatial_type}). Supported: {', '.join(supported)}."
+            )
+            raise ValueError(msg)
 
         try:
             schema.model_validate(self._obj.to_dict(data=False))  # type:ignore[misc]
         except ValidationError as exc:
-            msg = (f"Validation failed for data_type '{self.data_type}'.\n{exc}",)
+            msg = f"Validation failed for data_type '{self.data_type}'.\n{exc}"
             raise ValueError(msg) from exc
 
 
@@ -195,6 +212,11 @@ class InputDataset:
         # (scores etc.) can read it via the data array's attrs.
         obs.attrs.setdefault("data_type", obs_ds.attrs.get("data_type"))  # type:ignore[misc]
         sim.attrs.setdefault("data_type", sim_ds.attrs.get("data_type"))  # type:ignore[misc]
+        # Likewise propagate spatial_type (defaulting to point) so the full data type is known.
+        obs_spatial = obs_ds.attrs.get("spatial_type", SpatialType.point)  # type:ignore[misc]
+        sim_spatial = sim_ds.attrs.get("spatial_type", SpatialType.point)  # type:ignore[misc]
+        obs.attrs.setdefault("spatial_type", obs_spatial)  # type:ignore[misc]
+        sim.attrs.setdefault("spatial_type", sim_spatial)  # type:ignore[misc]
 
         if sim_ds.verification.is_forecast:  # type:ignore[misc]
             # Map historical into forecast space upon score computation

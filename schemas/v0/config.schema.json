@@ -291,6 +291,10 @@
           "title": "Data Type",
           "type": "string"
         },
+        "spatial_type": {
+          "$ref": "#/$defs/SpatialType",
+          "default": "point"
+        },
         "directory": {
           "format": "path",
           "title": "Directory",
@@ -389,6 +393,10 @@
         },
         "data_type": {
           "$ref": "#/$defs/DataType"
+        },
+        "spatial_type": {
+          "$ref": "#/$defs/SpatialType",
+          "default": "point"
         },
         "netcdf_kind": {
           "$ref": "#/$defs/FewsNetCDFKind"
@@ -497,6 +505,10 @@
         },
         "data_type": {
           "$ref": "#/$defs/DataType"
+        },
+        "spatial_type": {
+          "$ref": "#/$defs/SpatialType",
+          "default": "point"
         },
         "auth_config": {
           "$ref": "#/$defs/FewsWebserviceAuthConfig"
@@ -752,6 +764,10 @@
         "data_type": {
           "$ref": "#/$defs/DataType"
         },
+        "spatial_type": {
+          "$ref": "#/$defs/SpatialType",
+          "default": "point"
+        },
         "stations": {
           "anyOf": [
             {
@@ -945,6 +961,54 @@
       },
       "title": "S3AuthConfig",
       "type": "object"
+    },
+    "SALScoreConfig": {
+      "additionalProperties": true,
+      "description": "Configuration for the SAL (Structure-Amplitude-Location) spatial score.\n\nApplies to single deterministic gridded forecasts. For reference, see:\nhttps://pysteps.readthedocs.io/en/stable/generated/pysteps.verification.salscores.sal.html",
+      "properties": {
+        "score_adapter": {
+          "const": "sal",
+          "title": "Score Adapter",
+          "type": "string"
+        },
+        "verification_pair_ids": {
+          "default": [],
+          "description": "Optional field to select verification_pairs from the general configuration, by providing a list of verification pair ids from the general config. Only these pair ids will be used in the computation of this score.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Verification Pair Ids",
+          "type": "array"
+        },
+        "thr_factor": {
+          "default": 0.067,
+          "description": "Factor by which the threshold quantile is multiplied to obtain the threshold used for object identification. If None in pysteps, no threshold is applied; here a sensible default is used.",
+          "title": "Thr Factor",
+          "type": "number"
+        },
+        "thr_quantile": {
+          "default": 0.95,
+          "description": "Quantile (in [0, 1]) used together with thr_factor to define the threshold for identifying precipitation objects.",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Thr Quantile",
+          "type": "number"
+        }
+      },
+      "required": [
+        "score_adapter"
+      ],
+      "title": "SALScoreConfig",
+      "type": "object"
+    },
+    "SpatialType": {
+      "description": "Spatial structure of a dataset.\n\nThis is orthogonal to :class:`DataType`. Together, ``data_type`` (temporal kind) and\n``spatial_type`` (spatial structure) fully describe an input dataset. Defaults to\n``point`` so that existing station-based data and configuration keep working unchanged.",
+      "enum": [
+        "point",
+        "gridded"
+      ],
+      "title": "SpatialType",
+      "type": "string"
     },
     "SupportedCategoricalScores": {
       "description": "The supported categorical scores.\n\nExplicitly excluded scores\n- gilberts_skill_score              (identical to equitable_threat_score)\n- threat_score                      (identical to critical_success_index)\n- heidke_skill_score                (identical to cohens_kappa)\n- frequency_bias                    (identical to bias score)\n- fraction_correct                  (identical to accuracy)\n- hanssen_and_kuipers_discriminant  (identical to peirce_skill_score)\n- true_skill_statistic              (identical to peirce_skill_score)\n- yules_q                           (identical to odds_ratio_skill_score)\n- positive_predictive_value         (identical to precision)\n- success_ratio                     (identical to precision)\n- probability_of_detection          (identical to hit_rate)\n- true_positive_rate                (identical to hit rate)\n- sensitivity                       (identical to hit rate)\n- recall                            (identical to hit rate)\n- true_negative_rate                (identical to specificity)\n- probability of false detection    (identical to false alarm rate)",
@@ -1179,6 +1243,10 @@
         "data_type": {
           "$ref": "#/$defs/DataType"
         },
+        "spatial_type": {
+          "$ref": "#/$defs/SpatialType",
+          "default": "point"
+        },
         "path": {
           "description": "Path to a single Zarr store. Local filesystem path (absolute or relative) or a remote URL such as 's3://bucket/key/store.zarr'.",
           "minLength": 1,
@@ -1318,7 +1386,8 @@
             "continuous_scores": "#/$defs/ContinuousScoresConfig",
             "crps_cdf": "#/$defs/CrpsCDFConfig",
             "crps_for_ensemble": "#/$defs/CrpsForEnsembleConfig",
-            "rank_histogram": "#/$defs/RankHistogramConfig"
+            "rank_histogram": "#/$defs/RankHistogramConfig",
+            "sal": "#/$defs/SALScoreConfig"
           },
           "propertyName": "score_adapter"
         },
@@ -1337,6 +1406,9 @@
           },
           {
             "$ref": "#/$defs/CategoricalScoresConfig"
+          },
+          {
+            "$ref": "#/$defs/SALScoreConfig"
           }
         ]
       },

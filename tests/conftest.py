@@ -46,6 +46,7 @@ from veriflow.constants import (
     DataSourceKind,
     DataType,
     ScoreKind,
+    SpatialType,
     StandardCoord,
     StandardDim,
 )
@@ -104,6 +105,10 @@ lon = x
 realization = np.arange(1, realization_n + 1)
 variables = [f"var_{x}" for x in range(variable_n)]
 thresholds = [f"warn_{x}" for x in range(threshold_n)]
+
+# Gridded (lat/lon dimension) coordinates for spatial_type == gridded fixtures.
+grid_lat = np.linspace(50.0, 52.0, 5)
+grid_lon = np.linspace(4.0, 7.0, 6)
 
 
 @pytest.fixture
@@ -280,6 +285,70 @@ def xarray_simulated_forecast_single() -> xr.Dataset:
         coords=coords,
         attrs={
             "data_type": DataType.simulated_forecast_single,
+            "source": DummySource.simulation_single_source,
+        },
+    )
+
+
+@pytest.fixture
+def xarray_observed_historical_gridded() -> xr.Dataset:
+    """Return example gridded observations (dims: time, lat, lon)."""
+    coords = {
+        StandardCoord.time.name: times,
+        StandardCoord.lat.name: (StandardDim.lat, grid_lat),
+        StandardCoord.lon.name: (StandardDim.lon, grid_lon),
+    }
+    data_vars = {}
+    for i, v in enumerate(variables):
+        arr = rng.random((len(times), len(grid_lat), len(grid_lon)), dtype=dtype)
+        data_vars[v] = xr.DataArray(
+            data=arr,
+            dims=[StandardDim.time, StandardDim.lat, StandardDim.lon],
+            attrs={"units": f"dummy_unit_{i}"},
+        )
+    return xr.Dataset(
+        data_vars=data_vars,
+        coords=coords,
+        attrs={
+            "data_type": DataType.observed_historical,
+            "spatial_type": SpatialType.gridded,
+            "source": DummySource.observation_source,
+        },
+    )
+
+
+@pytest.fixture
+def xarray_simulated_forecast_single_gridded() -> xr.Dataset:
+    """Return example gridded single forecast (dims: frt, lead_time, lat, lon)."""
+    coords = {
+        StandardCoord.forecast_reference_time.name: forecast_reference_times,
+        StandardCoord.lead_time.name: lead_times,
+        StandardCoord.time.name: (
+            (StandardDim.forecast_reference_time, StandardDim.lead_time),
+            forecast_times,
+        ),
+        StandardCoord.lat.name: (StandardDim.lat, grid_lat),
+        StandardCoord.lon.name: (StandardDim.lon, grid_lon),
+    }
+    data_vars = {}
+    for i, v in enumerate(variables):
+        arr = rng.random((frt_n, fp_n, len(grid_lat), len(grid_lon)), dtype=dtype)
+        data_vars[v] = xr.DataArray(
+            data=arr,
+            dims=[
+                StandardDim.forecast_reference_time,
+                StandardDim.lead_time,
+                StandardDim.lat,
+                StandardDim.lon,
+            ],
+            attrs={"units": f"dummy_unit_{i}"},
+        )
+    return xr.Dataset(
+        data_vars=data_vars,
+        coords=coords,
+        attrs={
+            "data_type": DataType.simulated_forecast_single,
+            "spatial_type": SpatialType.gridded,
             "source": DummySource.simulation_single_source,
         },
     )
@@ -890,10 +959,10 @@ class FakeDatasource(BaseDatasource):
 
     kind: str = "fake"
     config_class = FakeDatasourceConfig
-    supported_data_types: ClassVar[set[DataType]] = {
-        DataType.observed_historical,
-        DataType.simulated_forecast_single,
-        DataType.simulated_forecast_ensemble,
+    supported_data_specs: ClassVar[set[tuple[DataType, SpatialType]]] = {
+        (DataType.observed_historical, SpatialType.point),
+        (DataType.simulated_forecast_single, SpatialType.point),
+        (DataType.simulated_forecast_ensemble, SpatialType.point),
     }
 
     @property

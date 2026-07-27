@@ -12,7 +12,7 @@ from veriflow.configuration.base import (
     BaseScoreConfig,
 )
 from veriflow.configuration.default.scores import ThresholdEvent
-from veriflow.constants import DataType
+from veriflow.constants import DataType, SpatialType
 
 __all__ = ["BaseScore", "BaseScoreConfig"]
 
@@ -22,7 +22,7 @@ class BaseScore(Base):
 
     kind = ""  # to be defined by subclasses
     config_class: type[BaseScoreConfig] = BaseScoreConfig  # to be defined by subclasses
-    supported_data_types: ClassVar[set[DataType]] = set()
+    supported_data_specs: ClassVar[set[tuple[DataType, SpatialType]]] = set()
 
     def __init__(self, config: BaseScoreConfig) -> None:
         self.config: BaseScoreConfig = config
@@ -42,10 +42,15 @@ class BaseScore(Base):
     ) -> xr.DataArray | xr.Dataset:
         """Validate and compute."""
         data_type: DataType = DataType(sim.attrs["data_type"])  # type:ignore[misc]
-        if data_type not in self.supported_data_types:
-            msg = f"The data type '{data_type} is not supported by"
-            f"{self.__class__.__name__}. Supported types: "
-            f"{sorted(self.supported_data_types)}."
+        spatial_type: SpatialType = SpatialType(
+            sim.attrs.get("spatial_type", SpatialType.point),  # type:ignore[misc]
+        )
+        if (data_type, spatial_type) not in self.supported_data_specs:
+            msg = (
+                f"The data type / spatial type combination '({data_type}, {spatial_type})' is "
+                f"not supported by {self.__class__.__name__}. Supported: "
+                f"{sorted((str(dt), str(st)) for dt, st in self.supported_data_specs)}."
+            )
             raise ValueError(msg)
         result = self.compute(obs, sim)
         if isinstance(result, xr.DataArray) and result.name is None:  # type:ignore[misc]
@@ -60,7 +65,7 @@ class BaseCategoricalScore(Base):
     config_class: type[BaseCategoricalScoreConfig] = (
         BaseCategoricalScoreConfig  # to be defined by subclasses
     )
-    supported_data_types: ClassVar[set[DataType]] = set()
+    supported_data_specs: ClassVar[set[tuple[DataType, SpatialType]]] = set()
 
     def __init__(self, config: BaseCategoricalScoreConfig) -> None:
         self.config: BaseCategoricalScoreConfig = config
@@ -83,10 +88,15 @@ class BaseCategoricalScore(Base):
     ) -> xr.DataArray | xr.Dataset:
         """Validate and compute."""
         data_type: DataType = DataType(sim.attrs["data_type"])  # type:ignore[misc]
-        if data_type not in self.supported_data_types:
-            msg = f"The data type '{data_type} is not supported by"
-            f"{self.__class__.__name__}. Supported types: "
-            f"{sorted(self.supported_data_types)}."
+        spatial_type: SpatialType = SpatialType(
+            sim.attrs.get("spatial_type", SpatialType.point),  # type:ignore[misc]
+        )
+        if (data_type, spatial_type) not in self.supported_data_specs:
+            msg = (
+                f"The data type / spatial type combination '({data_type}, {spatial_type})' is "
+                f"not supported by {self.__class__.__name__}. Supported: "
+                f"{sorted((str(dt), str(st)) for dt, st in self.supported_data_specs)}."
+            )
             raise ValueError(msg)
 
         results: list[xr.DataArray | xr.Dataset] = []

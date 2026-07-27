@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, RootModel, model_validator
 from pydantic.json_schema import SkipJsonSchema
 
 from veriflow.cache.config import ZarrCacheConfig
-from veriflow.constants import DataType, StandardDim
+from veriflow.constants import DataType, SpatialType, StandardDim
 
 from .utils import LeadTimes, Source, TimePeriod, VerificationPair, VerificationPeriod
 
@@ -217,6 +217,7 @@ class BaseDatasourceConfig(BaseConfig):
     import_adapter: str
     source: Source
     data_type: DataType
+    spatial_type: SpatialType = SpatialType.point
     general: SkipJsonSchema[GeneralInfoConfig]  # Do not serialize to json schema, since general
     # config is propagated from the general config section in the main config. This will prevent
     # users that use the json-schema for making config having to explicitly set a duplicate general

@@ -62,6 +62,12 @@ init_typed = true
 module = "zarr.*"
 follow_imports = "skip"
 
+[[tool.mypy.overrides]]
+# pysteps (optional 'spatial' extra) ships without type information.
+module = "pysteps.*"
+follow_imports = "skip"
+ignore_missing_imports = true
+
 [tool.ruff]
 target-version = "py310"
 line-length = 100
@@ -138,4 +144,8 @@ tutorial = [
     "plotly",
     "matplotlib", 
     "ipykernel"
+]
+spatial = [
+    "pysteps>=1.10",
+    "scikit-image"
 ]

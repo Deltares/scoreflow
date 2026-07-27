@@ -22,6 +22,7 @@ from veriflow.constants import (
     FORECAST_DATA_TYPES,
     HISTORICAL_DATA_TYPES,
     DataType,
+    SpatialType,
     StandardDim,
     TimeUnits,
 )
@@ -42,12 +43,13 @@ class BaseDatasource(Base):
 
     kind: str = ""
     config_class: type[BaseDatasourceConfig] = BaseDatasourceConfig
-    supported_data_types: ClassVar[set[DataType]] = set()
+    supported_data_specs: ClassVar[set[tuple[DataType, SpatialType]]] = set()
     _cache: ZarrCache | None = None
 
     def __init__(self, config: BaseDatasourceConfig) -> None:
         self.config: BaseDatasourceConfig = config
         self.data_type = config.data_type
+        self.spatial_type = config.spatial_type
         self.dataset: xr.Dataset = xr.Dataset()
 
     @property
@@ -57,7 +59,8 @@ class BaseDatasource(Base):
 
     @data_type.setter
     def data_type(self, new_data_type: DataType) -> None:
-        if new_data_type not in self.supported_data_types:
+        supported_data_types = {dt for dt, _ in self.supported_data_specs}
+        if new_data_type not in supported_data_types:
             msg = (
                 f"Data type '{new_data_type}' is not supported ",
                 f"by {self.__class__.__name__}",
@@ -65,6 +68,23 @@ class BaseDatasource(Base):
             raise NotImplementedError(msg)
 
         self._data_type = new_data_type
+
+    @property
+    def spatial_type(self) -> SpatialType:
+        """Spatial structure (point/gridded) of the datasource's data."""
+        return self.config.spatial_type
+
+    @spatial_type.setter
+    def spatial_type(self, new_spatial_type: SpatialType) -> None:
+        if (self.data_type, new_spatial_type) not in self.supported_data_specs:
+            msg = (
+                f"Data type / spatial type combination "
+                f"'({self.data_type}, {new_spatial_type})' is not supported "
+                f"by {self.__class__.__name__}"
+            )
+            raise NotImplementedError(msg)
+
+        self._spatial_type = new_spatial_type
 
     @property
     def cache(self) -> ZarrCache | None:
@@ -159,6 +179,11 @@ class BaseDatasource(Base):
         # Make sure the source attribute is set to the expected source
         self.dataset.attrs["source"] = self.config.source  # type:ignore[misc]
 
+    def _validate_spatial_type(self) -> None:
+        # Always persist spatial_type so the full (temporal + spatial) data type is
+        # retrievable downstream (e.g. for schema selection and score dispatch).
+        self.dataset.attrs["spatial_type"] = self.config.spatial_type  # type:ignore[misc]
+
     def _validate_lead_times(self) -> None:
         """Check that lead times are provided for forecast data types."""
         if not self.config.lead_times and self.data_type in FORECAST_DATA_TYPES:
@@ -211,6 +236,7 @@ class BaseDatasource(Base):
         """Validate that the dataset is consistent with the config."""
         self._validate_data_type()
         self._validate_source()
+        self._validate_spatial_type()
         self._validate_lead_times()
 
     def filter_dataset(self, dataset: xr.Dataset) -> xr.Dataset:

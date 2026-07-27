@@ -193,6 +193,33 @@ class ContinuousScoresConfig(BaseScoreConfig, ReduceDimsHistoricalOrForecast):
         return self
 
 
+class SALScoreConfig(BaseScoreConfig):
+    """Configuration for the SAL (Structure-Amplitude-Location) spatial score.
+
+    Applies to single deterministic gridded forecasts. For reference, see:
+    https://pysteps.readthedocs.io/en/stable/generated/pysteps.verification.salscores.sal.html
+    """
+
+    score_adapter: Literal[ScoreKind.sal]
+    thr_factor: Annotated[
+        float,
+        Field(
+            description="Factor by which the threshold quantile is multiplied to obtain the "
+            "threshold used for object identification. If None in pysteps, no threshold is "
+            "applied; here a sensible default is used.",
+        ),
+    ] = 0.067
+    thr_quantile: Annotated[
+        float,
+        Field(
+            description="Quantile (in [0, 1]) used together with thr_factor to define the "
+            "threshold for identifying precipitation objects.",
+            ge=0.0,
+            le=1.0,
+        ),
+    ] = 0.95
+
+
 class ThresholdEvent(BaseEvent):
     """An event definition for a threshold."""
 
