@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
   pull_request:
+  release:
+    types: [published] # https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#release
   workflow_dispatch:
 
 permissions:
@@ -22,12 +24,13 @@ jobs:
       id-token: write
     uses: ./.github/workflows/docs-build.yml
     with:
-      upload-pages-artifact: ${{ github.event_name == 'push' }}
+      # Only produce the deployable Pages artifact for an actual release.
+      upload-pages-artifact: ${{ github.event_name == 'release' }}
 
   deploy:
     name: Deploy to GitHub Pages
     needs: build
-    if: github.ref == 'refs/heads/main' # Deploy on push to main or manual dispatch from main
+    if: github.event_name == 'release' # Only publish docs when a release is published
     runs-on: ubuntu-latest
     permissions:
       pages: write
