@@ -154,7 +154,7 @@ class TestForecastCacheMiss:
         assert _zarr_store_has_data(cache_dir_local)
         assert set(ds.dataset.data_vars) == {"var_0", "var_1"}
 
-    def test_miss_with_read_only_does_not_write(  # noqa: PLR0913
+    def test_miss_with_read_only_does_not_write(  # noqa: PLR0913, PLR0917
         self,
         xarray_general_info_config: GeneralInfoConfig,
         xarray_simulated_forecast_ensemble: xr.Dataset,

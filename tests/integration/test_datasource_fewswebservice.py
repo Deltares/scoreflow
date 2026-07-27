@@ -28,7 +28,6 @@ TASK_START_SUCCESS_TEXT = '{"started":true,"message":"Task started"}'
 SKIP_LIVE_WEBSERVICE_TEST = True
 
 
-@pytest.mark.skipif(SKIP_LIVE_WEBSERVICE_TEST, reason="Skipping live webservice tests")
 @pytest.fixture(scope="module", autouse=False)
 def _initialize_archive() -> None:
     @dataclass
@@ -80,12 +79,13 @@ def _initialize_archive() -> None:
 
         assert "finished" in task_status["status"]  # type: ignore[operator] # Indeed the use of in does not fully match with our faked type def of task_status
 
-    # Check archive is up by requesting status
-    _ = get_archive_task_status(clear_catalogue)
-    # Always run these two tasks, before any of the tests on the webservice
-    #   Do not check lastruntime or running status beforehand, unnecessary complication
-    start_and_wait_for_task(clear_catalogue)
-    start_and_wait_for_task(internal_harvester)
+    if not SKIP_LIVE_WEBSERVICE_TEST:
+        # Check archive is up by requesting status
+        _ = get_archive_task_status(clear_catalogue)
+        # Always run these two tasks, before any of the tests on the webservice
+        #   Do not check lastruntime or running status beforehand, unnecessary complication
+        start_and_wait_for_task(clear_catalogue)
+        start_and_wait_for_task(internal_harvester)
 
 
 @pytest.mark.skipif(SKIP_LIVE_WEBSERVICE_TEST, reason="Skipping live webservice tests")
