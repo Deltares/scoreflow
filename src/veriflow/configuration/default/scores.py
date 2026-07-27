@@ -121,7 +121,7 @@ class ReduceDimsHistoricalOrForecast(BaseModel):
             or StandardDim.lead_time in self.reduce_dims
         ) and StandardDim.time in self.reduce_dims:
             msg = (
-                "reduce_dims cannot contain both forecast and historical dimensions. "
+                "reduce_dims cannot contain both forecast and historical dimensions. "  # noqa: ISC004
                 "Please choose either 'time' for historical verification or "
                 "'forecast_reference_time' and 'lead_time' for forecast verification.",
             )

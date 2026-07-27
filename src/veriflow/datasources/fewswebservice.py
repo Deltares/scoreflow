@@ -312,7 +312,7 @@ class FewsWebservice(BaseDatasource):
             # Asynchronously download data, create one dataset and append to self.dataset
             with tempfile.TemporaryDirectory() as tmpdir:
 
-                async def fetch_and_write(  # noqa: PLR0913
+                async def fetch_and_write(  # noqa: PLR0913, PLR0917
                     executor: ThreadPoolExecutor,
                     loop: asyncio.AbstractEventLoop,
                     client: FewsWebserviceClient,

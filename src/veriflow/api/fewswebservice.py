@@ -70,7 +70,7 @@ class FewsWebserviceClient:
             return [self.format_datetime(t) for t in datetime_list if datetime_list]
         return None
 
-    def get_timeseries(  # noqa: PLR0913
+    def get_timeseries(  # noqa: PLR0913, PLR0917
         self,
         location_ids: list[str],
         parameter_ids: list[str],
