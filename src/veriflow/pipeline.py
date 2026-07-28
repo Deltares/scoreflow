@@ -4,14 +4,16 @@ import logging
 import warnings
 from collections.abc import Sequence
 from pathlib import Path
-from typing import TypeVar, cast
+from typing import TYPE_CHECKING, TypeVar, cast
 
+import xarray as xr
 from cftime import CFWarning  # type:ignore[import-untyped]
 from xarray import SerializationWarning
 
 from veriflow.cache import ZarrCache
 from veriflow.configuration.config import Config
 from veriflow.configuration.file import ConfigFile, ConfigKind
+from veriflow.constants import StandardAttribute
 from veriflow.datamodel import InputDataset, OutputDataset
 from veriflow.datasinks import DEFAULT_DATASINKS
 from veriflow.datasinks.base import BaseDatasink
@@ -19,6 +21,10 @@ from veriflow.datasources import DEFAULT_DATASOURCES
 from veriflow.datasources.base import BaseDatasource
 from veriflow.scores import DEFAULT_SCORES
 from veriflow.scores.base import BaseCategoricalScore, BaseScore
+from veriflow.transformations import parse_crs, reproject_to_crs
+
+if TYPE_CHECKING:
+    from veriflow.configuration.utils import VerificationPair
 
 __all__ = ["run_pipeline"]
 
@@ -26,6 +32,59 @@ logger = logging.getLogger(__name__)
 
 
 TItem = TypeVar("TItem", bound=BaseDatasource | BaseDatasink | BaseScore | BaseCategoricalScore)
+
+
+def _align_crs(
+    obs: "xr.DataArray",
+    sim: "xr.DataArray",
+    target_crs: str | None,
+) -> "tuple[xr.DataArray, xr.DataArray]":
+    """Align the CRS of ``obs`` and ``sim`` for score computation.
+
+    When ``target_crs`` is set, both are reprojected to it (deriving ``x``/``y`` in the target
+    CRS as needed) so the score is computed and expressed in that CRS. When ``target_crs`` is
+    ``None``, ``obs`` and ``sim`` must share the same CRS, otherwise a ``ValueError`` is raised.
+
+    Every input dataset is guaranteed to carry a ``crs`` attribute (defaulting to EPSG:4326
+    during schema validation), so it is always present on the extracted DataArrays here.
+    """
+    if target_crs is not None:
+        return reproject_to_crs(obs, target_crs), reproject_to_crs(sim, target_crs)
+
+    obs_crs = cast("str", obs.attrs[StandardAttribute.crs])  # type: ignore[misc]
+    sim_crs = cast("str", sim.attrs[StandardAttribute.crs])  # type: ignore[misc]
+    # Fast path: identical CRS strings need no reprojection and no pyproj. Only when the
+    # strings differ do we parse them (requiring pyproj) to check for semantic equality.
+    if obs_crs != sim_crs and parse_crs(obs_crs) != parse_crs(sim_crs):
+        msg = (
+            f"Observation CRS ('{obs_crs}') and simulation CRS ('{sim_crs}') diverge, but no "
+            "target CRS is configured on the score. Set 'crs' on the score configuration to "
+            "reproject both to a common CRS."
+        )
+        raise ValueError(msg)
+    return obs, sim
+
+
+def _write_results_to_datasink(
+    datasink: BaseDatasink,
+    target_crs: str | None,
+    output_dataset: OutputDataset,
+    verification_pairs: "Sequence[VerificationPair]",
+) -> None:
+    """Write the results of each verification pair to ``datasink``.
+
+    When ``target_crs`` is set, the results' coordinates are reprojected to it before writing.
+    """
+    for verification_pair in verification_pairs:
+        result_dataset = output_dataset.get(verification_pair)
+        if target_crs is not None:
+            result_dataset = reproject_to_crs(result_dataset, target_crs)
+        datasink.write_data(result_dataset)
+        msg = (
+            f"Successfully wrote results of verification pair {verification_pair.id} "
+            f"to {datasink.__class__.__name__}."
+        )
+        logger.info(msg)
 
 
 def find_matching_kind_in_list(
@@ -204,6 +263,11 @@ def run_pipeline(
             for verification_pair in score.config.verification_pairs:
                 obs, sim = input_dataset.get_pair(verification_pair)
 
+                # Align the CRS of obs and sim. When a target CRS is configured on the score,
+                # reproject both to it (results are then expressed in that CRS). Otherwise, obs
+                # and sim must already share the same CRS.
+                obs, sim = _align_crs(obs, sim, score.config.crs)
+
                 # Check if the score is a categorical score, because in that case we need to provide
                 # the thresholds array as well. We do this runtime check, because the contract of
                 # the compute function in the BaseCategoricalScore is different from the one in
@@ -230,18 +294,12 @@ def run_pipeline(
                     kind=datasink_config.export_adapter,
                 )
                 datasink = sink_kind.from_config(datasink_config.model_dump())  # type: ignore[misc] # Allow Any
-
-                # We write results for each verification pair separately to the datasink. The
-                #   datasink determines what the output will look like.
-                for verification_pair in config.general.verification_pairs:
-                    datasink.write_data(
-                        output_dataset.get(verification_pair),
-                    )
-                    msg = (
-                        f"Successfully wrote results of verification pair {verification_pair.id} "
-                        f"to {datasink.__class__.__name__}."
-                    )
-                    logger.info(msg)
+                _write_results_to_datasink(
+                    datasink=datasink,
+                    target_crs=datasink_config.crs,
+                    output_dataset=output_dataset,
+                    verification_pairs=config.general.verification_pairs,
+                )
 
     msg = "Verification pipeline completed successfully."
     logger.info(msg)

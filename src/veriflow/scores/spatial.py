@@ -39,7 +39,7 @@ _SAL_COMPONENTS = ("structure", "amplitude", "location")
 class SALScore(BaseScore):
     """Structure-Amplitude-Location (SAL) spatial verification score.
 
-    Computes the SAL score of ``pysteps`` on 2D ``(lat, lon)`` fields for single
+    Computes the SAL score of ``pysteps`` on 2D ``(y, x)`` fields for single
     deterministic gridded forecasts against gridded observations. For each forecast slice
     (along any non-spatial dimensions such as ``forecast_reference_time`` and ``lead_time``)
     the structure, amplitude and location components are returned as separate variables.
@@ -58,7 +58,7 @@ class SALScore(BaseScore):
         self.config: SALScoreConfig = config
 
     def compute(self, obs: xr.DataArray, sim: xr.DataArray) -> xr.Dataset:
-        """Compute the SAL score over the ``(lat, lon)`` plane for each forecast slice."""
+        """Compute the SAL score over the ``(y, x)`` plane for each forecast slice."""
         try:
             from pysteps.verification.salscores import sal  # noqa: PLC0415
         except ImportError as exc:
@@ -81,8 +81,8 @@ class SALScore(BaseScore):
             sim,
             obs,
             input_core_dims=[
-                [StandardDim.lat, StandardDim.lon],
-                [StandardDim.lat, StandardDim.lon],
+                [StandardDim.y, StandardDim.x],
+                [StandardDim.y, StandardDim.x],
             ],
             output_core_dims=[["sal_component"]],
             vectorize=True,

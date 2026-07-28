@@ -160,8 +160,8 @@ class StandardDim(StrEnum):
     forecast_reference_time = "forecast_reference_time"
     lead_time = "lead_time"
     threshold = "threshold"
-    lat = "lat"
-    lon = "lon"
+    x = "x"
+    y = "y"
 
 
 class StandardCoord:
@@ -237,7 +237,7 @@ class StandardCoord:
         ),
     )
     y = CoordinateProperties(
-        "x",
+        "y",
         (
             ("standard_name", "projection_y_coordinate"),
             ("long_name", "y coordinate according to WGS 1984"),
@@ -293,6 +293,7 @@ class StandardAttribute:
     source = "source"
     timestep = "timestep"
     featuretype = "featureType"
+    crs = "crs"
 
 
 def _set_version_info() -> tuple[str, str]:

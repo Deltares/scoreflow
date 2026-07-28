@@ -24,6 +24,21 @@
           "title": "Force Overwrite",
           "type": "boolean"
         },
+        "crs": {
+          "anyOf": [
+            {
+              "description": "A coordinate reference system as a string compatible with pyproj.CRS.from_string, i.e. a PROJ string, a CRS WKT string, or an authority string such as 'EPSG:4326'. The string is not parsed at configuration time so that pyproj remains an optional dependency; it is only parsed when an actual coordinate transformation is required.",
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional coordinate reference system for the output. When set, the results' coordinates are reprojected to this CRS before writing.",
+          "title": "Crs"
+        },
         "directory": {
           "format": "path",
           "title": "Directory",
@@ -89,6 +104,21 @@
           "title": "Score Adapter",
           "type": "string"
         },
+        "crs": {
+          "anyOf": [
+            {
+              "description": "A coordinate reference system as a string compatible with pyproj.CRS.from_string, i.e. a PROJ string, a CRS WKT string, or an authority string such as 'EPSG:4326'. The string is not parsed at configuration time so that pyproj remains an optional dependency; it is only parsed when an actual coordinate transformation is required.",
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional coordinate reference system for score computation. When set, obs and sim coordinates are reprojected to this CRS before computing the score and the results are expressed in it. When omitted, obs and sim must share the same CRS.",
+          "title": "Crs"
+        },
         "verification_pair_ids": {
           "default": [],
           "description": "Optional field to select verification_pairs from the general configuration, by providing a list of verification pair ids from the general config. Only these pair ids will be used in the computation of this score.",
@@ -152,6 +182,21 @@
           "title": "Score Adapter",
           "type": "string"
         },
+        "crs": {
+          "anyOf": [
+            {
+              "description": "A coordinate reference system as a string compatible with pyproj.CRS.from_string, i.e. a PROJ string, a CRS WKT string, or an authority string such as 'EPSG:4326'. The string is not parsed at configuration time so that pyproj remains an optional dependency; it is only parsed when an actual coordinate transformation is required.",
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional coordinate reference system for score computation. When set, obs and sim coordinates are reprojected to this CRS before computing the score and the results are expressed in it. When omitted, obs and sim must share the same CRS.",
+          "title": "Crs"
+        },
         "verification_pair_ids": {
           "default": [],
           "description": "Optional field to select verification_pairs from the general configuration, by providing a list of verification pair ids from the general config. Only these pair ids will be used in the computation of this score.",
@@ -196,6 +241,21 @@
           "const": "crps_cdf",
           "title": "Score Adapter",
           "type": "string"
+        },
+        "crs": {
+          "anyOf": [
+            {
+              "description": "A coordinate reference system as a string compatible with pyproj.CRS.from_string, i.e. a PROJ string, a CRS WKT string, or an authority string such as 'EPSG:4326'. The string is not parsed at configuration time so that pyproj remains an optional dependency; it is only parsed when an actual coordinate transformation is required.",
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional coordinate reference system for score computation. When set, obs and sim coordinates are reprojected to this CRS before computing the score and the results are expressed in it. When omitted, obs and sim must share the same CRS.",
+          "title": "Crs"
         },
         "verification_pair_ids": {
           "default": [],
@@ -243,6 +303,21 @@
           "const": "crps_for_ensemble",
           "title": "Score Adapter",
           "type": "string"
+        },
+        "crs": {
+          "anyOf": [
+            {
+              "description": "A coordinate reference system as a string compatible with pyproj.CRS.from_string, i.e. a PROJ string, a CRS WKT string, or an authority string such as 'EPSG:4326'. The string is not parsed at configuration time so that pyproj remains an optional dependency; it is only parsed when an actual coordinate transformation is required.",
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional coordinate reference system for score computation. When set, obs and sim coordinates are reprojected to this CRS before computing the score and the results are expressed in it. When omitted, obs and sim must share the same CRS.",
+          "title": "Crs"
         },
         "verification_pair_ids": {
           "default": [],
@@ -856,6 +931,21 @@
           "title": "Score Adapter",
           "type": "string"
         },
+        "crs": {
+          "anyOf": [
+            {
+              "description": "A coordinate reference system as a string compatible with pyproj.CRS.from_string, i.e. a PROJ string, a CRS WKT string, or an authority string such as 'EPSG:4326'. The string is not parsed at configuration time so that pyproj remains an optional dependency; it is only parsed when an actual coordinate transformation is required.",
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional coordinate reference system for score computation. When set, obs and sim coordinates are reprojected to this CRS before computing the score and the results are expressed in it. When omitted, obs and sim must share the same CRS.",
+          "title": "Crs"
+        },
         "verification_pair_ids": {
           "default": [],
           "description": "Optional field to select verification_pairs from the general configuration, by providing a list of verification pair ids from the general config. Only these pair ids will be used in the computation of this score.",
@@ -970,6 +1060,21 @@
           "const": "sal",
           "title": "Score Adapter",
           "type": "string"
+        },
+        "crs": {
+          "anyOf": [
+            {
+              "description": "A coordinate reference system as a string compatible with pyproj.CRS.from_string, i.e. a PROJ string, a CRS WKT string, or an authority string such as 'EPSG:4326'. The string is not parsed at configuration time so that pyproj remains an optional dependency; it is only parsed when an actual coordinate transformation is required.",
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional coordinate reference system for score computation. When set, obs and sim coordinates are reprojected to this CRS before computing the score and the results are expressed in it. When omitted, obs and sim must share the same CRS.",
+          "title": "Crs"
         },
         "verification_pair_ids": {
           "default": [],
@@ -1293,6 +1398,21 @@
           "default": null,
           "description": "Whether to use consolidated metadata when opening the store. Forwarded to xr.open_zarr. Default ('None') lets xarray auto-detect.",
           "title": "Consolidated"
+        },
+        "crs": {
+          "anyOf": [
+            {
+              "description": "A coordinate reference system as a string compatible with pyproj.CRS.from_string, i.e. a PROJ string, a CRS WKT string, or an authority string such as 'EPSG:4326'. The string is not parsed at configuration time so that pyproj remains an optional dependency; it is only parsed when an actual coordinate transformation is required.",
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Coordinate reference system of the data in the store. Optional: when omitted, the CRS is read from the dataset's 'crs' attribute if present. When set, it takes precedence and is written onto the dataset's 'crs' attribute. Required for gridded data that does not already carry a 'crs' attribute.",
+          "title": "Crs"
         },
         "variables": {
           "anyOf": [

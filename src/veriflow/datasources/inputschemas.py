@@ -16,10 +16,10 @@ For now, we validate
 # mypy: ignore-errors
 # ruff: noqa: D101
 
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Self
 
 import xarray as xr
-from pydantic import AfterValidator, BaseModel, Field, RootModel
+from pydantic import AfterValidator, BaseModel, Field, RootModel, model_validator
 
 from veriflow.constants import DataType, SpatialType, StandardDim
 
@@ -110,11 +110,23 @@ class ThresholdCoord(BaseModel):
 class BaseCoords(BaseModel):
     station: StationCoord
     station_name: StationCoord | None = None  # Optional station name coordinate
-    lat: XYZCoord  # Always required lat, lon
-    lon: XYZCoord
-    x: XYZCoord | None = None  # Optional x, y, z
+    # Point data is valid with either ``lat``/``lon`` (assumed EPSG:4326) or ``x``/``y`` plus a
+    # ``crs`` dataset attribute. At least one of the two pairs must be present.
+    lat: XYZCoord | None = None
+    lon: XYZCoord | None = None
+    x: XYZCoord | None = None
     y: XYZCoord | None = None
     z: XYZCoord | None = None
+
+    @model_validator(mode="after")
+    def validate_spatial_coords(self) -> Self:
+        """Require either ``lat`` and ``lon``, or ``x`` and ``y`` to be present."""
+        has_latlon = self.lat is not None and self.lon is not None
+        has_xy = self.x is not None and self.y is not None
+        if not has_latlon and not has_xy:
+            msg = "Point data requires either 'lat' and 'lon', or 'x' and 'y' coordinates."
+            raise ValueError(msg)
+        return self
 
 
 class BaseHistoricalCoords(BaseCoords):
@@ -152,25 +164,26 @@ class ThresholdCoords(BaseModel):
 # ---------------------------------------------------------------------------
 # Gridded (spatial_type=gridded) coordinate schemas
 #
-# For gridded data, ``lat`` and ``lon`` are dimension coordinates (each with its
-# own dimension), in contrast to point data where they are auxiliary coordinates
-# along the ``station`` dimension.
+# For gridded data, ``x`` and ``y`` are dimension coordinates (each with its own
+# dimension) expressed in the dataset's CRS (see the required ``crs`` attribute).
+# ``x``/``y`` plus the CRS are the canonical spatial datamodel; ``lat``/``lon`` are
+# not stored and are only derived on demand (for a score or output).
 # ---------------------------------------------------------------------------
 
 
-class LatDimCoord(BaseModel):
-    dims: Annotated[tuple[str, ...], AfterValidator(check_dims({StandardDim.lat}))]
+class XDimCoord(BaseModel):
+    dims: Annotated[tuple[str, ...], AfterValidator(check_dims({StandardDim.x}))]
     dtype: AllowedDTypeFloat
 
 
-class LonDimCoord(BaseModel):
-    dims: Annotated[tuple[str, ...], AfterValidator(check_dims({StandardDim.lon}))]
+class YDimCoord(BaseModel):
+    dims: Annotated[tuple[str, ...], AfterValidator(check_dims({StandardDim.y}))]
     dtype: AllowedDTypeFloat
 
 
 class BaseGriddedCoords(BaseModel):
-    lat: LatDimCoord
-    lon: LonDimCoord
+    x: XDimCoord
+    y: YDimCoord
 
 
 class GriddedHistoricalCoords(BaseGriddedCoords):
@@ -289,7 +302,7 @@ class GriddedHistoricalDataVar(BaseModel):
     dims: Annotated[
         tuple[str, ...],
         AfterValidator(
-            check_dims({StandardDim.lat, StandardDim.lon, StandardDim.time}),
+            check_dims({StandardDim.y, StandardDim.x, StandardDim.time}),
         ),
     ]
     attrs: DataVarAttrs
@@ -301,8 +314,8 @@ class GriddedForecastSingleDataVar(BaseModel):
         AfterValidator(
             check_dims(
                 {
-                    StandardDim.lat,
-                    StandardDim.lon,
+                    StandardDim.y,
+                    StandardDim.x,
                     StandardDim.forecast_reference_time,
                     StandardDim.lead_time,
                 },
@@ -342,6 +355,7 @@ GriddedForecastSingleDataVars = RootModel[dict[CFCompliantName, GriddedForecastS
 class BaseAttrs(BaseModel):
     data_type: str
     spatial_type: SpatialType = SpatialType.point
+    crs: str = "EPSG:4326"
 
     model_config = {"extra": "allow"}
 
@@ -355,6 +369,14 @@ class ObservedHistorical(BaseModel):
     coords: BaseHistoricalCoords
     data_vars: HistoricalDataVars
     attrs: BaseAttrs
+
+    @model_validator(mode="after")
+    def validate_dataset(self) -> "ObservedHistorical":
+        """Validate that the dataset has at least one data variable."""
+        if not self.data_vars.root or len(self.data_vars.root) == 0:
+            msg = "Observed historical dataset must have at least one data variable."
+            raise ValueError(msg)
+        return self
 
 
 class SimulatedHistorical(BaseModel):
@@ -435,6 +457,9 @@ def validate_input_data(dataset: xr.Dataset) -> None:
     # Always persist spatial_type on the dataset so the full (temporal + spatial) data
     # type can be determined at any later stage.
     dataset.attrs["spatial_type"] = spatial_type
+    # Guarantee a CRS on the dataset (defaulting to EPSG:4326) so downstream reprojection
+    # can always rely on its presence without runtime checks.
+    dataset.attrs.setdefault("crs", "EPSG:4326")
 
     schema_class = INPUT_SCHEMAS.get((data_type, spatial_type))
     if not schema_class:

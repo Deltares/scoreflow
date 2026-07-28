@@ -147,5 +147,6 @@ tutorial = [
 ]
 spatial = [
     "pysteps>=1.10",
-    "scikit-image"
+    "scikit-image",
+    "pyproj",
 ]

@@ -11,9 +11,11 @@ from veriflow.constants import (
     HISTORICAL_DATA_TYPES,
     DataType,
     SpatialType,
+    StandardAttribute,
     StandardDim,
 )
 from veriflow.datasources.inputschemas import INPUT_SCHEMAS
+from veriflow.transformations import GEOGRAPHIC_CRS
 
 __all__ = ["InputDataset", "OutputDataset"]
 
@@ -77,6 +79,9 @@ class InputDatasetExtension:
         # Always persist spatial_type so the full (temporal + spatial) data type is
         # retrievable at any later stage.
         self._obj.attrs["spatial_type"] = spatial_type  # type:ignore[misc]
+        # Guarantee a CRS on the dataset (defaulting to EPSG:4326) so downstream reprojection
+        # can always rely on its presence without runtime checks.
+        self._obj.attrs.setdefault(StandardAttribute.crs, GEOGRAPHIC_CRS)  # type:ignore[misc]
         schema = INPUT_SCHEMAS.get((self.data_type, spatial_type))
         if schema is None:
             supported = sorted(f"({dt}, {st})" for dt, st in INPUT_SCHEMAS)
@@ -217,6 +222,10 @@ class InputDataset:
         sim_spatial = sim_ds.attrs.get("spatial_type", SpatialType.point)  # type:ignore[misc]
         obs.attrs.setdefault("spatial_type", obs_spatial)  # type:ignore[misc]
         sim.attrs.setdefault("spatial_type", sim_spatial)  # type:ignore[misc]
+        # Propagate the CRS so downstream reprojection knows the source CRS. Every validated
+        # dataset is guaranteed to carry a ``crs`` attribute (defaulting to EPSG:4326).
+        obs.attrs.setdefault(StandardAttribute.crs, obs_ds.attrs[StandardAttribute.crs])  # type:ignore[misc]
+        sim.attrs.setdefault(StandardAttribute.crs, sim_ds.attrs[StandardAttribute.crs])  # type:ignore[misc]
 
         if sim_ds.verification.is_forecast:  # type:ignore[misc]
             # Map historical into forecast space upon score computation

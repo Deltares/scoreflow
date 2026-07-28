@@ -77,5 +77,5 @@ def test_map_historical_gridded_into_forecast_space(
     obs = xarray_observed_historical_gridded[variable]
     sim = xarray_simulated_forecast_single_gridded[variable]
     mapped = InputDataset.map_historical_into_forecast_space(obs, sim)
-    assert "lat" in mapped.dims
-    assert "lon" in mapped.dims
+    assert "y" in mapped.dims
+    assert "x" in mapped.dims

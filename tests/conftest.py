@@ -106,9 +106,10 @@ realization = np.arange(1, realization_n + 1)
 variables = [f"var_{x}" for x in range(variable_n)]
 thresholds = [f"warn_{x}" for x in range(threshold_n)]
 
-# Gridded (lat/lon dimension) coordinates for spatial_type == gridded fixtures.
-grid_lat = np.linspace(50.0, 52.0, 5)
-grid_lon = np.linspace(4.0, 7.0, 6)
+# Gridded (x/y dimension) coordinates for spatial_type == gridded fixtures.
+grid_x = np.linspace(4.0, 7.0, 6)
+grid_y = np.linspace(50.0, 52.0, 5)
+grid_crs = "EPSG:4326"
 
 
 @pytest.fixture
@@ -292,18 +293,18 @@ def xarray_simulated_forecast_single() -> xr.Dataset:
 
 @pytest.fixture
 def xarray_observed_historical_gridded() -> xr.Dataset:
-    """Return example gridded observations (dims: time, lat, lon)."""
+    """Return example gridded observations (dims: time, y, x)."""
     coords = {
         StandardCoord.time.name: times,
-        StandardCoord.lat.name: (StandardDim.lat, grid_lat),
-        StandardCoord.lon.name: (StandardDim.lon, grid_lon),
+        StandardCoord.x.name: (StandardDim.x, grid_x),
+        StandardCoord.y.name: (StandardDim.y, grid_y),
     }
     data_vars = {}
     for i, v in enumerate(variables):
-        arr = rng.random((len(times), len(grid_lat), len(grid_lon)), dtype=dtype)
+        arr = rng.random((len(times), len(grid_y), len(grid_x)), dtype=dtype)
         data_vars[v] = xr.DataArray(
             data=arr,
-            dims=[StandardDim.time, StandardDim.lat, StandardDim.lon],
+            dims=[StandardDim.time, StandardDim.y, StandardDim.x],
             attrs={"units": f"dummy_unit_{i}"},
         )
     return xr.Dataset(
@@ -312,6 +313,7 @@ def xarray_observed_historical_gridded() -> xr.Dataset:
         attrs={
             "data_type": DataType.observed_historical,
             "spatial_type": SpatialType.gridded,
+            "crs": grid_crs,
             "source": DummySource.observation_source,
         },
     )
@@ -319,7 +321,7 @@ def xarray_observed_historical_gridded() -> xr.Dataset:
 
 @pytest.fixture
 def xarray_simulated_forecast_single_gridded() -> xr.Dataset:
-    """Return example gridded single forecast (dims: frt, lead_time, lat, lon)."""
+    """Return example gridded single forecast (dims: frt, lead_time, y, x)."""
     coords = {
         StandardCoord.forecast_reference_time.name: forecast_reference_times,
         StandardCoord.lead_time.name: lead_times,
@@ -327,19 +329,19 @@ def xarray_simulated_forecast_single_gridded() -> xr.Dataset:
             (StandardDim.forecast_reference_time, StandardDim.lead_time),
             forecast_times,
         ),
-        StandardCoord.lat.name: (StandardDim.lat, grid_lat),
-        StandardCoord.lon.name: (StandardDim.lon, grid_lon),
+        StandardCoord.x.name: (StandardDim.x, grid_x),
+        StandardCoord.y.name: (StandardDim.y, grid_y),
     }
     data_vars = {}
     for i, v in enumerate(variables):
-        arr = rng.random((frt_n, fp_n, len(grid_lat), len(grid_lon)), dtype=dtype)
+        arr = rng.random((frt_n, fp_n, len(grid_y), len(grid_x)), dtype=dtype)
         data_vars[v] = xr.DataArray(
             data=arr,
             dims=[
                 StandardDim.forecast_reference_time,
                 StandardDim.lead_time,
-                StandardDim.lat,
-                StandardDim.lon,
+                StandardDim.y,
+                StandardDim.x,
             ],
             attrs={"units": f"dummy_unit_{i}"},
         )
@@ -349,6 +351,7 @@ def xarray_simulated_forecast_single_gridded() -> xr.Dataset:
         attrs={
             "data_type": DataType.simulated_forecast_single,
             "spatial_type": SpatialType.gridded,
+            "crs": grid_crs,
             "source": DummySource.simulation_single_source,
         },
     )

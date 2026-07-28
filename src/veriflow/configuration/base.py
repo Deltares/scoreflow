@@ -10,7 +10,7 @@ from pydantic.json_schema import SkipJsonSchema
 from veriflow.cache.config import ZarrCacheConfig
 from veriflow.constants import DataType, SpatialType, StandardDim
 
-from .utils import LeadTimes, Source, TimePeriod, VerificationPair, VerificationPeriod
+from .utils import CRSString, LeadTimes, Source, TimePeriod, VerificationPair, VerificationPeriod
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -254,6 +254,15 @@ class BaseDatasinkConfig(BaseConfig):
 
     force_overwrite: bool = True
 
+    crs: Annotated[
+        CRSString | None,
+        Field(
+            default=None,
+            description="Optional coordinate reference system for the output. When set, the "
+            "results' coordinates are reprojected to this CRS before writing.",
+        ),
+    ] = None
+
     general: SkipJsonSchema[GeneralInfoConfig]  # Do not serialize to json schema, since general
     # config is propagated from the general config section in the main config. This will prevent
     # users that use the json-schema for making config having to explicitly set a duplicate general
@@ -277,6 +286,16 @@ class BaseScoreConfig(BaseConfig):
     # config is propagated from the general config section in the main config. This will prevent
     # users that use the json-schema for making config having to explicitly set a duplicate general
     # configuration section for each datasource.
+
+    crs: Annotated[
+        CRSString | None,
+        Field(
+            default=None,
+            description="Optional coordinate reference system for score computation. When set, "
+            "obs and sim coordinates are reprojected to this CRS before computing the score and "
+            "the results are expressed in it. When omitted, obs and sim must share the same CRS.",
+        ),
+    ] = None
 
     verification_pair_ids: Annotated[
         list[str],
