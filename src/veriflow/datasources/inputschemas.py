@@ -196,6 +196,13 @@ class GriddedForecastSingleCoords(BaseGriddedCoords):
     time: ForecastTimeCoord
 
 
+class GriddedForecastEnsembleCoords(BaseGriddedCoords):
+    forecast_reference_time: ForecastReferenceTimeCoord
+    lead_time: LeadTimeCoord
+    realization: RealizationCoord
+    time: ForecastTimeCoord
+
+
 # ---------------------------------------------------------------------------
 # Data variable schemas
 # ---------------------------------------------------------------------------
@@ -325,6 +332,24 @@ class GriddedForecastSingleDataVar(BaseModel):
     attrs: DataVarAttrs
 
 
+class GriddedForecastEnsembleDataVar(BaseModel):
+    dims: Annotated[
+        tuple[str, ...],
+        AfterValidator(
+            check_dims(
+                {
+                    StandardDim.y,
+                    StandardDim.x,
+                    StandardDim.forecast_reference_time,
+                    StandardDim.lead_time,
+                    StandardDim.realization,
+                },
+            ),
+        ),
+    ]
+    attrs: DataVarAttrs
+
+
 # ---------------------------------------------------------------------------
 # Data variable collections (dict of CF-compliant name -> DataVar schema)
 #
@@ -345,6 +370,7 @@ SimulatedForecastProbabilisticDataVars = RootModel[
 ThresholdDataVars = RootModel[dict[CFCompliantName, ThresholdDataVar]]
 GriddedHistoricalDataVars = RootModel[dict[CFCompliantName, GriddedHistoricalDataVar]]
 GriddedForecastSingleDataVars = RootModel[dict[CFCompliantName, GriddedForecastSingleDataVar]]
+GriddedForecastEnsembleDataVars = RootModel[dict[CFCompliantName, GriddedForecastEnsembleDataVar]]
 
 
 # ---------------------------------------------------------------------------
@@ -421,6 +447,12 @@ class SimulatedForecastSingleGridded(BaseModel):
     attrs: BaseAttrs
 
 
+class SimulatedForecastEnsembleGridded(BaseModel):
+    coords: GriddedForecastEnsembleCoords
+    data_vars: GriddedForecastEnsembleDataVars
+    attrs: BaseAttrs
+
+
 # All input schemas, keyed by the (data_type, spatial_type) pair that fully describes
 # a dataset. ``spatial_type`` defaults to ``point`` so existing station-based data and
 # configuration keep working unchanged.
@@ -433,6 +465,7 @@ INPUT_SCHEMAS: dict[tuple[DataType, SpatialType], BaseModel] = {
     (DataType.threshold, SpatialType.point): Thresholds,
     (DataType.observed_historical, SpatialType.gridded): ObservedHistoricalGridded,
     (DataType.simulated_forecast_single, SpatialType.gridded): SimulatedForecastSingleGridded,
+    (DataType.simulated_forecast_ensemble, SpatialType.gridded): SimulatedForecastEnsembleGridded,
 }
 
 

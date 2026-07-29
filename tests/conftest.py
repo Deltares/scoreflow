@@ -358,6 +358,46 @@ def xarray_simulated_forecast_single_gridded() -> xr.Dataset:
 
 
 @pytest.fixture
+def xarray_simulated_forecast_ensemble_gridded() -> xr.Dataset:
+    """Return example gridded ensemble forecast (dims: frt, lead_time, realization, y, x)."""
+    coords = {
+        StandardCoord.forecast_reference_time.name: forecast_reference_times,
+        StandardCoord.lead_time.name: lead_times,
+        StandardCoord.realization.name: realization,
+        StandardCoord.time.name: (
+            (StandardDim.forecast_reference_time, StandardDim.lead_time),
+            forecast_times,
+        ),
+        StandardCoord.x.name: (StandardDim.x, grid_x),
+        StandardCoord.y.name: (StandardDim.y, grid_y),
+    }
+    data_vars = {}
+    for i, v in enumerate(variables):
+        arr = rng.random((frt_n, fp_n, realization_n, len(grid_y), len(grid_x)), dtype=dtype)
+        data_vars[v] = xr.DataArray(
+            data=arr,
+            dims=[
+                StandardDim.forecast_reference_time,
+                StandardDim.lead_time,
+                StandardDim.realization,
+                StandardDim.y,
+                StandardDim.x,
+            ],
+            attrs={"units": f"dummy_unit_{i}"},
+        )
+    return xr.Dataset(
+        data_vars=data_vars,
+        coords=coords,
+        attrs={
+            "data_type": DataType.simulated_forecast_ensemble,
+            "spatial_type": SpatialType.gridded,
+            "crs": grid_crs,
+            "source": DummySource.simulation_ensemble_source,
+        },
+    )
+
+
+@pytest.fixture
 def xarray_observed_forecast_single_datasource(
     tmp_path: Path,
     xarray_general_info_config: GeneralInfoConfig,

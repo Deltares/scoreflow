@@ -50,8 +50,9 @@ def test_unsupported_combination_raises(
 ) -> None:
     """An unsupported (data_type, spatial_type) combination raises a clear error."""
     ds = xarray_simulated_forecast_ensemble
+    ds.attrs["data_type"] = DataType.simulated_forecast_probabilistic
     ds.attrs["spatial_type"] = SpatialType.gridded
-    assert (DataType.simulated_forecast_ensemble, SpatialType.gridded) not in INPUT_SCHEMAS
+    assert (DataType.simulated_forecast_probabilistic, SpatialType.gridded) not in INPUT_SCHEMAS
     with pytest.raises(ValueError, match="No input schema defined"):
         validate_input_data(ds)
 

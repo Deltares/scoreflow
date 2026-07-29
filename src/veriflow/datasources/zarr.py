@@ -43,6 +43,7 @@ class Zarr(BaseDatasource):
         (DataType.threshold, SpatialType.point),
         (DataType.observed_historical, SpatialType.gridded),
         (DataType.simulated_forecast_single, SpatialType.gridded),
+        (DataType.simulated_forecast_ensemble, SpatialType.gridded),
     }
 
     def __init__(self, config: ZarrConfig) -> None:

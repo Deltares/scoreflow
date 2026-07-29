@@ -24,6 +24,7 @@ from scores.continuous import (  # type:ignore[import-untyped]
 from veriflow.configuration.default.scores import ContinuousScoresConfig
 from veriflow.constants import DataType, SpatialType, SupportedContinuousScore
 from veriflow.scores.base import BaseScore
+from veriflow.scores.utils import compute_reduce_and_preserve_dims
 
 if TYPE_CHECKING:
     from veriflow.scores.utils import ScoreFunc
@@ -64,10 +65,12 @@ class ContinuousScores(BaseScore):
         sim: xr.DataArray,
     ) -> xr.Dataset:
         """Compute any number of continous scores."""
+        # Compute reduce_dims filtered to actual data dimensions
+        reduce_dims, _ = compute_reduce_and_preserve_dims(self.config.reduce_dims, sim.dims)
         results: list[xr.DataArray | xr.Dataset] = []
         for score in self.config.scores:
             func: ScoreFunc = score_funcs[score]  # type:ignore[misc]
-            result = func(fcst=sim, obs=obs, reduce_dims=self.config.reduce_dims)
+            result = func(fcst=sim, obs=obs, reduce_dims=reduce_dims)
             result.name = func.__qualname__  # type:ignore[attr-defined]
             results.append(result)
         return xr.merge(results)

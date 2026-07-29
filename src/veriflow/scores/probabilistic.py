@@ -20,6 +20,7 @@ from veriflow.configuration.default.scores import (
 )
 from veriflow.constants import DataType, SpatialType, StandardDim
 from veriflow.scores.base import BaseScore
+from veriflow.scores.utils import compute_reduce_and_preserve_dims
 
 __all__ = [
     "CrpsCDF",
@@ -38,6 +39,7 @@ class CrpsForEnsemble(BaseScore):
     config_class = CrpsForEnsembleConfig
     supported_data_specs: ClassVar[set[tuple[DataType, SpatialType]]] = {
         (DataType.simulated_forecast_ensemble, SpatialType.point),
+        (DataType.simulated_forecast_ensemble, SpatialType.gridded),
     }
 
     def __init__(self, config: CrpsForEnsembleConfig) -> None:
@@ -49,11 +51,13 @@ class CrpsForEnsemble(BaseScore):
         sim: xr.DataArray,
     ) -> xr.Dataset | xr.DataArray:
         """Compute the CRPS for an ensemble of forecasts and observations."""
-        result: xr.DataArray | xr.Dataset = crps_for_ensemble(
+        # Compute preserve_dims filtered to actual data dimensions
+        _, preserve_dims = compute_reduce_and_preserve_dims(self.config.reduce_dims, sim.dims)
+        result: xr.Dataset | xr.DataArray = crps_for_ensemble(
             fcst=sim,
             obs=obs,
             ensemble_member_dim=StandardDim.realization.value,
-            preserve_dims=self.config.preserve_dims,
+            preserve_dims=preserve_dims or None,
         )
         return result
 
@@ -72,10 +76,12 @@ class CrpsCDF(BaseScore):
 
     def compute(self, obs: xr.DataArray, sim: xr.DataArray) -> xr.DataArray | xr.Dataset:
         """Compute the CRPS for an ensemble of forecasts and observations."""
+        # Compute preserve_dims filtered to actual data dimensions
+        _, preserve_dims = compute_reduce_and_preserve_dims(self.config.reduce_dims, sim.dims)
         result: xr.DataArray | xr.Dataset = crps_cdf(
             fcst=sim,
             obs=obs,
-            preserve_dims=self.config.preserve_dims,
+            preserve_dims=preserve_dims or None,
         )
 
         # crps_cdf outputs a rather ambiguous variable 'total', hence rename to score kind.
@@ -93,6 +99,7 @@ class RankHistogram(BaseScore):
     config_class = RankHistogramConfig
     supported_data_specs: ClassVar[set[tuple[DataType, SpatialType]]] = {
         (DataType.simulated_forecast_ensemble, SpatialType.point),
+        (DataType.simulated_forecast_ensemble, SpatialType.gridded),
     }
 
     def __init__(self, config: RankHistogramConfig) -> None:
@@ -102,10 +109,14 @@ class RankHistogram(BaseScore):
         """Compute the histogram of ranks over the specified dimensions."""
         # This current implementation requires aligned dimensions
         obs, sim = xr.align(obs, sim)
+
+        # Compute reduce_dims filtered to actual data dimensions
+        reduce_dims, _ = compute_reduce_and_preserve_dims(self.config.reduce_dims, sim.dims)
+        # Pass empty list to preserve all dimensions, or the filtered reduce_dims
         result: xr.DataArray | xr.Dataset = rank_histogram(
             observations=obs,
             forecasts=sim,
-            dim=self.config.reduce_dims,
+            dim=reduce_dims or [],
             member_dim=StandardDim.realization.value,
         )
         return result

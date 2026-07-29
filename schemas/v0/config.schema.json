@@ -86,13 +86,15 @@
       "description": "Config to compute categorical scores, based on an event definition.",
       "properties": {
         "reduce_dims": {
-          "description": "The dimensions over which to reduce. Can be either forecast or historical dimensions, but not both. For historical verification, the reduce_dims can only contain 'station' and 'time'. For forecast verification, the reduce_dims can only contain 'station', 'forecast_reference_time' and 'lead_time'.",
+          "description": "Dimensions to reduce over. Can include any combination of: station, forecast_reference_time, lead_time, time, x, y. Only dimensions present in the data will be used. The x, y (spatial) and station dimensions cannot be used together.",
           "items": {
             "enum": [
               "station",
               "forecast_reference_time",
               "lead_time",
-              "time"
+              "time",
+              "x",
+              "y"
             ],
             "type": "string"
           },
@@ -164,13 +166,15 @@
       "description": "Configure multiple continuous scores.",
       "properties": {
         "reduce_dims": {
-          "description": "The dimensions over which to reduce. Can be either forecast or historical dimensions, but not both. For historical verification, the reduce_dims can only contain 'station' and 'time'. For forecast verification, the reduce_dims can only contain 'station', 'forecast_reference_time' and 'lead_time'.",
+          "description": "Dimensions to reduce over. Can include any combination of: station, forecast_reference_time, lead_time, time, x, y. Only dimensions present in the data will be used. The x, y (spatial) and station dimensions cannot be used together.",
           "items": {
             "enum": [
               "station",
               "forecast_reference_time",
               "lead_time",
-              "time"
+              "time",
+              "x",
+              "y"
             ],
             "type": "string"
           },
@@ -226,11 +230,15 @@
       "description": "Configuration for CRPS for CDF.\n\nFor reference, see: https://scores.readthedocs.io/en/stable/api.html#scores.probability.crps_cdf",
       "properties": {
         "reduce_dims": {
+          "description": "Dimensions to reduce over. Can include any combination of: station, forecast_reference_time, lead_time, time, x, y. Only dimensions present in the data will be used. The x, y (spatial) and station dimensions cannot be used together.",
           "items": {
             "enum": [
               "station",
               "forecast_reference_time",
-              "lead_time"
+              "lead_time",
+              "time",
+              "x",
+              "y"
             ],
             "type": "string"
           },
@@ -285,14 +293,18 @@
     },
     "CrpsForEnsembleConfig": {
       "additionalProperties": true,
-      "description": "Configuration for CRPS for ensemble.\n\nFor reference, see: See: https://scores.readthedocs.io/en/stable/api.html#scores.probability.crps_for_ensemble",
+      "description": "Configuration for CRPS for ensemble supporting both point and gridded data.\n\nFor reference, see: See: https://scores.readthedocs.io/en/stable/api.html#scores.probability.crps_for_ensemble",
       "properties": {
         "reduce_dims": {
+          "description": "Dimensions to reduce over. Can include any combination of: station, forecast_reference_time, lead_time, time, x, y. Only dimensions present in the data will be used. The x, y (spatial) and station dimensions cannot be used together.",
           "items": {
             "enum": [
               "station",
               "forecast_reference_time",
-              "lead_time"
+              "lead_time",
+              "time",
+              "x",
+              "y"
             ],
             "type": "string"
           },
@@ -912,14 +924,18 @@
     },
     "RankHistogramConfig": {
       "additionalProperties": true,
-      "description": "A rank histogram config element.",
+      "description": "A rank histogram config element supporting both point and gridded ensemble data.",
       "properties": {
         "reduce_dims": {
+          "description": "Dimensions to reduce over. Can include any combination of: station, forecast_reference_time, lead_time, time, x, y. Only dimensions present in the data will be used. The x, y (spatial) and station dimensions cannot be used together.",
           "items": {
             "enum": [
               "station",
               "forecast_reference_time",
-              "lead_time"
+              "lead_time",
+              "time",
+              "x",
+              "y"
             ],
             "type": "string"
           },
