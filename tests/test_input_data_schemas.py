@@ -3,6 +3,8 @@
 # mypy: ignore-errors
 # ruff: noqa: D103
 
+from typing import ClassVar
+
 import pytest
 import xarray as xr
 from pydantic import ValidationError
@@ -10,6 +12,7 @@ from pydantic import ValidationError
 from veriflow.constants import DataType, SpatialType
 from veriflow.datasources.inputschemas import (
     INPUT_SCHEMAS,
+    BaseAttrs,
     HistoricalTimeCoord,
     ObservedHistorical,
 )
@@ -30,6 +33,38 @@ def test_time_coord_bad() -> None:
     }
     with pytest.raises(ValidationError):
         HistoricalTimeCoord(**bad)
+
+
+class TestDatasetBaseAttrs:
+    """Test BaseAttrs schema validation."""
+
+    valid_dict: ClassVar[dict[str, str]] = {
+        "data_type": "observed_historical",
+        "spatial_type": "point",
+        "source": "test_source",
+        "crs": "EPSG:4326",
+    }
+
+    def test_base_attrs_missing_source_raises(self) -> None:
+        """Test that missing 'source' field raises ValidationError."""
+        self.valid_dict.pop("source", None)
+
+        with pytest.raises(ValidationError, match="Field required"):
+            BaseAttrs.model_validate(self.valid_dict)
+
+    def test_missing_crs_defaults_to_epsg4326(self) -> None:
+        """Test that missing 'crs' field defaults to 'EPSG:4326'."""
+        self.valid_dict.pop("crs", None)
+
+        base_attrs = BaseAttrs.model_validate(self.valid_dict)
+        assert base_attrs.crs == "EPSG:4326"
+
+    def test_missing_spatial_type_defaults_to_point(self) -> None:
+        """Test that missing 'spatial_type' field defaults to 'point'."""
+        self.valid_dict.pop("spatial_type", None)
+
+        base_attrs = BaseAttrs.model_validate(self.valid_dict)
+        assert base_attrs.spatial_type == SpatialType.point
 
 
 def test_xarray_observations(xarray_observed_historical: xr.Dataset) -> None:
