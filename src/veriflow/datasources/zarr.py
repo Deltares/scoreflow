@@ -7,8 +7,11 @@ import xarray as xr
 from veriflow.configuration.default.datasources import S3AuthConfig, ZarrConfig
 from veriflow.constants import (
     DataType,
+    SpatialType,
+    StandardAttribute,
 )
 from veriflow.datasources.base import BaseDatasource
+from veriflow.types import DataSpec
 
 __all__ = [  # noqa: RUF022
     "Zarr",
@@ -33,12 +36,15 @@ class Zarr(BaseDatasource):
 
     kind = "zarr"
     config_class = ZarrConfig
-    supported_data_types: ClassVar[set[DataType]] = {
-        DataType.observed_historical,
-        DataType.simulated_forecast_ensemble,
-        DataType.simulated_forecast_single,
-        DataType.simulated_forecast_probabilistic,
-        DataType.threshold,
+    supported_data_specs: ClassVar[set[DataSpec]] = {
+        (DataType.observed_historical, SpatialType.point),
+        (DataType.simulated_forecast_ensemble, SpatialType.point),
+        (DataType.simulated_forecast_single, SpatialType.point),
+        (DataType.simulated_forecast_probabilistic, SpatialType.point),
+        (DataType.threshold, SpatialType.point),
+        (DataType.observed_historical, SpatialType.gridded),
+        (DataType.simulated_forecast_single, SpatialType.gridded),
+        (DataType.simulated_forecast_ensemble, SpatialType.gridded),
     }
 
     def __init__(self, config: ZarrConfig) -> None:
@@ -112,6 +118,13 @@ class Zarr(BaseDatasource):
         if self.config.variables is not None:
             dataset = dataset[self.config.variables]  # type:ignore[misc]
         dataset.attrs["data_type"] = self.config.data_type  # type: ignore[misc]
+
+        # Resolve the CRS: a configured 'crs' takes precedence, otherwise the one already
+        # present on the dataset attributes (if any) is used. For gridded data the CRS is the
+        # canonical spatial reference; lat/lon are only derived on demand (for a score or
+        # output) rather than eagerly at ingestion.
+        if self.config.crs is not None:
+            dataset.attrs[StandardAttribute.crs] = self.config.crs  # type: ignore[misc]
 
         # Assign the dataset to the instance and return self for chaining.
         self.dataset = dataset

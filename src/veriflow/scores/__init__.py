@@ -11,10 +11,12 @@ from .probabilistic import (
     RankHistogram,
     RankHistogramConfig,
 )
+from .spatial import SALScore, SALScoreConfig
 
 DEFAULT_SCORES: list[type[BaseScore] | type[BaseCategoricalScore]] = [
     RankHistogram,
     CrpsForEnsemble,
     ContinuousScores,
     CategoricalScores,
+    SALScore,
 ]

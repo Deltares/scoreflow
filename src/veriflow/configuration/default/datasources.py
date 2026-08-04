@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field, StringConstraints, model_validator
 
 from veriflow.configuration.base import BaseDatasourceConfig
 from veriflow.configuration.utils import (
+    CRSString,
     FewsWebserviceAuthConfig,
     LocalFile,
     LocalFiles,
@@ -189,6 +190,16 @@ class ZarrConfig(BaseDatasourceConfig):
             default=None,
             description="Whether to use consolidated metadata when opening the store. "
             "Forwarded to xr.open_zarr. Default ('None') lets xarray auto-detect.",
+        ),
+    ] = None
+    crs: Annotated[
+        CRSString | None,
+        Field(
+            default=None,
+            description="Coordinate reference system of the data in the store. Optional: when "
+            "omitted, the CRS is read from the dataset's 'crs' attribute if present. When set, it "
+            "takes precedence and is written onto the dataset's 'crs' attribute. Required for "
+            "gridded data that does not already carry a 'crs' attribute.",
         ),
     ] = None
 

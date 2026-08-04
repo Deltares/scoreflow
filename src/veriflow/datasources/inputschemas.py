@@ -16,12 +16,13 @@ For now, we validate
 # mypy: ignore-errors
 # ruff: noqa: D101
 
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Self
 
 import xarray as xr
-from pydantic import AfterValidator, BaseModel, Field, RootModel
+from pydantic import AfterValidator, BaseModel, Field, RootModel, model_validator
 
-from veriflow.constants import DataType, StandardDim
+from veriflow.constants import DataType, SpatialType, StandardDim
+from veriflow.types import DataSpec
 
 AllowedDTypeInt = Literal["int8", "int16", "int32", "int64", "uint8", "uint16", "uint32", "uint64"]
 AllowedDTypeFloat = Literal["float16", "float32", "float64"]
@@ -110,11 +111,23 @@ class ThresholdCoord(BaseModel):
 class BaseCoords(BaseModel):
     station: StationCoord
     station_name: StationCoord | None = None  # Optional station name coordinate
-    lat: XYZCoord  # Always required lat, lon
-    lon: XYZCoord
-    x: XYZCoord | None = None  # Optional x, y, z
+    # Point data is valid with either ``lat``/``lon`` (assumed EPSG:4326) or ``x``/``y`` plus a
+    # ``crs`` dataset attribute. At least one of the two pairs must be present.
+    lat: XYZCoord | None = None
+    lon: XYZCoord | None = None
+    x: XYZCoord | None = None
     y: XYZCoord | None = None
     z: XYZCoord | None = None
+
+    @model_validator(mode="after")
+    def validate_spatial_coords(self) -> Self:
+        """Require either ``lat`` and ``lon``, or ``x`` and ``y`` to be present."""
+        has_latlon = self.lat is not None and self.lon is not None
+        has_xy = self.x is not None and self.y is not None
+        if not has_latlon and not has_xy:
+            msg = "Point data requires either 'lat' and 'lon', or 'x' and 'y' coordinates."
+            raise ValueError(msg)
+        return self
 
 
 class BaseHistoricalCoords(BaseCoords):
@@ -147,6 +160,48 @@ class ThresholdCoords(BaseModel):
     station: StationCoord
     station_name: StationCoord | None = None  # Optional station name coordinate
     threshold: ThresholdCoord
+
+
+# ---------------------------------------------------------------------------
+# Gridded (spatial_type=gridded) coordinate schemas
+#
+# For gridded data, ``x`` and ``y`` are dimension coordinates (each with its own
+# dimension) expressed in the dataset's CRS (see the required ``crs`` attribute).
+# ``x``/``y`` plus the CRS are the canonical spatial datamodel; ``lat``/``lon`` are
+# not stored and are only derived on demand (for a score or output).
+# ---------------------------------------------------------------------------
+
+
+class XDimCoord(BaseModel):
+    dims: Annotated[tuple[str, ...], AfterValidator(check_dims({StandardDim.x}))]
+    dtype: AllowedDTypeFloat
+
+
+class YDimCoord(BaseModel):
+    dims: Annotated[tuple[str, ...], AfterValidator(check_dims({StandardDim.y}))]
+    dtype: AllowedDTypeFloat
+
+
+class BaseGriddedCoords(BaseModel):
+    x: XDimCoord
+    y: YDimCoord
+
+
+class GriddedHistoricalCoords(BaseGriddedCoords):
+    time: HistoricalTimeCoord
+
+
+class GriddedForecastSingleCoords(BaseGriddedCoords):
+    forecast_reference_time: ForecastReferenceTimeCoord
+    lead_time: LeadTimeCoord
+    time: ForecastTimeCoord
+
+
+class GriddedForecastEnsembleCoords(BaseGriddedCoords):
+    forecast_reference_time: ForecastReferenceTimeCoord
+    lead_time: LeadTimeCoord
+    realization: RealizationCoord
+    time: ForecastTimeCoord
 
 
 # ---------------------------------------------------------------------------
@@ -251,6 +306,51 @@ class ThresholdDataVar(BaseModel):
     attrs: dict | None = None
 
 
+class GriddedHistoricalDataVar(BaseModel):
+    dims: Annotated[
+        tuple[str, ...],
+        AfterValidator(
+            check_dims({StandardDim.y, StandardDim.x, StandardDim.time}),
+        ),
+    ]
+    attrs: DataVarAttrs
+
+
+class GriddedForecastSingleDataVar(BaseModel):
+    dims: Annotated[
+        tuple[str, ...],
+        AfterValidator(
+            check_dims(
+                {
+                    StandardDim.y,
+                    StandardDim.x,
+                    StandardDim.forecast_reference_time,
+                    StandardDim.lead_time,
+                },
+            ),
+        ),
+    ]
+    attrs: DataVarAttrs
+
+
+class GriddedForecastEnsembleDataVar(BaseModel):
+    dims: Annotated[
+        tuple[str, ...],
+        AfterValidator(
+            check_dims(
+                {
+                    StandardDim.y,
+                    StandardDim.x,
+                    StandardDim.forecast_reference_time,
+                    StandardDim.lead_time,
+                    StandardDim.realization,
+                },
+            ),
+        ),
+    ]
+    attrs: DataVarAttrs
+
+
 # ---------------------------------------------------------------------------
 # Data variable collections (dict of CF-compliant name -> DataVar schema)
 #
@@ -269,6 +369,9 @@ SimulatedForecastProbabilisticDataVars = RootModel[
     dict[CFCompliantName, SimulatedForecastProbabilisticDataVar]
 ]
 ThresholdDataVars = RootModel[dict[CFCompliantName, ThresholdDataVar]]
+GriddedHistoricalDataVars = RootModel[dict[CFCompliantName, GriddedHistoricalDataVar]]
+GriddedForecastSingleDataVars = RootModel[dict[CFCompliantName, GriddedForecastSingleDataVar]]
+GriddedForecastEnsembleDataVars = RootModel[dict[CFCompliantName, GriddedForecastEnsembleDataVar]]
 
 
 # ---------------------------------------------------------------------------
@@ -277,7 +380,10 @@ ThresholdDataVars = RootModel[dict[CFCompliantName, ThresholdDataVar]]
 
 
 class BaseAttrs(BaseModel):
+    source: str
     data_type: str
+    spatial_type: SpatialType = SpatialType.point
+    crs: str = "EPSG:4326"
 
     model_config = {"extra": "allow"}
 
@@ -291,6 +397,14 @@ class ObservedHistorical(BaseModel):
     coords: BaseHistoricalCoords
     data_vars: HistoricalDataVars
     attrs: BaseAttrs
+
+    @model_validator(mode="after")
+    def validate_dataset(self) -> "ObservedHistorical":
+        """Validate that the dataset has at least one data variable."""
+        if not self.data_vars.root or len(self.data_vars.root) == 0:
+            msg = "Observed historical dataset must have at least one data variable."
+            raise ValueError(msg)
+        return self
 
 
 class SimulatedHistorical(BaseModel):
@@ -323,21 +437,47 @@ class Thresholds(BaseModel):
     attrs: BaseAttrs
 
 
-# All input schemas, keyed by the corresponding data type
-INPUT_SCHEMAS: dict[DataType, BaseModel] = {
-    DataType.observed_historical: ObservedHistorical,
-    DataType.simulated_historical: SimulatedHistorical,
-    DataType.simulated_forecast_single: SimulatedForecastSingle,
-    DataType.simulated_forecast_ensemble: SimulatedForecastEnsemble,
-    DataType.simulated_forecast_probabilistic: SimulatedForecastProbabilistic,
-    DataType.threshold: Thresholds,
+class ObservedHistoricalGridded(BaseModel):
+    coords: GriddedHistoricalCoords
+    data_vars: GriddedHistoricalDataVars
+    attrs: BaseAttrs
+
+
+class SimulatedForecastSingleGridded(BaseModel):
+    coords: GriddedForecastSingleCoords
+    data_vars: GriddedForecastSingleDataVars
+    attrs: BaseAttrs
+
+
+class SimulatedForecastEnsembleGridded(BaseModel):
+    coords: GriddedForecastEnsembleCoords
+    data_vars: GriddedForecastEnsembleDataVars
+    attrs: BaseAttrs
+
+
+# All input schemas, keyed by the (data_type, spatial_type) pair that fully describes
+# a dataset. ``spatial_type`` defaults to ``point`` so existing station-based data and
+# configuration keep working unchanged.
+INPUT_SCHEMAS: dict[DataSpec, BaseModel] = {
+    (DataType.observed_historical, SpatialType.point): ObservedHistorical,
+    (DataType.simulated_historical, SpatialType.point): SimulatedHistorical,
+    (DataType.simulated_forecast_single, SpatialType.point): SimulatedForecastSingle,
+    (DataType.simulated_forecast_ensemble, SpatialType.point): SimulatedForecastEnsemble,
+    (DataType.simulated_forecast_probabilistic, SpatialType.point): SimulatedForecastProbabilistic,
+    (DataType.threshold, SpatialType.point): Thresholds,
+    (DataType.observed_historical, SpatialType.gridded): ObservedHistoricalGridded,
+    (DataType.simulated_forecast_single, SpatialType.gridded): SimulatedForecastSingleGridded,
+    (DataType.simulated_forecast_ensemble, SpatialType.gridded): SimulatedForecastEnsembleGridded,
 }
 
 
 def validate_input_data(dataset: xr.Dataset) -> None:
     """Validate an input ``xr.Dataset`` against its schema.
 
-    The data type is determined from the ``data_type`` attribute on the dataset.
+    The schema is determined from the ``data_type`` (temporal kind) and ``spatial_type``
+    (spatial structure) attributes on the dataset. ``spatial_type`` defaults to ``point``
+    when absent, and is backfilled onto ``dataset.attrs`` so the full data type is always
+    retrievable downstream.
     """
     if not isinstance(dataset, xr.Dataset):
         msg = f"Expected an xarray Dataset. Got: {type(dataset)}"
@@ -347,10 +487,22 @@ def validate_input_data(dataset: xr.Dataset) -> None:
         msg = "Input dataset is missing required 'data_type' attribute."
         raise ValueError(msg)
 
-    data_type = dataset.attrs["data_type"]
-    schema_class = INPUT_SCHEMAS.get(data_type)
+    data_type = DataType(dataset.attrs["data_type"])
+    spatial_type = SpatialType(dataset.attrs.get("spatial_type", SpatialType.point))
+    # Always persist spatial_type on the dataset so the full (temporal + spatial) data
+    # type can be determined at any later stage.
+    dataset.attrs["spatial_type"] = spatial_type
+    # Guarantee a CRS on the dataset (defaulting to EPSG:4326) so downstream reprojection
+    # can always rely on its presence without runtime checks.
+    dataset.attrs.setdefault("crs", "EPSG:4326")
+
+    schema_class = INPUT_SCHEMAS.get((data_type, spatial_type))
     if not schema_class:
-        msg = f"No input schema defined for data type: {data_type}"
+        supported = sorted(f"({dt}, {st})" for dt, st in INPUT_SCHEMAS)
+        msg = (
+            f"No input schema defined for (data_type, spatial_type) = "
+            f"({data_type}, {spatial_type}). Supported combinations: {', '.join(supported)}."
+        )
         raise ValueError(msg)
 
     data_dict = dataset.to_dict(data=False)

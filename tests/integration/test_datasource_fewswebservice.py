@@ -16,7 +16,7 @@ from veriflow.configuration.base import GeneralInfoConfig
 from veriflow.configuration.config import SupportedSchemaVersion
 from veriflow.configuration.default.datasources import FewsWebserviceConfig
 from veriflow.configuration.utils import VerificationPair, VerificationPeriod
-from veriflow.constants import StandardDim
+from veriflow.constants import DataType, SpatialType, StandardDim
 from veriflow.datasources.fewswebservice import FewsWebservice
 from veriflow.datasources.inputschemas import INPUT_SCHEMAS
 
@@ -164,7 +164,7 @@ def test_get_data_returns_valid_data_array(
     fews_netcdf: FewsWebservice = request.getfixturevalue(fews_webservice)
     datasource = fews_netcdf.get_data()
 
-    schema = INPUT_SCHEMAS[fews_netcdf.config.data_type]
+    schema = INPUT_SCHEMAS[(fews_netcdf.config.data_type, fews_netcdf.config.spatial_type)]
     schema.model_validate(fews_netcdf.dataset.to_dict(data=False))
 
     assert all(
@@ -204,5 +204,5 @@ def test_get_data_for_simulated_historical() -> None:
     fews_webservice = FewsWebservice(config)
     fews_webservice.get_data()
 
-    schema = INPUT_SCHEMAS["simulated_historical"]
+    schema = INPUT_SCHEMAS[(DataType.simulated_historical, SpatialType.point)]
     schema.model_validate(fews_webservice.dataset.to_dict(data=False))

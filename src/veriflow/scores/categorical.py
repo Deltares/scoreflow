@@ -23,8 +23,10 @@ from veriflow.configuration.default.scores import (
     EventOperator,
     ThresholdEvent,
 )
-from veriflow.constants import DataType, SupportedCategoricalScores
+from veriflow.constants import DataType, SpatialType, SupportedCategoricalScores
 from veriflow.scores.base import BaseCategoricalScore
+from veriflow.scores.utils import compute_reduce_and_preserve_dims
+from veriflow.types import DataSpec
 
 __all__ = [
     "CategoricalScores",
@@ -117,8 +119,8 @@ class CategoricalScores(BaseCategoricalScore):
 
     kind = "categorical_scores"
     config_class = CategoricalScoresConfig
-    supported_data_types: ClassVar[set[DataType]] = {
-        DataType.simulated_forecast_single,
+    supported_data_specs: ClassVar[set[DataSpec]] = {
+        (DataType.simulated_forecast_single, SpatialType.point),
     }
 
     def __init__(self, config: CategoricalScoresConfig) -> None:
@@ -152,8 +154,10 @@ class CategoricalScores(BaseCategoricalScore):
             fcst_events=sim_events,
             obs_events=obs_events,
         )
+        # Compute preserve_dims filtered to actual data dimensions
+        _, preserve_dims = compute_reduce_and_preserve_dims(self.config.reduce_dims, sim.dims)
         basic_contingency_manager = binary_contingency_manager.transform(  # type:ignore[misc]
-            preserve_dims=self.config.preserve_dims,
+            preserve_dims=preserve_dims,
         )
         scores = []
         for score in self.config.scores:

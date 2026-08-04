@@ -60,7 +60,7 @@ def test_get_data_returns_valid_data_array(
     fews_netcdf: FewsNetCDF = request.getfixturevalue(fews_netcdf_fixture)
     datasource = fews_netcdf.get_data()
 
-    schema = INPUT_SCHEMAS[fews_netcdf.config.data_type]
+    schema = INPUT_SCHEMAS[(fews_netcdf.config.data_type, fews_netcdf.config.spatial_type)]
     schema.model_validate(fews_netcdf.dataset.to_dict(data=False))  # type:ignore[misc]
     assert datasource.config.lead_times is not None
     assert all(

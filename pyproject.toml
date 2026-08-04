@@ -62,6 +62,12 @@ init_typed = true
 module = "zarr.*"
 follow_imports = "skip"
 
+[[tool.mypy.overrides]]
+# pysteps (optional 'spatial' extra) ships without type information.
+module = "pysteps.*"
+follow_imports = "skip"
+ignore_missing_imports = true
+
 [tool.ruff]
 target-version = "py310"
 line-length = 100
@@ -103,6 +109,8 @@ known-first-party = ["my-project-name"]  # again, not needed with a 'flat' proje
 # being discoverable in editors / test explorers.
 markers = [
     "minio: integration tests that require a live S3-compatible (MinIO) endpoint",
+    "pyproj: tests that require the optional pyproj dependency",
+    "pysteps: tests that require the optional pysteps dependency",
 ]
 
 [build-system]
@@ -133,9 +141,20 @@ dev = [
     "types-requests==2.33.0.20260712",
 ]
 
+spatial = [
+    "pysteps>=1.10",
+    "scikit-image",
+    "pyproj",
+]
+
 [project.optional-dependencies]
 tutorial = [
     "plotly",
     "matplotlib", 
     "ipykernel"
+]
+spatial = [
+    "pysteps>=1.10",
+    "scikit-image",
+    "pyproj",
 ]

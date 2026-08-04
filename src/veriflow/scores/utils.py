@@ -1,6 +1,6 @@
 """Utility functions shared across the scores module."""
 
-from collections.abc import Sequence
+from collections.abc import Hashable, Sequence
 from typing import Protocol
 
 import xarray as xr
@@ -49,6 +49,36 @@ def assign_station_auxiliary_coords(
         if sim[coord].dims == (StandardDim.station,):
             result = result.assign_coords({coord: sim[coord]})  # type:ignore[misc]
     return result
+
+
+def compute_reduce_and_preserve_dims(
+    config_reduce_dims: Sequence[StandardDim],
+    data_dims: Sequence[Hashable],
+) -> tuple[list[StandardDim], list[StandardDim]]:
+    """Compute reduce_dims and preserve_dims filtered by actual data dimensions.
+
+    Args:
+        config_reduce_dims: Dimensions to reduce from config (may not all exist in data)
+        data_dims: Actual dimensions present in the data
+
+    Returns
+    -------
+        Tuple of (reduce_dims, preserve_dims), each filtered to only include
+        dimensions that exist in the data.
+    """
+    all_possible_dims = [
+        StandardDim.station,
+        StandardDim.forecast_reference_time,
+        StandardDim.lead_time,
+        StandardDim.time,
+        StandardDim.x,
+        StandardDim.y,
+    ]
+    # Filter config reduce_dims to only those present in data
+    reduce_dims = [d for d in config_reduce_dims if d in data_dims]
+    # Compute preserve_dims as all possible dims not in reduce_dims, filtered to data dims
+    preserve_dims = [d for d in all_possible_dims if d not in reduce_dims and d in data_dims]
+    return reduce_dims, preserve_dims
 
 
 class ScoreFunc(Protocol):

@@ -15,7 +15,7 @@ from veriflow.configuration.base import IdMap, IdMappingConfig
 from veriflow.configuration.default.scores import (
     ContinuousScoresConfig,
     CrpsForEnsembleConfig,
-    ReduceDimsHistoricalOrForecast,
+    ReduceDims,
 )
 from veriflow.configuration.utils import (
     FewsWebserviceAuthConfig,
@@ -194,27 +194,14 @@ def test_reduce_dims_forecast_validation() -> None:
     ]
 
     for reduce_dims in valid_cases:
-        config = ReduceDimsHistoricalOrForecast(reduce_dims=reduce_dims)
+        config = ReduceDims(reduce_dims=reduce_dims)  # type:ignore[arg-type]
         assert config.reduce_dims == reduce_dims
 
-    # Invalid case: both historical and forecast dimensions
-    invalid_reduce_dims: list[
-        Literal[
-            StandardDim.station,
-            StandardDim.forecast_reference_time,
-            StandardDim.lead_time,
-            StandardDim.time,
-        ]
-    ] = [
-        StandardDim.station,
-        StandardDim.time,
-        StandardDim.forecast_reference_time,
-    ]
-    with pytest.raises(
-        ValueError,
-        match="reduce_dims cannot contain both forecast and historical dimensions",
-    ):
-        _ = ReduceDimsHistoricalOrForecast(reduce_dims=invalid_reduce_dims)
+    # Invalid case: both historical and forecast dimensions would be filtered
+    # at runtime by compute_reduce_and_preserve_dims(), so configuration validation
+    # no longer rejects this. The unified ReduceDims accepts all dimension combinations
+    # and filters them based on actual data dimensions.
+    # This test is removed since validation now happens at runtime via the utility function.
 
 
 def test_score_config_with_nse_and_no_reduce_dims_raises_validation_error(
@@ -227,3 +214,24 @@ def test_score_config_with_nse_and_no_reduce_dims_raises_validation_error(
     match_str = "NSE: need at least one dimension to be reduced."
     with pytest.raises(ValueError, match=match_str):
         _ = ContinuousScoresConfig(**score_config_continuous_copy)  # type:ignore[misc]
+
+
+def test_reduce_dims_validates_spatial_dimensions() -> None:
+    """Test that ReduceDims validates x and y must be together and not with station."""
+    # Valid: x and y together
+    config = ReduceDims(reduce_dims=[StandardDim.x, StandardDim.y])
+    assert config.reduce_dims == [StandardDim.x, StandardDim.y]
+
+    # Invalid: x without y
+    with pytest.raises(
+        ValueError,
+        match="Both x and y dimensions must be configured together",
+    ):
+        _ = ReduceDims(reduce_dims=[StandardDim.x])
+
+    # Invalid: station with spatial dimensions
+    with pytest.raises(
+        ValueError,
+        match="Cannot configure both spatial dimensions \\(x, y\\) and station together",
+    ):
+        _ = ReduceDims(reduce_dims=[StandardDim.station, StandardDim.x, StandardDim.y])

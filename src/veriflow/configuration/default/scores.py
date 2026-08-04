@@ -27,36 +27,19 @@ class EventOperator(Enum):
     LESS_THAN_OR_EQUAL_TO = "less_than_or_equal_to"
 
 
-class ReduceDimsForecast(BaseModel):
-    """The dimensions over which a forecast can be reduced."""
+class ReduceDims(BaseModel):
+    """Unified dimensions configuration for all data types and scenarios.
 
-    reduce_dims: Annotated[
-        list[
-            Literal[
-                StandardDim.station,
-                StandardDim.forecast_reference_time,
-                StandardDim.lead_time,
-            ]
-        ],
-        Field(default_factory=list),
-    ]
+    Supports:
+    - Point forecast data: station, forecast_reference_time, lead_time
+    - Gridded forecast data: forecast_reference_time, lead_time, x, y
+    - Historical data: station, time
+    - Mixed historical + forecast data: station, forecast_reference_time, lead_time, time
 
-    @property
-    def preserve_dims(self) -> list[StandardDim]:
-        """The dimensions to preserve."""
-        return [
-            k
-            for k in [
-                StandardDim.station,
-                StandardDim.forecast_reference_time,
-                StandardDim.lead_time,
-            ]
-            if k not in self.reduce_dims
-        ]
-
-
-class ReduceDimsHistoricalOrForecast(BaseModel):
-    """The dimensions over which a historical data can be reduced."""
+    Validation ensures x, y and station can never be configured together.
+    The actual dimensions filtered to data are computed at runtime via
+    compute_reduce_and_preserve_dims().
+    """
 
     reduce_dims: Annotated[
         list[
@@ -65,67 +48,42 @@ class ReduceDimsHistoricalOrForecast(BaseModel):
                 StandardDim.forecast_reference_time,
                 StandardDim.lead_time,
                 StandardDim.time,
+                StandardDim.x,
+                StandardDim.y,
             ]
         ],
         Field(
             default_factory=list,
-            description="The dimensions over which to reduce. Can be either forecast or historical "
-            "dimensions, but not both. For historical verification, the reduce_dims can only "
-            "contain 'station' and 'time'. For forecast verification, the reduce_dims can only "
-            "contain 'station', 'forecast_reference_time' and 'lead_time'.",
+            description="Dimensions to reduce over. Can include any combination of: "
+            "station, forecast_reference_time, lead_time, time, x, y. "
+            "Only dimensions present in the data will be used. "
+            "The x, y (spatial) and station dimensions cannot be used together.",
         ),
     ]
 
-    @property
-    def preserve_dims(self) -> list[StandardDim]:
-        """The dimensions to preserve."""
-        if (
-            StandardDim.forecast_reference_time in self.reduce_dims
-            or StandardDim.lead_time in self.reduce_dims
-        ):
-            return [
-                k
-                for k in [
-                    StandardDim.station,
-                    StandardDim.time,
-                    StandardDim.forecast_reference_time,
-                    StandardDim.lead_time,
-                ]
-                if k not in self.reduce_dims
-            ]
-        if StandardDim.time in self.reduce_dims:
-            return [
-                k
-                for k in [
-                    StandardDim.station,
-                    StandardDim.time,
-                ]
-                if k not in self.reduce_dims
-            ]
-
-        return [
-            k
-            for k in [
-                StandardDim.station,
-            ]
-            if k not in self.reduce_dims
-        ]
-
     @model_validator(mode="after")
-    def validate_reduce_dims(
-        self,
-    ) -> "ReduceDimsHistoricalOrForecast":
-        """Validate that reduce_dims only contains either forecast or historical dimensions."""
-        if (
-            StandardDim.forecast_reference_time in self.reduce_dims
-            or StandardDim.lead_time in self.reduce_dims
-        ) and StandardDim.time in self.reduce_dims:
+    def validate_spatial_dims(self) -> "ReduceDims":
+        """Validate that x, y and station are never configured together."""
+        has_station = StandardDim.station in self.reduce_dims
+        has_spatial = StandardDim.x in self.reduce_dims or StandardDim.y in self.reduce_dims
+
+        if has_station and has_spatial:
             msg = (
-                "reduce_dims cannot contain both forecast and historical dimensions. "  # noqa: ISC004
-                "Please choose either 'time' for historical verification or "
-                "'forecast_reference_time' and 'lead_time' for forecast verification.",
+                "Cannot configure both spatial dimensions (x, y) and station together in "
+                "reduce_dims. Use station for point data or x, y for gridded data, but not both."
             )
             raise ValueError(msg)
+
+        # If x is present, y must also be present (and vice versa)
+        has_x = StandardDim.x in self.reduce_dims
+        has_y = StandardDim.y in self.reduce_dims
+        if has_x != has_y:
+            msg = (
+                "Both x and y dimensions must be configured together. "
+                "Cannot reduce over x without y or y without x."
+            )
+            raise ValueError(msg)
+
         return self
 
 
@@ -137,14 +95,14 @@ class IdMap(RootModel[dict[str, dict[str, str]]]):
         return {v[data_source]: k for k, v in self.root.items()}
 
 
-class RankHistogramConfig(BaseScoreConfig, ReduceDimsForecast):
-    """A rank histogram config element."""
+class RankHistogramConfig(BaseScoreConfig, ReduceDims):
+    """A rank histogram config element supporting both point and gridded ensemble data."""
 
     score_adapter: Literal[ScoreKind.rank_histogram]
 
 
-class CrpsForEnsembleConfig(BaseScoreConfig, ReduceDimsForecast):
-    """Configuration for CRPS for ensemble.
+class CrpsForEnsembleConfig(BaseScoreConfig, ReduceDims):
+    """Configuration for CRPS for ensemble supporting both point and gridded data.
 
     For reference, see: See: https://scores.readthedocs.io/en/stable/api.html#scores.probability.crps_for_ensemble
     """
@@ -159,7 +117,7 @@ class CrpsForEnsembleConfig(BaseScoreConfig, ReduceDimsForecast):
     ]
 
 
-class CrpsCDFConfig(BaseScoreConfig, ReduceDimsForecast):
+class CrpsCDFConfig(BaseScoreConfig, ReduceDims):
     """Configuration for CRPS for CDF.
 
     For reference, see: https://scores.readthedocs.io/en/stable/api.html#scores.probability.crps_cdf
@@ -175,7 +133,7 @@ class CrpsCDFConfig(BaseScoreConfig, ReduceDimsForecast):
     ] = "exact"
 
 
-class ContinuousScoresConfig(BaseScoreConfig, ReduceDimsHistoricalOrForecast):
+class ContinuousScoresConfig(BaseScoreConfig, ReduceDims):
     """Configure multiple continuous scores."""
 
     score_adapter: Literal[ScoreKind.continuous_scores]
@@ -193,6 +151,33 @@ class ContinuousScoresConfig(BaseScoreConfig, ReduceDimsHistoricalOrForecast):
         return self
 
 
+class SALScoreConfig(BaseScoreConfig):
+    """Configuration for the SAL (Structure-Amplitude-Location) spatial score.
+
+    Applies to single deterministic gridded forecasts. For reference, see:
+    https://pysteps.readthedocs.io/en/stable/generated/pysteps.verification.salscores.sal.html
+    """
+
+    score_adapter: Literal[ScoreKind.sal]
+    thr_factor: Annotated[
+        float,
+        Field(
+            description="Factor by which the threshold quantile is multiplied to obtain the "
+            "threshold used for object identification. If None in pysteps, no threshold is "
+            "applied; here a sensible default is used.",
+        ),
+    ] = 0.067
+    thr_quantile: Annotated[
+        float,
+        Field(
+            description="Quantile (in [0, 1]) used together with thr_factor to define the "
+            "threshold for identifying precipitation objects.",
+            ge=0.0,
+            le=1.0,
+        ),
+    ] = 0.95
+
+
 class ThresholdEvent(BaseEvent):
     """An event definition for a threshold."""
 
@@ -206,7 +191,7 @@ class ThresholdEvent(BaseEvent):
     ]
 
 
-class CategoricalScoresConfig(BaseCategoricalScoreConfig, ReduceDimsHistoricalOrForecast):
+class CategoricalScoresConfig(BaseCategoricalScoreConfig, ReduceDims):
     """Config to compute categorical scores, based on an event definition."""
 
     score_adapter: Literal[ScoreKind.categorical_scores]

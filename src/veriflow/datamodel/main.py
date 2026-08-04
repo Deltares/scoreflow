@@ -3,16 +3,16 @@
 from collections.abc import Iterable
 
 import xarray as xr
-from pydantic import ValidationError
 
 from veriflow.configuration.utils import VerificationPair
 from veriflow.constants import (
     FORECAST_DATA_TYPES,
     HISTORICAL_DATA_TYPES,
     DataType,
+    SpatialType,
+    StandardAttribute,
     StandardDim,
 )
-from veriflow.datasources.inputschemas import INPUT_SCHEMAS
 
 __all__ = ["InputDataset", "OutputDataset"]
 
@@ -35,12 +35,17 @@ class InputDatasetExtension:
         self._obj = xarray_obj
 
     @property
-    def data_type(self) -> str:
+    def data_type(self) -> DataType:
         """The data type of the dataset."""
         if "data_type" not in self._obj.attrs:  # type:ignore[misc]
             msg = f"No data type set on {self._obj} attrs."
             raise ValueError(msg)
         return DataType(self._obj.attrs["data_type"])  # type:ignore[misc]
+
+    @property
+    def spatial_type(self) -> SpatialType:
+        """The spatial type of the dataset (defaults to ``point`` when unset)."""
+        return SpatialType(self._obj.attrs.get("spatial_type", SpatialType.point))  # type:ignore[misc]
 
     @property
     def is_thresholds(self) -> bool:
@@ -65,16 +70,6 @@ class InputDatasetExtension:
             raise ValueError(msg)
         return str(self._obj.attrs["source"])  # type:ignore[misc]
 
-    def validate(self) -> None:
-        """Validate the data according to schema."""
-        schema = INPUT_SCHEMAS[self.data_type]  # type:ignore[index] # str is compatible with StrEnum index
-
-        try:
-            schema.model_validate(self._obj.to_dict(data=False))  # type:ignore[misc]
-        except ValidationError as exc:
-            msg = (f"Validation failed for data_type '{self.data_type}'.\n{exc}",)
-            raise ValueError(msg) from exc
-
 
 class InputDataset:
     """
@@ -97,7 +92,6 @@ class InputDataset:
 
         # Validate, and add to datastore
         for dataset in data:
-            dataset.verification.validate()  # type:ignore[misc]
             self.datastore[dataset.verification.source] = dataset  # type:ignore[misc]
 
     @staticmethod
@@ -195,6 +189,15 @@ class InputDataset:
         # (scores etc.) can read it via the data array's attrs.
         obs.attrs.setdefault("data_type", obs_ds.attrs.get("data_type"))  # type:ignore[misc]
         sim.attrs.setdefault("data_type", sim_ds.attrs.get("data_type"))  # type:ignore[misc]
+        # Likewise propagate spatial_type (defaulting to point) so the full data type is known.
+        obs_spatial = obs_ds.attrs.get("spatial_type", SpatialType.point)  # type:ignore[misc]
+        sim_spatial = sim_ds.attrs.get("spatial_type", SpatialType.point)  # type:ignore[misc]
+        obs.attrs.setdefault("spatial_type", obs_spatial)  # type:ignore[misc]
+        sim.attrs.setdefault("spatial_type", sim_spatial)  # type:ignore[misc]
+        # Propagate the CRS so downstream reprojection knows the source CRS. Every validated
+        # dataset is guaranteed to carry a ``crs`` attribute (defaulting to EPSG:4326).
+        obs.attrs.setdefault(StandardAttribute.crs, obs_ds.attrs[StandardAttribute.crs])  # type:ignore[misc]
+        sim.attrs.setdefault(StandardAttribute.crs, sim_ds.attrs[StandardAttribute.crs])  # type:ignore[misc]
 
         if sim_ds.verification.is_forecast:  # type:ignore[misc]
             # Map historical into forecast space upon score computation

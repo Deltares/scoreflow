@@ -22,12 +22,13 @@ from veriflow.configuration.default.datasources import (
     FewsWebserviceConfig,
     ForecastRetrievalMethod,
 )
-from veriflow.constants import FORECAST_DATA_TYPES, DataSourceKind, DataType
+from veriflow.constants import FORECAST_DATA_TYPES, DataSourceKind, DataType, SpatialType
 from veriflow.datasources.base import BaseDatasource
 from veriflow.datasources.fewsnetcdf import (
     FewsNetCDF,
     FewsNetCDFKind,
 )
+from veriflow.types import DataSpec
 
 __all__ = [  # noqa: RUF022
     "FewsWebservice",
@@ -80,12 +81,12 @@ class FewsWebservice(BaseDatasource):
 
     kind = "fewswebservice"
     config_class = FewsWebserviceConfig
-    supported_data_types: ClassVar[set[DataType]] = {
-        DataType.observed_historical,
-        DataType.simulated_historical,
-        DataType.simulated_forecast_ensemble,
-        DataType.simulated_forecast_single,
-        DataType.simulated_forecast_probabilistic,
+    supported_data_specs: ClassVar[set[DataSpec]] = {
+        (DataType.observed_historical, SpatialType.point),
+        (DataType.simulated_historical, SpatialType.point),
+        (DataType.simulated_forecast_ensemble, SpatialType.point),
+        (DataType.simulated_forecast_single, SpatialType.point),
+        (DataType.simulated_forecast_probabilistic, SpatialType.point),
     }
 
     # Annotate the correct type, otherwise mypy will infer from baseclass

@@ -21,6 +21,7 @@ from veriflow.constants import TimeUnits
 
 __all__ = [
     # "FewsWebserviceAuthConfig",
+    "CRSString",
     "LeadTimes",
     "LocalFile",
     "LocalFiles",
@@ -53,6 +54,19 @@ Variable = Annotated[
         "the variable definition in the datasource. IdMapping can be set in the general config, to "
         "map external variables to an internal definition. This is needed when you want to verify "
         "data from different sources, where the variable definition is not equal.",
+    ),
+]
+
+
+CRSString = Annotated[
+    str,
+    Field(
+        min_length=1,
+        description="A coordinate reference system as a string compatible with "
+        "pyproj.CRS.from_string, i.e. a PROJ string, a CRS WKT string, or an authority string "
+        "such as 'EPSG:4326'. The string is not parsed at configuration time so that pyproj "
+        "remains an optional dependency; it is only parsed when an actual coordinate "
+        "transformation is required.",
     ),
 ]
 

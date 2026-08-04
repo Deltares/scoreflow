@@ -7,8 +7,10 @@ import xarray as xr
 from veriflow.configuration.default.datasources import NetCDFConfig
 from veriflow.constants import (
     DataType,
+    SpatialType,
 )
 from veriflow.datasources.base import BaseDatasource
+from veriflow.types import DataSpec
 
 __all__ = [
     "NetCDF",
@@ -39,12 +41,12 @@ class NetCDF(BaseDatasource):
 
     kind = "netcdf"
     config_class = NetCDFConfig
-    supported_data_types: ClassVar[set[DataType]] = {
-        DataType.observed_historical,
-        DataType.simulated_forecast_ensemble,
-        DataType.simulated_forecast_single,
-        DataType.simulated_forecast_probabilistic,
-        DataType.threshold,
+    supported_data_specs: ClassVar[set[DataSpec]] = {
+        (DataType.observed_historical, SpatialType.point),
+        (DataType.simulated_forecast_ensemble, SpatialType.point),
+        (DataType.simulated_forecast_single, SpatialType.point),
+        (DataType.simulated_forecast_probabilistic, SpatialType.point),
+        (DataType.threshold, SpatialType.point),
     }
 
     def __init__(self, config: NetCDFConfig) -> None:

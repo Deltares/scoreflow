@@ -60,9 +60,16 @@ jobs:
           enable-cache: true
       - name: Install project dependencies
         run: uv sync --dev --frozen
+      - name: Install spatial dependencies
+        if: matrix.python-version == '3.12' && (matrix.os == 'ubuntu-latest')
+        run: uv sync --dev --group spatial --frozen
       - name: Run pytest
         run: |
-          uv run pytest -m "not minio" --junit-xml=test-results-${{ matrix.os }}-${{ matrix.python-version }}.xml --cov=veriflow --cov-report=term --cov-report=xml
+          uv run pytest -m "not minio and not pyproj and not pysteps" --junit-xml=test-results-${{ matrix.os }}-${{ matrix.python-version }}.xml --cov=veriflow --cov-report=term --cov-report=xml
+      - name: Run pyproj/pysteps tests
+        if: matrix.python-version == '3.12' && (matrix.os == 'ubuntu-latest')
+        run: |
+          uv run pytest -m "pyproj or pysteps" --junit-xml=test-results-deps-${{ matrix.os }}-${{ matrix.python-version }}.xml --cov=veriflow --cov-append --cov-report=term --cov-report=xml
       - uses: actions/upload-artifact@v7
         # Upload the test results, to be parsed by second workflow
         # Two workflows, in order to support PRs from forks, as per
