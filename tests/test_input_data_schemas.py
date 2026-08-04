@@ -3,8 +3,6 @@
 # mypy: ignore-errors
 # ruff: noqa: D103
 
-from typing import ClassVar
-
 import pytest
 import xarray as xr
 from pydantic import ValidationError
@@ -38,32 +36,38 @@ def test_time_coord_bad() -> None:
 class TestDatasetBaseAttrs:
     """Test BaseAttrs schema validation."""
 
-    valid_dict: ClassVar[dict[str, str]] = {
-        "data_type": "observed_historical",
-        "spatial_type": "point",
-        "source": "test_source",
-        "crs": "EPSG:4326",
-    }
+    @property
+    def valid_dict(self) -> dict[str, str]:
+        """Default valid dict."""
+        return {
+            "data_type": "observed_historical",
+            "spatial_type": "point",
+            "source": "test_source",
+            "crs": "EPSG:4326",
+        }
 
     def test_base_attrs_missing_source_raises(self) -> None:
         """Test that missing 'source' field raises ValidationError."""
-        self.valid_dict.pop("source", None)
+        valid_dict = self.valid_dict.copy()
+        valid_dict.pop("source", None)
 
         with pytest.raises(ValidationError, match="Field required"):
-            BaseAttrs.model_validate(self.valid_dict)
+            BaseAttrs.model_validate(valid_dict)
 
     def test_missing_crs_defaults_to_epsg4326(self) -> None:
         """Test that missing 'crs' field defaults to 'EPSG:4326'."""
-        self.valid_dict.pop("crs", None)
+        valid_dict = self.valid_dict.copy()
+        valid_dict.pop("crs", None)
 
-        base_attrs = BaseAttrs.model_validate(self.valid_dict)
+        base_attrs = BaseAttrs.model_validate(valid_dict)
         assert base_attrs.crs == "EPSG:4326"
 
     def test_missing_spatial_type_defaults_to_point(self) -> None:
         """Test that missing 'spatial_type' field defaults to 'point'."""
-        self.valid_dict.pop("spatial_type", None)
+        valid_dict = self.valid_dict.copy()
+        valid_dict.pop("spatial_type", None)
 
-        base_attrs = BaseAttrs.model_validate(self.valid_dict)
+        base_attrs = BaseAttrs.model_validate(valid_dict)
         assert base_attrs.spatial_type == SpatialType.point
 
 

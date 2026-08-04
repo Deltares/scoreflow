@@ -3,11 +3,9 @@
 from collections.abc import Iterable
 
 import xarray as xr
-from pydantic import ValidationError
 
 from veriflow.configuration.utils import VerificationPair
 from veriflow.constants import (
-    DEFAULT_CRS,
     FORECAST_DATA_TYPES,
     HISTORICAL_DATA_TYPES,
     DataType,
@@ -15,7 +13,6 @@ from veriflow.constants import (
     StandardAttribute,
     StandardDim,
 )
-from veriflow.datasources.inputschemas import INPUT_SCHEMAS
 
 __all__ = ["InputDataset", "OutputDataset"]
 
@@ -73,30 +70,6 @@ class InputDatasetExtension:
             raise ValueError(msg)
         return str(self._obj.attrs["source"])  # type:ignore[misc]
 
-    def validate(self) -> None:
-        """Validate the data according to schema."""
-        spatial_type = self.spatial_type
-        # Always persist spatial_type so the full (temporal + spatial) data type is
-        # retrievable at any later stage.
-        self._obj.attrs["spatial_type"] = spatial_type  # type:ignore[misc]
-        # Guarantee a CRS on the dataset (defaulting to EPSG:4326) so downstream reprojection
-        # can always rely on its presence without runtime checks.
-        self._obj.attrs.setdefault(StandardAttribute.crs, DEFAULT_CRS)  # type:ignore[misc]
-        schema = INPUT_SCHEMAS.get((self.data_type, spatial_type))
-        if schema is None:
-            supported = sorted(f"({dt}, {st})" for dt, st in INPUT_SCHEMAS)
-            msg = (
-                f"No input schema defined for (data_type, spatial_type) = "
-                f"({self.data_type}, {spatial_type}). Supported: {', '.join(supported)}."
-            )
-            raise ValueError(msg)
-
-        try:
-            schema.model_validate(self._obj.to_dict(data=False))  # type:ignore[misc]
-        except ValidationError as exc:
-            msg = f"Validation failed for data_type '{self.data_type}'.\n{exc}"
-            raise ValueError(msg) from exc
-
 
 class InputDataset:
     """
@@ -119,7 +92,6 @@ class InputDataset:
 
         # Validate, and add to datastore
         for dataset in data:
-            dataset.verification.validate()  # type:ignore[misc]
             self.datastore[dataset.verification.source] = dataset  # type:ignore[misc]
 
     @staticmethod

@@ -26,6 +26,7 @@ from veriflow.constants import (
     StandardDim,
     TimeUnits,
 )
+from veriflow.datasources.inputschemas import validate_input_data
 
 logger = logging.getLogger(__name__)
 
@@ -175,14 +176,20 @@ class BaseDatasource(Base):
             )
             raise ValueError(msg)
 
-    def _validate_source(self) -> None:
+    def _persist_configured_source_to_attrs(self) -> None:
         # Make sure the source attribute is set to the expected source
         self.dataset.attrs["source"] = self.config.source  # type:ignore[misc]
 
-    def _validate_spatial_type(self) -> None:
+    def _persist_configured_spatial_type_to_attrs(self) -> None:
         # Always persist spatial_type so the full (temporal + spatial) data type is
         # retrievable downstream (e.g. for schema selection and score dispatch).
         self.dataset.attrs["spatial_type"] = self.config.spatial_type  # type:ignore[misc]
+
+    def _validate_dataset_structure_against_schema(self) -> None:
+        """Validate the fetched dataset against the expected schema."""
+        validate_input_data(
+            dataset=self.dataset,
+        )
 
     def _validate_lead_times(self) -> None:
         """Check that lead times are provided for forecast data types."""
@@ -235,8 +242,9 @@ class BaseDatasource(Base):
     def validate_fetched_data(self) -> None:
         """Validate that the dataset is consistent with the config."""
         self._validate_data_type()
-        self._validate_source()
-        self._validate_spatial_type()
+        self._persist_configured_source_to_attrs()
+        self._persist_configured_spatial_type_to_attrs()
+        self._validate_dataset_structure_against_schema()
         self._validate_lead_times()
 
     def filter_dataset(self, dataset: xr.Dataset) -> xr.Dataset:
