@@ -139,6 +139,9 @@ dev = [
     "sphinxcontrib-mermaid>=1.0.0",
     "types-pyyaml==6.0.12.20260724",
     "types-requests==2.33.0.20260712",
+]
+
+spatial = [
     "pysteps>=1.10",
     "scikit-image",
     "pyproj",

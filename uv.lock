@@ -4052,14 +4052,11 @@ dev = [
     { name = "pandoc" },
     { name = "pre-commit" },
     { name = "pydata-sphinx-theme" },
-    { name = "pyproj" },
-    { name = "pysteps" },
     { name = "pytest" },
     { name = "pytest-cov" },
     { name = "pytest-lazy-fixtures" },
     { name = "python-dotenv" },
     { name = "ruff" },
-    { name = "scikit-image" },
     { name = "sphinx", version = "9.0.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "sphinx", version = "9.1.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "sphinx-design" },
@@ -4067,6 +4064,11 @@ dev = [
     { name = "sphinxcontrib-mermaid" },
     { name = "types-pyyaml" },
     { name = "types-requests" },
+]
+spatial = [
+    { name = "pyproj" },
+    { name = "pysteps" },
+    { name = "scikit-image" },
 ]
 
 [package.metadata]
@@ -4103,20 +4105,22 @@ dev = [
     { name = "pandoc", specifier = ">=2.4" },
     { name = "pre-commit", specifier = ">=4.5.1" },
     { name = "pydata-sphinx-theme", specifier = ">=0.16.1" },
-    { name = "pyproj" },
-    { name = "pysteps", specifier = ">=1.10" },
     { name = "pytest", specifier = "==9.1.1" },
     { name = "pytest-cov", specifier = ">=7.0.0" },
     { name = "pytest-lazy-fixtures", specifier = "==1.4.0" },
     { name = "python-dotenv", specifier = ">=1.2.2" },
     { name = "ruff", specifier = ">=0.5.0" },
-    { name = "scikit-image" },
     { name = "sphinx", specifier = ">=9.0.4" },
     { name = "sphinx-design", specifier = ">=0.7.0" },
     { name = "sphinx-gallery", specifier = ">=0.20.0" },
     { name = "sphinxcontrib-mermaid", specifier = ">=1.0.0" },
     { name = "types-pyyaml", specifier = "==6.0.12.20260724" },
     { name = "types-requests", specifier = "==2.33.0.20260712" },
+]
+spatial = [
+    { name = "pyproj" },
+    { name = "pysteps", specifier = ">=1.10" },
+    { name = "scikit-image" },
 ]
 
 [[package]]
