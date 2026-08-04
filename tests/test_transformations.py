@@ -2,7 +2,6 @@
 """Tests for CRS parsing and coordinate transformation helpers."""
 
 import numpy as np
-import pyproj
 import pytest
 import xarray as xr
 
@@ -15,6 +14,9 @@ from veriflow.transformations import (
     transform_coordinates,
     transform_dataset_coordinates,
 )
+
+pyproj = pytest.importorskip("pyproj")
+
 
 # A projected CRS (Amersfoort / RD New, metre-based) used to exercise reprojection.
 PROJECTED_CRS = "EPSG:28992"
