@@ -1123,7 +1123,7 @@
       "type": "object"
     },
     "SpatialType": {
-      "description": "Spatial structure of a dataset.\n\nThis is orthogonal to :class:`DataType`. Together, ``data_type`` (temporal kind) and\n``spatial_type`` (spatial structure) fully describe an input dataset. Defaults to\n``point`` so that existing station-based data and configuration keep working unchanged.",
+      "description": "Spatial structure of a dataset.",
       "enum": [
         "point",
         "gridded"
