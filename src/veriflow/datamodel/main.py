@@ -7,6 +7,7 @@ from pydantic import ValidationError
 
 from veriflow.configuration.utils import VerificationPair
 from veriflow.constants import (
+    DEFAULT_CRS,
     FORECAST_DATA_TYPES,
     HISTORICAL_DATA_TYPES,
     DataType,
@@ -15,7 +16,6 @@ from veriflow.constants import (
     StandardDim,
 )
 from veriflow.datasources.inputschemas import INPUT_SCHEMAS
-from veriflow.transformations import GEOGRAPHIC_CRS
 
 __all__ = ["InputDataset", "OutputDataset"]
 
@@ -81,7 +81,7 @@ class InputDatasetExtension:
         self._obj.attrs["spatial_type"] = spatial_type  # type:ignore[misc]
         # Guarantee a CRS on the dataset (defaulting to EPSG:4326) so downstream reprojection
         # can always rely on its presence without runtime checks.
-        self._obj.attrs.setdefault(StandardAttribute.crs, GEOGRAPHIC_CRS)  # type:ignore[misc]
+        self._obj.attrs.setdefault(StandardAttribute.crs, DEFAULT_CRS)  # type:ignore[misc]
         schema = INPUT_SCHEMAS.get((self.data_type, spatial_type))
         if schema is None:
             supported = sorted(f"({dt}, {st})" for dt, st in INPUT_SCHEMAS)

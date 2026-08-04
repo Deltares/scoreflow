@@ -6,9 +6,8 @@ import pyproj
 import pytest
 import xarray as xr
 
-from veriflow.constants import StandardAttribute, StandardCoord, StandardDim
+from veriflow.constants import DEFAULT_CRS, StandardAttribute, StandardCoord, StandardDim
 from veriflow.transformations import (
-    GEOGRAPHIC_CRS,
     add_latlon_from_crs,
     derive_xy,
     parse_crs,
@@ -23,7 +22,7 @@ PROJECTED_CRS = "EPSG:28992"
 
 def test_parse_crs_valid() -> None:
     """A valid authority string parses into a pyproj.CRS."""
-    assert parse_crs(GEOGRAPHIC_CRS) == pyproj.CRS.from_epsg(4326)
+    assert parse_crs(DEFAULT_CRS) == pyproj.CRS.from_epsg(4326)
 
 
 def test_parse_crs_invalid_raises() -> None:
@@ -37,8 +36,8 @@ def test_transform_coordinates_round_trip() -> None:
     lon = np.array([4.0, 5.5, 6.9])
     lat = np.array([50.0, 51.0, 52.0])
 
-    x, y = transform_coordinates(lon, lat, GEOGRAPHIC_CRS, PROJECTED_CRS)
-    lon_back, lat_back = transform_coordinates(x, y, PROJECTED_CRS, GEOGRAPHIC_CRS)
+    x, y = transform_coordinates(lon, lat, DEFAULT_CRS, PROJECTED_CRS)
+    lon_back, lat_back = transform_coordinates(x, y, PROJECTED_CRS, DEFAULT_CRS)
 
     np.testing.assert_allclose(lon_back, lon, atol=1e-6)
     np.testing.assert_allclose(lat_back, lat, atol=1e-6)
@@ -97,7 +96,7 @@ def test_derive_xy_from_latlon() -> None:
     assert result[StandardDim.x].dims == ("station",)
     assert result[StandardDim.y].dims == ("station",)
     assert result.attrs[StandardAttribute.crs] == PROJECTED_CRS
-    expected_x, expected_y = transform_coordinates(lon, lat, GEOGRAPHIC_CRS, PROJECTED_CRS)
+    expected_x, expected_y = transform_coordinates(lon, lat, DEFAULT_CRS, PROJECTED_CRS)
     np.testing.assert_allclose(result[StandardDim.x].to_numpy(), expected_x)
     np.testing.assert_allclose(result[StandardDim.y].to_numpy(), expected_y)
 
@@ -109,10 +108,10 @@ def test_transform_dataset_coordinates_rejects_rectilinear_grid() -> None:
             StandardDim.x: (StandardDim.x, np.array([1.0, 2.0])),
             StandardDim.y: (StandardDim.y, np.array([3.0, 4.0])),
         },
-        attrs={StandardAttribute.crs: GEOGRAPHIC_CRS},
+        attrs={StandardAttribute.crs: DEFAULT_CRS},
     )
     with pytest.raises(ValueError, match="rectilinear"):
-        transform_dataset_coordinates(ds, GEOGRAPHIC_CRS, PROJECTED_CRS)
+        transform_dataset_coordinates(ds, DEFAULT_CRS, PROJECTED_CRS)
 
 
 def test_reproject_to_crs_without_spatial_coords_is_noop() -> None:

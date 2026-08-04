@@ -337,6 +337,9 @@ def _set_version_info() -> tuple[str, str]:
     return version, version_full
 
 
+# EPSG:4326 (WGS84 lon/lat) is the assumed CRS for geographic ``lat``/``lon`` data.
+DEFAULT_CRS = "EPSG:4326"
+
 NAME = "veriflow"
 VERSION, VERSION_FULL = _set_version_info()
 SCHEMA_VERSION = f"v{VERSION.split('.')[0]}"

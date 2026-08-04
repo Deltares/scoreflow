@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING, TypeVar
 import numpy as np
 import xarray as xr
 
-from veriflow.constants import StandardAttribute, StandardCoord, StandardDim
+from veriflow.constants import DEFAULT_CRS, StandardAttribute, StandardCoord, StandardDim
 
 if TYPE_CHECKING:
     from types import ModuleType
@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     import pyproj
 
 __all__ = [
-    "GEOGRAPHIC_CRS",
+    "DEFAULT_CRS",
     "add_latlon_from_crs",
     "derive_xy",
     "parse_crs",
@@ -36,8 +36,6 @@ __all__ = [
     "transform_dataset_coordinates",
 ]
 
-# EPSG:4326 (WGS84 lon/lat) is the assumed CRS for geographic ``lat``/``lon`` data.
-GEOGRAPHIC_CRS = "EPSG:4326"
 
 XrObj = TypeVar("XrObj", xr.Dataset, xr.DataArray)
 
@@ -155,7 +153,7 @@ def transform_dataset_coordinates(
 def derive_xy(
     obj: XrObj,
     target_crs: str,
-    source_crs: str = GEOGRAPHIC_CRS,
+    source_crs: str = DEFAULT_CRS,
 ) -> XrObj:
     """Derive ``x``/``y`` coordinates in ``target_crs`` from geographic ``lat``/``lon``.
 
@@ -200,7 +198,7 @@ def add_latlon_from_crs(ds: xr.Dataset) -> xr.Dataset:
     x = ds.coords[StandardDim.x].to_numpy()
     y = ds.coords[StandardDim.y].to_numpy()
     xx, yy = np.meshgrid(x, y)  # shape (len(y), len(x)) -> dims (y, x)
-    lon, lat = transform_coordinates(xx, yy, source_crs, GEOGRAPHIC_CRS)
+    lon, lat = transform_coordinates(xx, yy, source_crs, DEFAULT_CRS)
     return ds.assign_coords(
         {
             StandardCoord.lon.name: ((StandardDim.y, StandardDim.x), lon),
@@ -224,7 +222,7 @@ def reproject_to_crs(obj: XrObj, target_crs: str) -> XrObj:
         # Nothing spatial to reproject (e.g. results reduced over the spatial dimensions).
         return obj
 
-    source_crs = _crs_of(obj, default=GEOGRAPHIC_CRS)
+    source_crs = _crs_of(obj, default=DEFAULT_CRS)
 
     if has_xy:
         if source_crs == target_crs:
