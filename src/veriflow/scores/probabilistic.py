@@ -21,6 +21,7 @@ from veriflow.configuration.default.scores import (
 from veriflow.constants import DataType, SpatialType, StandardDim
 from veriflow.scores.base import BaseScore
 from veriflow.scores.utils import compute_reduce_and_preserve_dims
+from veriflow.types import DataSpec
 
 __all__ = [
     "CrpsCDF",
@@ -37,7 +38,7 @@ class CrpsForEnsemble(BaseScore):
 
     kind = "crps_for_ensemble"
     config_class = CrpsForEnsembleConfig
-    supported_data_specs: ClassVar[set[tuple[DataType, SpatialType]]] = {
+    supported_data_specs: ClassVar[set[DataSpec]] = {
         (DataType.simulated_forecast_ensemble, SpatialType.point),
         (DataType.simulated_forecast_ensemble, SpatialType.gridded),
     }
@@ -67,7 +68,7 @@ class CrpsCDF(BaseScore):
 
     kind = "crps_cdf"
     config_class = CrpsCDFConfig
-    supported_data_specs: ClassVar[set[tuple[DataType, SpatialType]]] = {
+    supported_data_specs: ClassVar[set[DataSpec]] = {
         (DataType.simulated_forecast_probabilistic, SpatialType.point),
     }
 
@@ -97,7 +98,7 @@ class RankHistogram(BaseScore):
 
     kind = "rank_histogram"
     config_class = RankHistogramConfig
-    supported_data_specs: ClassVar[set[tuple[DataType, SpatialType]]] = {
+    supported_data_specs: ClassVar[set[DataSpec]] = {
         (DataType.simulated_forecast_ensemble, SpatialType.point),
         (DataType.simulated_forecast_ensemble, SpatialType.gridded),
     }

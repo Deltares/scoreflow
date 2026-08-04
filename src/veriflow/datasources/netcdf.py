@@ -10,6 +10,7 @@ from veriflow.constants import (
     SpatialType,
 )
 from veriflow.datasources.base import BaseDatasource
+from veriflow.types import DataSpec
 
 __all__ = [
     "NetCDF",
@@ -40,7 +41,7 @@ class NetCDF(BaseDatasource):
 
     kind = "netcdf"
     config_class = NetCDFConfig
-    supported_data_specs: ClassVar[set[tuple[DataType, SpatialType]]] = {
+    supported_data_specs: ClassVar[set[DataSpec]] = {
         (DataType.observed_historical, SpatialType.point),
         (DataType.simulated_forecast_ensemble, SpatialType.point),
         (DataType.simulated_forecast_single, SpatialType.point),

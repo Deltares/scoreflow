@@ -21,7 +21,7 @@ from veriflow.datasources import DEFAULT_DATASOURCES
 from veriflow.datasources.base import BaseDatasource
 from veriflow.scores import DEFAULT_SCORES
 from veriflow.scores.base import BaseCategoricalScore, BaseScore
-from veriflow.transformations import parse_crs, reproject_to_crs
+from veriflow.transformations import parse_crs, project_to_crs
 
 if TYPE_CHECKING:
     from veriflow.configuration.utils import VerificationPair
@@ -49,7 +49,7 @@ def _align_crs(
     during schema validation), so it is always present on the extracted DataArrays here.
     """
     if target_crs is not None:
-        return reproject_to_crs(obs, target_crs), reproject_to_crs(sim, target_crs)
+        return project_to_crs(obs, target_crs), project_to_crs(sim, target_crs)
 
     obs_crs = cast("str", obs.attrs[StandardAttribute.crs])  # type: ignore[misc]
     sim_crs = cast("str", sim.attrs[StandardAttribute.crs])  # type: ignore[misc]
@@ -57,7 +57,7 @@ def _align_crs(
     # strings differ do we parse them (requiring pyproj) to check for semantic equality.
     if obs_crs != sim_crs and parse_crs(obs_crs) != parse_crs(sim_crs):
         msg = (
-            f"Observation CRS ('{obs_crs}') and simulation CRS ('{sim_crs}') diverge, but no "
+            f"Observation CRS ('{obs_crs}') and simulation CRS ('{sim_crs}') differ, but no "
             "target CRS is configured on the score. Set 'crs' on the score configuration to "
             "reproject both to a common CRS."
         )
@@ -78,7 +78,7 @@ def _write_results_to_datasink(
     for verification_pair in verification_pairs:
         result_dataset = output_dataset.get(verification_pair)
         if target_crs is not None:
-            result_dataset = reproject_to_crs(result_dataset, target_crs)
+            result_dataset = project_to_crs(result_dataset, target_crs)
         datasink.write_data(result_dataset)
         msg = (
             f"Successfully wrote results of verification pair {verification_pair.id} "

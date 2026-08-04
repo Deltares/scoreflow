@@ -22,6 +22,7 @@ import xarray as xr
 from pydantic import AfterValidator, BaseModel, Field, RootModel, model_validator
 
 from veriflow.constants import DataType, SpatialType, StandardDim
+from veriflow.types import DataSpec
 
 AllowedDTypeInt = Literal["int8", "int16", "int32", "int64", "uint8", "uint16", "uint32", "uint64"]
 AllowedDTypeFloat = Literal["float16", "float32", "float64"]
@@ -457,7 +458,7 @@ class SimulatedForecastEnsembleGridded(BaseModel):
 # All input schemas, keyed by the (data_type, spatial_type) pair that fully describes
 # a dataset. ``spatial_type`` defaults to ``point`` so existing station-based data and
 # configuration keep working unchanged.
-INPUT_SCHEMAS: dict[tuple[DataType, SpatialType], BaseModel] = {
+INPUT_SCHEMAS: dict[DataSpec, BaseModel] = {
     (DataType.observed_historical, SpatialType.point): ObservedHistorical,
     (DataType.simulated_historical, SpatialType.point): SimulatedHistorical,
     (DataType.simulated_forecast_single, SpatialType.point): SimulatedForecastSingle,

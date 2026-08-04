@@ -1,4 +1,5 @@
-# mypy: ignore-errors
+# mypy: disable-error-code="misc, no-any-return, explicit-any"
+# This module implements the SAL score from Pysteps, which is Any typed.
 """
 Spatial verification scores for gridded (lat/lon) data.
 
@@ -22,6 +23,7 @@ import xarray as xr
 from veriflow.configuration.default.scores import SALScoreConfig
 from veriflow.constants import DataType, SpatialType, StandardDim
 from veriflow.scores.base import BaseScore
+from veriflow.types import DataSpec
 
 __all__ = [
     "SALScore",
@@ -50,7 +52,7 @@ class SALScore(BaseScore):
 
     kind = "sal"
     config_class = SALScoreConfig
-    supported_data_specs: ClassVar[set[tuple[DataType, SpatialType]]] = {
+    supported_data_specs: ClassVar[set[DataSpec]] = {
         (DataType.simulated_forecast_single, SpatialType.gridded),
     }
 

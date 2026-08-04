@@ -26,6 +26,7 @@ from veriflow.configuration.default.scores import (
 from veriflow.constants import DataType, SpatialType, SupportedCategoricalScores
 from veriflow.scores.base import BaseCategoricalScore
 from veriflow.scores.utils import compute_reduce_and_preserve_dims
+from veriflow.types import DataSpec
 
 __all__ = [
     "CategoricalScores",
@@ -118,7 +119,7 @@ class CategoricalScores(BaseCategoricalScore):
 
     kind = "categorical_scores"
     config_class = CategoricalScoresConfig
-    supported_data_specs: ClassVar[set[tuple[DataType, SpatialType]]] = {
+    supported_data_specs: ClassVar[set[DataSpec]] = {
         (DataType.simulated_forecast_single, SpatialType.point),
     }
 

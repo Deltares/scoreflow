@@ -19,6 +19,7 @@ from veriflow.constants import (
     StandardDim,
 )
 from veriflow.datasources.base import BaseDatasource
+from veriflow.types import DataSpec
 
 __all__ = [
     "FewsNetCDF",
@@ -452,7 +453,7 @@ class FewsNetCDF(BaseDatasource):
 
     kind = "fewsnetcdf"
     config_class = FewsNetCDFConfig
-    supported_data_specs: ClassVar[set[tuple[DataType, SpatialType]]] = {
+    supported_data_specs: ClassVar[set[DataSpec]] = {
         (DataType.observed_historical, SpatialType.point),
         (DataType.simulated_forecast_ensemble, SpatialType.point),
     }

@@ -13,6 +13,7 @@ from veriflow.configuration.base import (
 )
 from veriflow.configuration.default.scores import ThresholdEvent
 from veriflow.constants import DataType, SpatialType
+from veriflow.types import DataSpec
 
 __all__ = ["BaseScore", "BaseScoreConfig"]
 
@@ -22,7 +23,7 @@ class BaseScore(Base):
 
     kind = ""  # to be defined by subclasses
     config_class: type[BaseScoreConfig] = BaseScoreConfig  # to be defined by subclasses
-    supported_data_specs: ClassVar[set[tuple[DataType, SpatialType]]] = set()
+    supported_data_specs: ClassVar[set[DataSpec]] = set()
 
     def __init__(self, config: BaseScoreConfig) -> None:
         self.config: BaseScoreConfig = config
@@ -65,7 +66,7 @@ class BaseCategoricalScore(Base):
     config_class: type[BaseCategoricalScoreConfig] = (
         BaseCategoricalScoreConfig  # to be defined by subclasses
     )
-    supported_data_specs: ClassVar[set[tuple[DataType, SpatialType]]] = set()
+    supported_data_specs: ClassVar[set[DataSpec]] = set()
 
     def __init__(self, config: BaseCategoricalScoreConfig) -> None:
         self.config: BaseCategoricalScoreConfig = config

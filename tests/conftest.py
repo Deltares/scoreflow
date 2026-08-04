@@ -56,6 +56,7 @@ from veriflow.datasources.csv import Csv
 from veriflow.datasources.fewsnetcdf import FewsNetCDF, FewsNetCDFKind
 from veriflow.datasources.fewswebservice import FewsWebservice, ForecastRetrievalMethod
 from veriflow.datasources.netcdf import NetCDF
+from veriflow.types import DataSpec
 
 TESTS_DATA_DIR = Path(__file__).parent / "data"
 
@@ -1002,7 +1003,7 @@ class FakeDatasource(BaseDatasource):
 
     kind: str = "fake"
     config_class = FakeDatasourceConfig
-    supported_data_specs: ClassVar[set[tuple[DataType, SpatialType]]] = {
+    supported_data_specs: ClassVar[set[DataSpec]] = {
         (DataType.observed_historical, SpatialType.point),
         (DataType.simulated_forecast_single, SpatialType.point),
         (DataType.simulated_forecast_ensemble, SpatialType.point),

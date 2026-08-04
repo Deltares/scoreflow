@@ -31,7 +31,7 @@ __all__ = [
     "add_latlon_from_crs",
     "derive_xy",
     "parse_crs",
-    "reproject_to_crs",
+    "project_to_crs",
     "transform_coordinates",
     "transform_dataset_coordinates",
 ]
@@ -207,7 +207,7 @@ def add_latlon_from_crs(ds: xr.Dataset) -> xr.Dataset:
     )
 
 
-def reproject_to_crs(obj: XrObj, target_crs: str) -> XrObj:
+def project_to_crs(obj: XrObj, target_crs: str) -> XrObj:
     """Ensure ``obj`` carries ``x``/``y`` coordinates expressed in ``target_crs``.
 
     The source CRS is taken from ``obj.attrs['crs']`` when present, otherwise geographic

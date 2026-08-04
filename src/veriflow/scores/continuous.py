@@ -25,6 +25,7 @@ from veriflow.configuration.default.scores import ContinuousScoresConfig
 from veriflow.constants import DataType, SpatialType, SupportedContinuousScore
 from veriflow.scores.base import BaseScore
 from veriflow.scores.utils import compute_reduce_and_preserve_dims
+from veriflow.types import DataSpec
 
 if TYPE_CHECKING:
     from veriflow.scores.utils import ScoreFunc
@@ -50,7 +51,7 @@ class ContinuousScores(BaseScore):
 
     kind = "continuous_scores"
     config_class = ContinuousScoresConfig
-    supported_data_specs: ClassVar[set[tuple[DataType, SpatialType]]] = {
+    supported_data_specs: ClassVar[set[DataSpec]] = {
         (DataType.simulated_forecast_single, SpatialType.point),
         (DataType.observed_historical, SpatialType.point),
         (DataType.simulated_historical, SpatialType.point),

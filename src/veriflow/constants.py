@@ -44,12 +44,7 @@ class DataType(StrEnum):
 
 @unique
 class SpatialType(StrEnum):
-    """Spatial structure of a dataset.
-
-    This is orthogonal to :class:`DataType`. Together, ``data_type`` (temporal kind) and
-    ``spatial_type`` (spatial structure) fully describe an input dataset. Defaults to
-    ``point`` so that existing station-based data and configuration keep working unchanged.
-    """
+    """Spatial structure of a dataset."""
 
     point = "point"
     gridded = "gridded"

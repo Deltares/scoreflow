@@ -11,6 +11,7 @@ from veriflow.constants import (
     StandardAttribute,
 )
 from veriflow.datasources.base import BaseDatasource
+from veriflow.types import DataSpec
 
 __all__ = [  # noqa: RUF022
     "Zarr",
@@ -35,7 +36,7 @@ class Zarr(BaseDatasource):
 
     kind = "zarr"
     config_class = ZarrConfig
-    supported_data_specs: ClassVar[set[tuple[DataType, SpatialType]]] = {
+    supported_data_specs: ClassVar[set[DataSpec]] = {
         (DataType.observed_historical, SpatialType.point),
         (DataType.simulated_forecast_ensemble, SpatialType.point),
         (DataType.simulated_forecast_single, SpatialType.point),

@@ -11,7 +11,7 @@ from veriflow.transformations import (
     add_latlon_from_crs,
     derive_xy,
     parse_crs,
-    reproject_to_crs,
+    project_to_crs,
     transform_coordinates,
     transform_dataset_coordinates,
 )
@@ -117,7 +117,7 @@ def test_transform_dataset_coordinates_rejects_rectilinear_grid() -> None:
 def test_reproject_to_crs_without_spatial_coords_is_noop() -> None:
     """Objects without spatial coordinates are returned unchanged."""
     da = xr.DataArray(np.arange(3.0), dims=["time"])
-    assert reproject_to_crs(da, PROJECTED_CRS).identical(da)
+    assert project_to_crs(da, PROJECTED_CRS).identical(da)
 
 
 def test_reproject_to_crs_derives_xy_from_point_latlon() -> None:
@@ -131,7 +131,7 @@ def test_reproject_to_crs_derives_xy_from_point_latlon() -> None:
         },
     )
 
-    result = reproject_to_crs(da, PROJECTED_CRS)
+    result = project_to_crs(da, PROJECTED_CRS)
 
     assert StandardDim.x in result.coords
     assert StandardDim.y in result.coords
@@ -152,7 +152,7 @@ def test_reproject_to_crs_same_crs_preserves_xy() -> None:
         attrs={StandardAttribute.crs: PROJECTED_CRS},
     )
 
-    result = reproject_to_crs(da, PROJECTED_CRS)
+    result = project_to_crs(da, PROJECTED_CRS)
 
     np.testing.assert_array_equal(result[StandardDim.x].to_numpy(), x)
     np.testing.assert_array_equal(result[StandardDim.y].to_numpy(), y)

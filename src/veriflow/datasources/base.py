@@ -27,6 +27,7 @@ from veriflow.constants import (
     TimeUnits,
 )
 from veriflow.datasources.inputschemas import validate_input_data
+from veriflow.types import DataSpec
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +45,7 @@ class BaseDatasource(Base):
 
     kind: str = ""
     config_class: type[BaseDatasourceConfig] = BaseDatasourceConfig
-    supported_data_specs: ClassVar[set[tuple[DataType, SpatialType]]] = set()
+    supported_data_specs: ClassVar[set[DataSpec]] = set()
     _cache: ZarrCache | None = None
 
     def __init__(self, config: BaseDatasourceConfig) -> None:

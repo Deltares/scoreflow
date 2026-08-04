@@ -28,6 +28,7 @@ from veriflow.datasources.fewsnetcdf import (
     FewsNetCDF,
     FewsNetCDFKind,
 )
+from veriflow.types import DataSpec
 
 __all__ = [  # noqa: RUF022
     "FewsWebservice",
@@ -80,7 +81,7 @@ class FewsWebservice(BaseDatasource):
 
     kind = "fewswebservice"
     config_class = FewsWebserviceConfig
-    supported_data_specs: ClassVar[set[tuple[DataType, SpatialType]]] = {
+    supported_data_specs: ClassVar[set[DataSpec]] = {
         (DataType.observed_historical, SpatialType.point),
         (DataType.simulated_historical, SpatialType.point),
         (DataType.simulated_forecast_ensemble, SpatialType.point),
