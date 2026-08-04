@@ -20,6 +20,9 @@ from veriflow.transformations import (
 PROJECTED_CRS = "EPSG:28992"
 
 
+pytestmark = pytest.mark.pyproj
+
+
 def test_parse_crs_valid() -> None:
     """A valid authority string parses into a pyproj.CRS."""
     assert parse_crs(DEFAULT_CRS) == pyproj.CRS.from_epsg(4326)

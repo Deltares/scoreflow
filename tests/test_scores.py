@@ -154,6 +154,7 @@ def test_categorical_scores(
     reason="pysteps not installed or Python version >= 3.13 (pysteps pip install build fails on "
     "Windows for Python 3.13/3.14)",
 )
+@pytest.mark.pysteps
 def test_sal_score_computes(
     xarray_simulated_forecast_single_gridded: xr.Dataset,
     xarray_general_info_config: object,

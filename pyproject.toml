@@ -109,6 +109,8 @@ known-first-party = ["my-project-name"]  # again, not needed with a 'flat' proje
 # being discoverable in editors / test explorers.
 markers = [
     "minio: integration tests that require a live S3-compatible (MinIO) endpoint",
+    "pyproj: tests that require the optional pyproj dependency",
+    "pysteps: tests that require the optional pysteps dependency",
 ]
 
 [build-system]
