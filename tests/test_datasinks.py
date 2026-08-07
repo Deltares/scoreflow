@@ -27,6 +27,23 @@ def test_write_data_cf_compliant_netcdf_no_scores(
         assert (tmp_path / fn).exists()
 
 
+def test_write_data_cf_compliant_netcdf_creates_output_directory(
+    tmp_path: Path,
+    input_dataset_fews_netcdf_simulated_forecast_ensemble: InputDataset,
+    datasink_cf_compliant_netcdf: CFCompliantNetCDF,
+) -> None:
+    """Test that writing creates a missing output directory."""
+    output_dataset = OutputDataset(input_dataset_fews_netcdf_simulated_forecast_ensemble)
+    verification_pair = datasink_cf_compliant_netcdf.config.general.verification_pairs[0]
+    output_directory = tmp_path / "nested" / "output"
+    datasink_cf_compliant_netcdf.config.directory = str(output_directory)
+    datasink_cf_compliant_netcdf.config.filename = "test.nc"
+
+    datasink_cf_compliant_netcdf.write_data(output_dataset.get(verification_pair))
+
+    assert (output_directory / "test.nc").exists()
+
+
 def test_write_data_cf_compliant_netcdf_crps(
     tmp_path: Path,
     input_dataset_fews_netcdf_simulated_forecast_ensemble: InputDataset,
