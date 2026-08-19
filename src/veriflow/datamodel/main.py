@@ -271,6 +271,8 @@ class OutputDataset:
         include_input_data: bool = True,
     ) -> xr.Dataset:
         """Get the output dataset for a given verification pair."""
+        compat_mode = "override"
+
         if verification_pair in self.datastore:
             # Get the results for this pair
             dataset = self.datastore[verification_pair]
@@ -281,7 +283,7 @@ class OutputDataset:
                 obs, sim = self.input_dataset.get_pair(verification_pair)
                 obs = obs.rename(verification_pair.obs)
                 sim = sim.rename(verification_pair.sim)
-                return xr.merge([obs, sim, dataset], compat="no_conflicts", join="outer")  # type:ignore[misc, no-any-return, call-overload]
+                return xr.merge([obs, sim, dataset], compat=compat_mode, join="outer")  # type:ignore[misc, no-any-return, call-overload]
 
             # Return results, exclude input dataset
             return dataset
@@ -290,7 +292,7 @@ class OutputDataset:
         obs, sim = self.input_dataset.get_pair(verification_pair)
         obs = obs.rename(verification_pair.obs)
         sim = sim.rename(verification_pair.sim)
-        return xr.merge([obs, sim], compat="no_conflicts", join="outer")  # type:ignore[misc, no-any-return, call-overload]
+        return xr.merge([obs, sim], compat=compat_mode, join="outer")  # type:ignore[misc, no-any-return, call-overload]
 
     @property
     def verification_pairs(self) -> list[VerificationPair]:
