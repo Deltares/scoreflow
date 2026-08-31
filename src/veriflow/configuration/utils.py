@@ -23,6 +23,7 @@ from veriflow.constants import TimeUnits
 
 __all__ = [
     # "FewsWebserviceAuthConfig",
+    "BaseZarrConfig",
     "CRSString",
     "LeadTimes",
     "LocalFile",
@@ -351,13 +352,13 @@ class S3AuthConfig(BaseSettings):
 
 
 class BaseZarrConfig(BaseModel):
-    """Configuration for the veriflow cache.
+    """Configuration for connecting to a single Zarr store.
 
-    The cache will be materialized as a Zarr store on the local filesystem or remote object storage
-    (e.g. S3). When configured, the cache will be used to store and retrieve datasets from any
-    datasource. For example: when requesting forecast data from a datasource, and part of the data
-    is already cached, the cache will be used to retrieve the cached data and only the missing data
-    will be fetched from the datasource.
+    The store may live on the local filesystem or on remote object storage (e.g. S3), and is
+    read via ``xr.open_zarr`` / written via ``xr.Dataset.to_zarr`` / ``xr.DataTree.to_zarr``.
+    This is a shared base: it's used directly for the veriflow cache (:class:`ZarrCacheConfig`),
+    for reading Zarr datasources (``ZarrConfig``), and for writing Zarr datasinks
+    (:class:`CFCompliantZarrConfig`).
     """
 
     path: Annotated[
