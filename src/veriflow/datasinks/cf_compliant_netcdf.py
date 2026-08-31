@@ -23,7 +23,8 @@ class CFCompliantNetCDF(BaseDatasink):
     """For writing veriflow output to NetCDF.
 
     This datasink will write one NetCDF file for each verification pair. Input data are included and
-    results are written in NetCDF groups.
+    results are written in NetCDF groups. Each file is named ``"<stem>_<verification_pair_id>
+    <suffix>"``, where ``<stem>``/``<suffix>`` are derived from the configured ``filename``.
     """
 
     kind = "cf_compliant_netcdf"
@@ -35,11 +36,15 @@ class CFCompliantNetCDF(BaseDatasink):
     def write_data(self, dt: xr.DataTree) -> None:
         """Write the data in the xarray DataTree to the file as specified in the output config."""
         dt = cast("VeriflowDataTree", dt)
-        filepath = Path(self.config.directory) / self.config.filename
-        if filepath.exists() and self.config.force_overwrite is False:
-            msg = "File already exists: " + str(filepath)
-            raise FileExistsError(msg)
+        directory = Path(self.config.directory)
+        filename = Path(self.config.filename)
         for pair in dt.veriflow.verification_pairs:
+            # One file per verification pair, named "<stem>_<pair_id><suffix>".
+            filepath = directory / f"{filename.stem}_{pair}{filename.suffix}"
+            if filepath.exists() and self.config.force_overwrite is False:
+                msg = "File already exists: " + str(filepath)
+                raise FileExistsError(msg)
+
             subset = dt[pair]
 
             # Metadata attrs according to CF-compliancy

@@ -1,6 +1,7 @@
 """Module for tests of datasinks."""
 
 from pathlib import Path
+from typing import cast
 
 import pytest
 import xarray as xr
@@ -42,10 +43,34 @@ def test_cf_compliant_netcdf_write(
     datasink_cf_compliant_netcdf.write_data(
         output_datatree,
     )
-    assert (
-        Path(datasink_cf_compliant_netcdf.config.directory)
-        / datasink_cf_compliant_netcdf.config.filename
-    ).exists()
+    # File name is derived from the configured filename plus the verification pair id.
+    assert (Path(tmpdir) / "test_output_test_pair.nc").exists()
+
+
+def test_cf_compliant_netcdf_write_multiple_pairs(
+    output_datatree_with_multiple_pairs: xr.DataTree,
+    tmpdir: Path,
+    xarray_general_info_config: GeneralInfoConfig,
+) -> None:
+    """Test that one distinct NetCDF file is written per verification pair."""
+    datasink_cf_compliant_netcdf = CFCompliantNetCDF(
+        CFCompliantNetCDFConfig(
+            institution="Test Institution",
+            comment="Test Comment",
+            export_adapter=DataSinkKind.cf_compliant_netcdf,
+            crs="EPSG:4326",
+            directory=Path(tmpdir),
+            filename="test_output.nc",
+            general=xarray_general_info_config,
+        ),
+    )
+    datasink_cf_compliant_netcdf.write_data(output_datatree_with_multiple_pairs)
+
+    for pair_id in ("test_pair_1", "test_pair_2"):
+        filepath = Path(tmpdir) / f"test_output_{pair_id}.nc"
+        assert filepath.exists()
+        with xr.open_dataset(filepath) as written:
+            assert cast("str", written.attrs["institution"]) == "Test Institution"  # type: ignore[misc]
 
 
 @pytest.mark.parametrize(

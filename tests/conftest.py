@@ -1368,3 +1368,25 @@ def output_datatree_with_scores(
         name="fake_score",
     )
     return output_datatree_without_scores
+
+
+@pytest.fixture
+def output_datatree_with_multiple_pairs(
+    xarray_input_dataset: InputDataset,
+) -> VeriflowDataTree:
+    """Fixture for an OutputDataset instance with two verification pairs."""
+    output_dataset = cast("VeriflowDataTree", xr.DataTree(name="veriflow_output"))
+    for pair_id in ("test_pair_1", "test_pair_2"):
+        verification_pair = VerificationPair(
+            obs="observation_source",
+            sim="simulation_ensemble_source",
+            id=pair_id,
+            variable="var_0",
+        )
+        obs, sim = xarray_input_dataset.get_pair(verification_pair)
+        output_dataset.veriflow.add_input_data(
+            verification_pair=verification_pair,
+            obs=obs,
+            sim=sim,
+        )
+    return output_dataset
