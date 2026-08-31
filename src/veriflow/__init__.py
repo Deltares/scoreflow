@@ -16,7 +16,7 @@ from .constants import (
     StandardCoord,
     StandardDim,
 )
-from .datamodel import InputDataset, OutputDataset
+from .datamodel import InputDataset, VeriflowAccessor, VeriflowDataTree
 from .datasources import (
     BaseDatasource,
     BaseDatasourceConfig,

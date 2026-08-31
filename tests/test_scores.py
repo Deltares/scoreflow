@@ -5,8 +5,8 @@ import sys
 from copy import deepcopy
 
 import pytest
-import xarray as xr
 
+import xarray as xr
 from veriflow.configuration.default.scores import (
     CategoricalScoresConfig,
     ContinuousScoresConfig,
@@ -16,7 +16,7 @@ from veriflow.configuration.default.scores import (
     SALScoreConfig,
 )
 from veriflow.constants import DataType, ScoreKind, SpatialType, StandardDim
-from veriflow.datamodel.main import InputDataset
+from veriflow.datamodel.input import InputDataset
 from veriflow.datasources.fewsnetcdf import FewsNetCDF
 from veriflow.scores.categorical import CategoricalScores
 from veriflow.scores.continuous import ContinuousScores

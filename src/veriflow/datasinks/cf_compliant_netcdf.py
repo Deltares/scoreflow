@@ -2,12 +2,16 @@
 
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import TYPE_CHECKING, cast
 
 import xarray as xr
 
 from veriflow.configuration.default.datasinks import CFCompliantNetCDFConfig
 from veriflow.constants import NAME, VERSION
 from veriflow.datasinks.base import BaseDatasink
+
+if TYPE_CHECKING:
+    from veriflow.datamodel.output import VeriflowDataTree
 
 __all__ = [
     "CFCompliantNetCDF",
@@ -16,7 +20,11 @@ __all__ = [
 
 
 class CFCompliantNetCDF(BaseDatasink):
-    """For writing data to a CF-compliant netcdf file."""
+    """For writing veriflow output to NetCDF.
+
+    This datasink will write one NetCDF file for each verification pair. Input data are included and
+    results are written in NetCDF groups.
+    """
 
     kind = "cf_compliant_netcdf"
     config_class = CFCompliantNetCDFConfig
@@ -24,24 +32,27 @@ class CFCompliantNetCDF(BaseDatasink):
     def __init__(self, config: CFCompliantNetCDFConfig) -> None:
         self.config: CFCompliantNetCDFConfig = config
 
-    def write_data(self, dataset: xr.Dataset) -> None:
-        """Write the data in the xarray Dataset to the file as specified in the output config."""
+    def write_data(self, dt: xr.DataTree) -> None:
+        """Write the data in the xarray DataTree to the file as specified in the output config."""
+        dt = cast("VeriflowDataTree", dt)
         filepath = Path(self.config.directory) / self.config.filename
         if filepath.exists() and self.config.force_overwrite is False:
             msg = "File already exists: " + str(filepath)
             raise FileExistsError(msg)
+        for pair in dt.veriflow.verification_pairs:
+            subset = dt[pair]
 
-        # Metadata attrs according to CF-compliancy
-        dataset.attrs = {
-            "title": self.config.title,
-            "institution": self.config.institution,
-            "source": f"{NAME}: version: {VERSION}",
-            "history": "",
-            "references": "",
-            "comment": self.config.comment,
-            "time_coverage_start": self.config.verification_period.start.isoformat(),
-            "time_coverage_end": self.config.verification_period.end.isoformat(),
-            "production_time": datetime.now(tz=timezone.utc).isoformat(),
-            "Conventions": "CF-1.11",
-        }
-        dataset.to_netcdf(filepath)
+            # Metadata attrs according to CF-compliancy
+            subset.attrs = {
+                "title": self.config.title,
+                "institution": self.config.institution,
+                "source": f"{NAME}: version: {VERSION}",
+                "history": "",
+                "references": "",
+                "comment": self.config.comment,
+                "time_coverage_start": self.config.verification_period.start.isoformat(),
+                "time_coverage_end": self.config.verification_period.end.isoformat(),
+                "production_time": datetime.now(tz=timezone.utc).isoformat(),
+                "Conventions": "CF-1.11",
+            }
+            subset.to_netcdf(filepath)

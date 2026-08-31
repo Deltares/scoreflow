@@ -3,8 +3,7 @@
 from typing import ClassVar, Self
 
 import xarray as xr
-
-from veriflow.configuration.default.datasources import S3AuthConfig, ZarrConfig
+from veriflow.configuration.default.datasources import ZarrConfig
 from veriflow.constants import (
     DataType,
     SpatialType,
@@ -15,10 +14,9 @@ from veriflow.datasources.base import BaseDatasource
 from veriflow.types import DataSpec
 from veriflow.utils import convert_byte_string_coord_to_utf8
 
-__all__ = [  # noqa: RUF022
+__all__ = [
     "Zarr",
     "ZarrConfig",
-    "S3AuthConfig",
 ]
 
 

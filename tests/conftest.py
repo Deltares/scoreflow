@@ -8,6 +8,7 @@ from copy import deepcopy
 from datetime import datetime, timezone
 from enum import StrEnum
 from pathlib import Path
+from typing import cast
 
 import numpy as np
 import pandas as pd
@@ -50,7 +51,8 @@ from veriflow.constants import (
     StandardCoord,
     StandardDim,
 )
-from veriflow.datamodel.main import InputDataset
+from veriflow.datamodel.input import InputDataset
+from veriflow.datamodel.output import VeriflowDataTree
 from veriflow.datasinks.cf_compliant_netcdf import CFCompliantNetCDF
 from veriflow.datasources.csv import Csv
 from veriflow.datasources.fewsnetcdf import FewsNetCDF, FewsNetCDFKind
@@ -176,6 +178,8 @@ def xarray_observed_historical() -> xr.Dataset:
         attrs={
             "data_type": DataType.observed_historical,
             "source": DummySource.observation_source,
+            "crs": "dummy_crs",
+            "spatial_type": SpatialType.point,
         },
     )
 
@@ -246,6 +250,8 @@ def xarray_simulated_forecast_ensemble() -> xr.Dataset:
         attrs={
             "data_type": DataType.simulated_forecast_ensemble,
             "source": DummySource.simulation_ensemble_source,
+            "crs": "dummy_crs",
+            "spatial_type": SpatialType.point,
         },
     )
 
@@ -288,6 +294,8 @@ def xarray_simulated_forecast_single() -> xr.Dataset:
         attrs={
             "data_type": DataType.simulated_forecast_single,
             "source": DummySource.simulation_single_source,
+            "crs": "dummy_crs",
+            "spatial_type": SpatialType.point,
         },
     )
 
@@ -878,7 +886,7 @@ def fews_netcdf_compliant_file(
 
 
 @pytest.fixture
-def input_dataset_dummy_data_forecast_reference_time(
+def xarray_input_dataset(
     xarray_observed_historical: xr.Dataset,
     xarray_simulated_forecast_ensemble: xr.Dataset,
 ) -> InputDataset:
@@ -1292,3 +1300,71 @@ def cli_dummy_pipeline_config_yaml(tmp_path: Path) -> Path:
     destination = tmp_path / "config.yaml"
     destination.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
     return destination
+
+
+# ----------------------------------------------------------------------------
+# Fake output dataset fixtures (for output dataset and datasinks tests)
+# ----------------------------------------------------------------------------
+
+
+@pytest.fixture
+def xarray_fake_score_result() -> xr.DataArray:
+    """Fixture for a fake score result."""
+    return xr.DataArray(
+        data=[1, 2, 3],
+        dims=["station"],
+        coords={"station": ["station_1", "station_2", "station_3"]},
+        name="fake_score",
+    )
+
+
+@pytest.fixture
+def output_datatree_without_scores(
+    xarray_input_dataset: InputDataset,
+) -> VeriflowDataTree:
+    """Fixture for an OutputDataset instance."""
+    # Initialize the output dataset
+    output_dataset = cast("VeriflowDataTree", xr.DataTree(name="veriflow_output"))
+    verification_pair = VerificationPair(
+        obs="observation_source",
+        sim="simulation_ensemble_source",
+        id="test_pair",
+        variable="var_0",
+    )
+    obs, sim = xarray_input_dataset.get_pair(verification_pair)
+    output_dataset.veriflow.add_input_data(
+        verification_pair=verification_pair,
+        obs=obs,
+        sim=sim,
+    )
+    return output_dataset
+
+
+@pytest.fixture
+def fake_verification_pair() -> VerificationPair:
+    """Fixture for a fake verification pair."""
+    return VerificationPair(
+        obs="observation_source",
+        sim="simulation_ensemble_source",
+        id="test_pair",
+        variable="var_0",
+    )
+
+
+@pytest.fixture
+def output_datatree_with_scores(
+    output_datatree_without_scores: VeriflowDataTree,
+    fake_verification_pair: VerificationPair,
+) -> VeriflowDataTree:
+    """Fixture for an OutputDataset instance."""
+    output_datatree_without_scores.veriflow.add_score(
+        verification_pair=fake_verification_pair,
+        result=xr.DataArray(
+            data=[1, 2, 3],
+            dims=["station"],
+            coords={"station": ["station_1", "station_2", "station_3"]},
+            name="fake_score",
+        ),
+        name="fake_score",
+    )
+    return output_datatree_without_scores

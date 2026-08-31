@@ -28,6 +28,7 @@ class DataSinkKind(StrEnum):
 
     fews_netcdf = "fewsnetcdf"
     cf_compliant_netcdf = "cf_compliant_netcdf"
+    cf_compliant_zarr = "cf_compliant_zarr"
 
 
 @unique

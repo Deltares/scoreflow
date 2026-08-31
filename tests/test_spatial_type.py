@@ -3,10 +3,10 @@
 # mypy: ignore-errors
 
 import pytest
-import xarray as xr
 
+import xarray as xr
 from veriflow.constants import DataType, SpatialType
-from veriflow.datamodel.main import InputDataset
+from veriflow.datamodel.input import InputDataset
 from veriflow.datasources.inputschemas import INPUT_SCHEMAS, validate_input_data
 from veriflow.scores.spatial import SALScore
 
@@ -31,6 +31,7 @@ def test_spatial_type_defaults_to_point_and_is_backfilled(
     xarray_observed_historical: xr.Dataset,
 ) -> None:
     """A dataset without a spatial_type attr validates as point and gets backfilled."""
+    xarray_observed_historical.attrs.pop("spatial_type", None)
     assert "spatial_type" not in xarray_observed_historical.attrs
     validate_input_data(xarray_observed_historical)
     assert xarray_observed_historical.attrs["spatial_type"] == SpatialType.point
