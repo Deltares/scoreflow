@@ -3,8 +3,8 @@
 # mypy: ignore-errors
 
 import pytest
-
 import xarray as xr
+
 from veriflow.constants import DataType, SpatialType
 from veriflow.datamodel.input import InputDataset
 from veriflow.datasources.inputschemas import INPUT_SCHEMAS, validate_input_data

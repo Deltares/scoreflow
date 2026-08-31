@@ -1,6 +1,7 @@
 """Test the veriflow.datamodel package."""
 
 import xarray as xr
+
 from veriflow.datamodel.input import InputDataset
 from veriflow.datasources.csv import Csv
 from veriflow.datasources.fewsnetcdf import FewsNetCDF

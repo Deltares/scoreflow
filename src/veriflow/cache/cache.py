@@ -6,11 +6,11 @@ from typing import TYPE_CHECKING, ClassVar, Literal, Self
 
 import fsspec  # type:ignore[import-untyped]
 import numpy as np
+import xarray as xr
 import zarr
 from pydantic import BaseModel, model_validator
 from zarr.errors import GroupNotFoundError
 
-import xarray as xr
 from veriflow.cache.config import ReadWriteMode, ZarrCacheConfig
 from veriflow.configuration.utils import LeadTimes, TimePeriod
 from veriflow.constants import FORECAST_DATA_TYPES, HISTORICAL_DATA_TYPES, StandardDim, TimeUnits

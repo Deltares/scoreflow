@@ -3,6 +3,7 @@
 from typing import ClassVar, Self
 
 import xarray as xr
+
 from veriflow.configuration.default.datasources import ZarrConfig
 from veriflow.constants import (
     DataType,

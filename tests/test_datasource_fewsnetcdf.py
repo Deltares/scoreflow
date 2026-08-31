@@ -1,8 +1,8 @@
 """Test the fewsnetcdf module of the veriflow.datasources package."""
 
 import pytest
-
 import xarray as xr
+
 from veriflow.constants import DataType, StandardDim
 from veriflow.datasources.fewsnetcdf import FewsNetCDF
 from veriflow.datasources.inputschemas import INPUT_SCHEMAS, validate_input_data

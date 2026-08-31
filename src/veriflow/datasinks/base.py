@@ -3,6 +3,7 @@
 from abc import abstractmethod
 
 import xarray as xr
+
 from veriflow.base import Base
 from veriflow.configuration.base import BaseDatasinkConfig
 

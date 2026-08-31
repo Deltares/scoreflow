@@ -5,8 +5,8 @@ import sys
 from copy import deepcopy
 
 import pytest
-
 import xarray as xr
+
 from veriflow.configuration.default.scores import (
     CategoricalScoresConfig,
     ContinuousScoresConfig,

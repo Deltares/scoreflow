@@ -3,10 +3,10 @@
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, Annotated, Self
 
+import xarray as xr
 from pydantic import BaseModel, ConfigDict, Field, RootModel, model_validator
 from pydantic.json_schema import SkipJsonSchema
 
-import xarray as xr
 from veriflow.cache.config import ZarrCacheConfig
 from veriflow.constants import DataType, SpatialType, StandardDim
 

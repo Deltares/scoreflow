@@ -3,6 +3,7 @@
 from collections.abc import Iterable
 
 import xarray as xr
+
 from veriflow.configuration.utils import VerificationPair
 from veriflow.constants import (
     FORECAST_DATA_TYPES,
