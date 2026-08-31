@@ -68,7 +68,9 @@ class VeriflowAccessor:
 
     def list_scores(self, verification_pair_id: str) -> list[str]:
         """Get a list of available scores for a specific verification pair."""
-        return [str(name) for name in self.output(verification_pair_id).data_vars]
+        pair_node = cast("xr.DataTree", self.dt[verification_pair_id])
+        output_node = cast("xr.DataTree", pair_node["output"])
+        return list(output_node.children.keys())
 
     def path_exists_in_dt(self, path_in_dt: str) -> bool:
         """Validate if a given path does not exist in the DataTree."""

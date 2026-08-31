@@ -73,6 +73,30 @@ def test_cf_compliant_netcdf_write_multiple_pairs(
             assert cast("str", written.attrs["institution"]) == "Test Institution"  # type: ignore[misc]
 
 
+def test_cf_compliant_netcdf_write_force_overwrite_false_raises(
+    output_datatree_without_scores: xr.DataTree,
+    tmpdir: Path,
+    xarray_general_info_config: GeneralInfoConfig,
+) -> None:
+    """Test that an existing per-pair file raises FileExistsError when force_overwrite=False."""
+    # Pre-create the file that would be written for verification pair "test_pair".
+    (Path(tmpdir) / "test_output_test_pair.nc").touch()
+    datasink_cf_compliant_netcdf = CFCompliantNetCDF(
+        CFCompliantNetCDFConfig(
+            institution="Test Institution",
+            comment="Test Comment",
+            export_adapter=DataSinkKind.cf_compliant_netcdf,
+            crs="EPSG:4326",
+            directory=Path(tmpdir),
+            filename="test_output.nc",
+            force_overwrite=False,
+            general=xarray_general_info_config,
+        ),
+    )
+    with pytest.raises(FileExistsError, match="already exists"):
+        datasink_cf_compliant_netcdf.write_data(output_datatree_without_scores)
+
+
 @pytest.mark.parametrize(
     "dt_fixture",
     [
@@ -104,3 +128,47 @@ def test_cf_compliant_zarr_write_local(
         output_datatree,
     )
     assert (Path(datasink_cf_compliant_zarr.config.path)).exists()
+
+
+def test_cf_compliant_zarr_write_explicit_consolidated(
+    output_datatree_without_scores: xr.DataTree,
+    tmpdir: Path,
+    xarray_general_info_config: GeneralInfoConfig,
+) -> None:
+    """Test that an explicit (non-None) consolidated value is passed through as-is."""
+    datasink_cf_compliant_zarr = CFCompliantZarr(
+        CFCompliantZarrConfig(
+            institution="Test Institution",
+            comment="Test Comment",
+            export_adapter=DataSinkKind.cf_compliant_zarr,
+            crs="EPSG:4326",
+            path=f"{tmpdir!s}/test_output.zarr",
+            consolidated=False,
+            general=xarray_general_info_config,
+        ),
+    )
+    datasink_cf_compliant_zarr.write_data(output_datatree_without_scores)
+    assert Path(datasink_cf_compliant_zarr.config.path).exists()
+
+
+def test_cf_compliant_zarr_write_force_overwrite_false_raises(
+    output_datatree_without_scores: xr.DataTree,
+    tmpdir: Path,
+    xarray_general_info_config: GeneralInfoConfig,
+) -> None:
+    """Test that an existing store raises FileExistsError when force_overwrite=False."""
+    store_path = Path(tmpdir) / "test_output.zarr"
+    store_path.mkdir()
+    datasink_cf_compliant_zarr = CFCompliantZarr(
+        CFCompliantZarrConfig(
+            institution="Test Institution",
+            comment="Test Comment",
+            export_adapter=DataSinkKind.cf_compliant_zarr,
+            crs="EPSG:4326",
+            path=str(store_path),
+            force_overwrite=False,
+            general=xarray_general_info_config,
+        ),
+    )
+    with pytest.raises(FileExistsError, match="already exists"):
+        datasink_cf_compliant_zarr.write_data(output_datatree_without_scores)
