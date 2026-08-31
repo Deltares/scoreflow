@@ -113,13 +113,6 @@ markers = [
     "pysteps: tests that require the optional pysteps dependency",
 ]
 
-[tool.coverage.report]
-exclude_lines = [
-    "pragma: no cover",
-    "if TYPE_CHECKING:",
-    "@(abc\\.)?abstractmethod",
-]
-
 [build-system]
 requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
