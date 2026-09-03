@@ -284,6 +284,8 @@ def run_pipeline(
                 )
                 datasink = sink_kind.from_config(datasink_config.model_dump())  # type: ignore[misc] # Allow Any
                 datasink.write_data(output_datatree)
+                msg = f"Successfully wrote data using datasink {datasink_config.export_adapter}."
+                logger.info(msg)
 
     msg = "Verification pipeline completed successfully."
     logger.info(msg)
