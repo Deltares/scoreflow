@@ -225,7 +225,7 @@ def run_pipeline(
         output_datatree = cast("VeriflowDataTree", xr.DataTree(name="veriflow_output"))
         for verification_pair in config.general.verification_pairs:
             obs, sim = input_dataset.get_pair(verification_pair)
-            output_datatree.veriflow.add_input_data(
+            output_datatree.veriflow.add_staged_input_data(
                 verification_pair=verification_pair,
                 obs=obs,
                 sim=sim,

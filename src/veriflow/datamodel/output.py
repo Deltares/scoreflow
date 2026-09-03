@@ -1,46 +1,90 @@
-"""Module for creating and managing the output dataset for veriflow."""
+"""The veriflow data tree structure and accessor.
 
+The veriflow DataTree is an instance of ``xarray.DataTree`` and thus has all standard methods and
+attributes of an ``xarray.DataTree``. The VeriflowAccessor extends this functionality with methods
+specific to the veriflow DataTree structure. It can be used as follows:
+
+.. code-block:: python
+
+    import xarray as xr
+
+    from veriflow import run_pipeline
+
+    # The output of the veriflow pipeline is an instance of ``xr.DataTree``.
+    dt: xr.DataTree = run_pipeline(...)
+
+    # The ``dt.veriflow`` accessor provides convenient methods to interact with the veriflow
+    # DataTree. Get the list of verification pair IDs.
+    dt.veriflow.verification_pairs
+
+The VeriflowAccessor extends ``xarray.DataTree`` via the ``xr.register_datatree_accessor``
+decorator, as recommended by the `xarray documentation
+<https://docs.xarray.dev/en/latest/internals/extending-xarray.html>`_.
+"""
+
+from enum import StrEnum
 from typing import TYPE_CHECKING, cast
 
 import xarray as xr
 
 from veriflow.configuration.utils import VerificationPair
 
+__all__ = ["VeriflowAccessor"]
+
+
+class DataTreeNode(StrEnum):
+    """Enum for standard DataTree node names."""
+
+    ROOT = "veriflow-output"
+    INPUT = "input"
+    OUTPUT = "output"
+    INPUT_STAGED = "input_staged"
+    REFERENCE = "reference"
+    EVALUATION = "evaluation"
+
 
 @xr.register_datatree_accessor("veriflow")  # type: ignore[no-untyped-call, misc]
 class VeriflowAccessor:
     """Accessor for managing the output dataset for veriflow.
 
-    The lay-out of the DataTree is as follows:
-    - Root node: "veriflow-output"
-    - Child nodes: Each child node corresponds to a verification pair, identified by its unique ID.
-    - Each verification pair node contains two sub-nodes:
-        - "input": Contains the input dataset for the verification pair.
-        - "output": Contains the output dataset with computed scores for the verification pair.
-    - Each output node contains one or more sub-nodes, each corresponding to a specific score
-        (e.g., "crps", "rank_histogram"), which contain the computed score results as xarray
-        Datasets.
+        The DataTree layout is as follows:
 
-    Schematic representation of the DataTree structure:
+        - The root node is ``veriflow-output``.
+        - Each child node represents a verification pair, identified by its unique ID.
+        - Each verification pair contains an ``input_staged`` node with data prepared for
+            verification. The reference and evaluation data are aligned and ready for verification.
+            For example, when a forecast is verified against observations, the observations are
+            mapped into forecast space along the ``forecast_reference_time`` and ``lead_time``
+            dimensions.
+        - Each verification pair contains an ``output`` node with its computed scores.
+        - Each output node contains one or more score nodes, such as ``crps`` or
+            ``rank_histogram``. The node name is identical to the ``score_adapter`` used in the
+            veriflow pipeline configuration. In turn, each node has a dataset containing the
+            computed score results. This dataset can contain one or more data variables
+            corresponding to different aspects of the score.
 
-    veriflow-output
-    ├── verification_pair_1
-    │   └── input
-    │         ├── observed_source_id
-    │         └── simulated_forecast_ensemble_source_id
-    │   └── output
-    │       ├── crps
-    │           ├── crps
-    │           ├── overforecast_penalty
-    │           ├── underforecast_penalty
-    │           └── forecast_spread_term
-    │       └── rank_histogram
-    │           └── rank_histogram
-    └── verification_pair_2
-        ├── input
-        │   └── ...
-        └── output
-            └── ...
+    Schematic representation of the DataTree structure::
+
+        veriflow-output
+        ├── verification_pair_1
+        │   ├── input_staged
+        │   │   ├── reference
+        │   │   │   └── waterlevel
+        │   │   └── evaluation
+        │   │       └── waterlevel
+        │   └── output
+        │       ├── crps
+        │       │   ├── crps
+        │       │   ├── overforecast_penalty
+        │       │   ├── underforecast_penalty
+        │       │   └── forecast_spread_term
+        │       └── rank_histogram
+        │           └── rank_histogram
+        └── verification_pair_2
+            ├── input_staged
+            │   └── ...
+            └── output
+                └── ...
     """
 
     def __init__(self, dt: xr.DataTree) -> None:
@@ -56,21 +100,24 @@ class VeriflowAccessor:
         """Get a list of verification pair IDs in the DataTree."""
         return list(self.dt.children.keys())
 
-    def input(self, verification_pair_id: str) -> xr.Dataset:
+    def get_verification_pair_node(self, verification_pair_id: str) -> xr.DataTree:
+        """Get the DataTree node corresponding to a specific verification pair."""
+        return cast("xr.DataTree", self.dt[verification_pair_id])
+
+    def input_staged(self, verification_pair_id: str) -> xr.DataTree:
         """Get the input dataset for a specific verification pair."""
-        pair_node = cast("xr.DataTree", self.dt[verification_pair_id])
-        return cast("xr.DataTree", pair_node["input"]).dataset
+        pair_node = self.get_verification_pair_node(verification_pair_id)
+        return cast("xr.DataTree", pair_node[DataTreeNode.INPUT_STAGED])
 
     def output(self, verification_pair_id: str) -> xr.Dataset:
         """Get the output dataset for a specific verification pair."""
-        pair_node = cast("xr.DataTree", self.dt[verification_pair_id])
-        return cast("xr.DataTree", pair_node["output"]).dataset
+        pair_node = self.get_verification_pair_node(verification_pair_id)
+        return cast("xr.DataTree", pair_node[DataTreeNode.OUTPUT]).to_dataset()
 
     def list_scores(self, verification_pair_id: str) -> list[str]:
         """Get a list of available scores for a specific verification pair."""
-        pair_node = cast("xr.DataTree", self.dt[verification_pair_id])
-        output_node = cast("xr.DataTree", pair_node["output"])
-        return list(output_node.children.keys())
+        output_node = self.get_verification_pair_node(verification_pair_id)[DataTreeNode.OUTPUT]
+        return list(output_node.children.keys())  # type:ignore[misc]
 
     def path_exists_in_dt(self, path_in_dt: str) -> bool:
         """Validate if a given path does not exist in the DataTree."""
@@ -99,20 +146,24 @@ class VeriflowAccessor:
         if isinstance(result, xr.DataArray):  # type:ignore[misc]
             result = result.to_dataset()
 
-        path_in_dt = f"{verification_pair.id}/output/{name}"
+        path_in_dt = f"{verification_pair.id}/{DataTreeNode.OUTPUT}/{name}"
         self.validate_path_does_not_exist(path_in_dt)
         self.dt[path_in_dt] = result
 
-    def add_input_data(
+    def add_staged_input_data(
         self,
         verification_pair: VerificationPair,
         obs: xr.DataArray,
         sim: xr.DataArray,
     ) -> None:
         """Add input data to the datastore."""
-        path_in_dt = f"{verification_pair.id}/input"
-        self.validate_path_does_not_exist(path_in_dt)
-        self.dt[path_in_dt] = xr.merge([obs, sim], compat="override", join="outer")  # type:ignore[misc, call-overload]
+        base_path_in_dt = f"{verification_pair.id}/{DataTreeNode.INPUT_STAGED}"
+        self.validate_path_does_not_exist(base_path_in_dt)
+
+        # Add reference data. We use `to_dataset()` to preserve the variable names and ensure
+        # consistency in the DataTree structure.
+        self.dt[f"{base_path_in_dt}/{DataTreeNode.REFERENCE}"] = obs.to_dataset()
+        self.dt[f"{base_path_in_dt}/{DataTreeNode.EVALUATION}"] = sim.to_dataset()
 
 
 if TYPE_CHECKING:
