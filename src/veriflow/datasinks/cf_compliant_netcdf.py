@@ -25,6 +25,9 @@ class CFCompliantNetCDF(BaseDatasink):
     This datasink will write one NetCDF file for each verification pair. Input data are included and
     results are written in NetCDF groups. Each file is named ``"<stem>_<verification_pair_id>
     <suffix>"``, where ``<stem>``/``<suffix>`` are derived from the configured ``filename``.
+
+    .. note::
+        CF-compliancy is not yet fully implemented.
     """
 
     kind = "cf_compliant_netcdf"

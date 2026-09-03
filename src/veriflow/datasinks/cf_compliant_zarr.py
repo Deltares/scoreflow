@@ -25,7 +25,7 @@ class CFCompliantZarr(BaseDatasink):
     specific verification pair and contains both input data and output data.
 
     .. note::
-    CF-compliancy is not yet fully implemented.
+        CF-compliancy is not yet fully implemented.
     """
 
     kind = "cf_compliant_zarr"
