@@ -51,7 +51,7 @@ FewsWebserviceVersionString = Annotated[
 class FewsWebserviceVersion(BaseModel):
     """Configuration of FEWS Webservice version."""
 
-    year: Annotated[int, Field(gt=2012, lt=2100, type=int)]
+    year: Annotated[int, Field(gt=2012, lt=2100)]
     subversion: Literal[1, 2]
 
     @property
