@@ -159,7 +159,7 @@ class IdMappingConfig(BaseModel):
         Variable names (data variable names) and station identifiers are renamed from the
         external (source-specific) definition to the internal definition.
         """
-        source = str(dataset.attrs.get("source", ""))  # type:ignore[misc]
+        source = str(dataset.attrs.get("source_id", ""))  # type:ignore[misc]
 
         # Re-assign variable definitions, if mapping is provided for source
         if self.variable is not None:
@@ -215,7 +215,7 @@ class BaseDatasourceConfig(BaseConfig):
     """
 
     import_adapter: str
-    source: Source
+    source_id: Source
     data_type: DataType
     spatial_type: SpatialType = SpatialType.point
     general: SkipJsonSchema[GeneralInfoConfig]  # Do not serialize to json schema, since general

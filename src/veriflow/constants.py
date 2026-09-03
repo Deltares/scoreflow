@@ -290,6 +290,7 @@ class StandardAttribute:
     timestep = "timestep"
     featuretype = "featureType"
     crs = "crs"
+    source_id = "source_id"
 
 
 def _set_version_info() -> tuple[str, str]:

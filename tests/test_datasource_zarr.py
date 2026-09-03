@@ -24,7 +24,7 @@ def _make_zarr_config(
 ) -> ZarrConfig:
     return ZarrConfig(
         general=general,
-        source=general.verification_pairs[0].obs,
+        source_id=general.verification_pairs[0].reference_source_id,
         data_type=data_type,
         import_adapter=DataSourceKind.ZARR,
         path=path,
@@ -51,7 +51,7 @@ def test_fetch_data_local_store(
     datasource.fetch_data()
 
     assert datasource.dataset.attrs["data_type"] == DataType.observed_historical
-    assert datasource.dataset.attrs["source"] == "observation_source"
+    assert datasource.dataset.attrs["source_id"] == "observation_source"
 
     xr.testing.assert_equal(
         datasource.dataset.drop_attrs(),

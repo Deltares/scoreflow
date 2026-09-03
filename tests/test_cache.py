@@ -254,7 +254,9 @@ class TestHistoricalCacheRequest:
         """Verify multi-dim misses skip the single-dim split shortcut."""
         config = NetCDFConfig(
             general=xarray_general_info_config_historical,
-            source=xarray_general_info_config_historical.verification_pairs[0].obs,
+            source_id=xarray_general_info_config_historical.verification_pairs[
+                0
+            ].reference_source_id,
             data_type=DataType.observed_historical,
             directory=".",
             filename_glob="*.nc",

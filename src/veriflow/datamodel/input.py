@@ -63,12 +63,12 @@ class InputDatasetExtension:
         return self.data_type in FORECAST_DATA_TYPES
 
     @property
-    def source(self) -> str:
-        """The source name."""
-        if "source" not in self._obj.attrs:  # type:ignore[misc]
-            msg = f"No source set on {self._obj} attrs."
+    def source_id(self) -> str:
+        """The source ID."""
+        if "source_id" not in self._obj.attrs:  # type:ignore[misc]
+            msg = f"No source_id set on {self._obj} attrs."
             raise ValueError(msg)
-        return str(self._obj.attrs["source"])  # type:ignore[misc]
+        return str(self._obj.attrs["source_id"])  # type:ignore[misc]
 
 
 class InputDataset:
@@ -92,7 +92,7 @@ class InputDataset:
 
         # Validate, and add to datastore
         for dataset in data:
-            self.datastore[dataset.verification.source] = dataset  # type:ignore[misc]
+            self.datastore[dataset.verification.source_id] = dataset  # type:ignore[misc]
 
     @staticmethod
     def map_historical_into_forecast_space(
@@ -163,22 +163,24 @@ class InputDataset:
         resulting DataArrays. This method is called by the verification pipeline at runtime
         to retrieve the correct data for one of the configured verification pairs.
         """
-        obs_ds = self.datastore[verification_pair.obs]
-        sim_ds = self.datastore[verification_pair.sim]
+        obs_ds = self.datastore[verification_pair.reference_source_id]
+        sim_ds = self.datastore[verification_pair.evaluation_source_id]
 
         variable = verification_pair.variable
         if variable not in obs_ds.data_vars:
             msg = (
                 f"Variable '{variable}' configured on verification pair "
-                f"'{verification_pair.id}' not found in obs source '{verification_pair.obs}'. "
+                f"'{verification_pair.id}' not found in obs source "
+                f"'{verification_pair.reference_source_id}'. "
                 f"Available variables: {sorted(obs_ds.data_vars)}."  # type:ignore[type-var]
             )
             raise ValueError(msg)
         if variable not in sim_ds.data_vars:
             msg = (
                 f"Variable '{variable}' configured on verification pair "
-                f"'{verification_pair.id}' not found in sim source '{verification_pair.sim}'. "
-                f"Available variables: {sorted(sim_ds.data_vars)}."  # type:ignore[type-var]
+                f"'{verification_pair.id}' not found in sim source "
+                f"'{verification_pair.evaluation_source_id}'. Available variables: "
+                f"{sorted(sim_ds.data_vars)}."  # type:ignore[type-var]
             )
             raise ValueError(msg)
 
@@ -198,6 +200,16 @@ class InputDataset:
         # dataset is guaranteed to carry a ``crs`` attribute (defaulting to EPSG:4326).
         obs.attrs.setdefault(StandardAttribute.crs, obs_ds.attrs[StandardAttribute.crs])  # type:ignore[misc]
         sim.attrs.setdefault(StandardAttribute.crs, sim_ds.attrs[StandardAttribute.crs])  # type:ignore[misc]
+
+        # Set the source id on the datasets
+        obs.attrs.setdefault(  # type:ignore[misc]
+            StandardAttribute.source_id,
+            obs_ds.attrs.get(StandardAttribute.source_id),  # type:ignore[misc]
+        )
+        sim.attrs.setdefault(  # type:ignore[misc]
+            StandardAttribute.source_id,
+            sim_ds.attrs.get(StandardAttribute.source_id),  # type:ignore[misc]
+        )
 
         if sim_ds.verification.is_forecast:  # type:ignore[misc]
             # Map historical into forecast space upon score computation

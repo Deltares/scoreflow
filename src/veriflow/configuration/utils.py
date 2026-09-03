@@ -196,8 +196,8 @@ class VerificationPair(BaseModel):
     """
 
     id: str
-    obs: Source
-    sim: Source
+    reference_source_id: Source
+    evaluation_source_id: Source
     variable: Variable
 
     model_config = {
