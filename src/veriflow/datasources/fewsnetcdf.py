@@ -538,12 +538,12 @@ class FewsNetCDF(BaseDatasource):
             if (
                 self.config.id_mapping is not None
                 and self.config.id_mapping.variable is not None
-                and self.config.source in self.config.id_mapping.variable.sources
+                and self.config.source_id in self.config.id_mapping.variable.sources
                 and "_" in var_name
                 and var_name.replace("_", ".")
                 in list(
                     self.config.id_mapping.variable.get_external_to_internal_mapping(
-                        self.config.source,
+                        self.config.source_id,
                     ),
                 )
             ):
@@ -601,7 +601,7 @@ class FewsNetCDF(BaseDatasource):
             )
             time_end = datetime.now()  # noqa: DTZ005
             msg = (
-                f"Opened dataset for source '{self.config.source}' from {self.config.paths} "
+                f"Opened dataset for source '{self.config.source_id}' from {self.config.paths} "
                 f"(took {(time_end - time_start).total_seconds():.2f} seconds)"
             )
             logger.info(msg)
@@ -637,7 +637,7 @@ class FewsNetCDF(BaseDatasource):
             if dataset[StandardDim.time].size == 0:
                 msg = (
                     "No time steps found in the dataset after applying the verification period "
-                    f"filter. Dataset source: {self.config.source} no time steps between "
+                    f"filter. Dataset source: {self.config.source_id} no time steps between "
                     f"{self.config.verification_period_on_time.start} to "
                     f"{self.config.verification_period_on_time.end}"
                 )

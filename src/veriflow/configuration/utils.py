@@ -2,8 +2,9 @@
 
 from collections.abc import Iterator
 from datetime import datetime, timedelta, timezone
+from os import R_OK, access
 from pathlib import Path
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Self
 
 import numpy as np
 from pydantic import (
@@ -14,6 +15,7 @@ from pydantic import (
     SecretStr,
     StringConstraints,
     field_validator,
+    model_validator,
 )
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -21,6 +23,7 @@ from veriflow.constants import TimeUnits
 
 __all__ = [
     # "FewsWebserviceAuthConfig",
+    "BaseZarrConfig",
     "CRSString",
     "LeadTimes",
     "LocalFile",
@@ -193,8 +196,8 @@ class VerificationPair(BaseModel):
     """
 
     id: str
-    obs: Source
-    sim: Source
+    reference_source_id: Source
+    evaluation_source_id: Source
     variable: Variable
 
     model_config = {
@@ -346,3 +349,71 @@ class S3AuthConfig(BaseSettings):
             options["client_kwargs"] = client_kwargs
 
         return options
+
+
+class BaseZarrConfig(BaseModel):
+    """Configuration for connecting to a single Zarr store.
+
+    The store may live on the local filesystem or on remote object storage (e.g. S3), and is
+    read via ``xr.open_zarr`` / written via ``xr.Dataset.to_zarr`` / ``xr.DataTree.to_zarr``.
+    This is a shared base: it's used directly for the veriflow cache (:class:`ZarrCacheConfig`),
+    for reading Zarr datasources (``ZarrConfig``), and for writing Zarr datasinks
+    (:class:`CFCompliantZarrConfig`).
+    """
+
+    path: Annotated[
+        str,
+        Field(
+            min_length=1,
+            description="Path to a single Zarr store. Local filesystem path (absolute or "
+            "relative) or a remote URL such as 's3://bucket/key/store.zarr'.",
+        ),
+    ]
+    auth_config: Annotated[
+        S3AuthConfig | None,
+        Field(
+            default=None,
+            description="Authentication configuration for remote stores. Only consulted "
+            "when 'path' points to an 's3://' location. When the path is remote and this is "
+            "left unset, credentials are loaded automatically from S3_-prefixed environment "
+            "variables, so configuring 'auth_config: {}' in YAML is not required.",
+        ),
+    ] = None
+    storage_options: Annotated[
+        dict[str, str] | None,
+        Field(
+            default=None,
+            description="Additional storage_options forwarded to xr.open_zarr. Merged on "
+            "top of the options derived from 'auth_config'. Use this for advanced "
+            "fsspec / s3fs settings not exposed by S3AuthConfig.",
+        ),
+    ] = None
+    consolidated: Annotated[
+        bool | None,
+        Field(
+            default=None,
+            description="Whether to use consolidated metadata when opening the store. "
+            "Forwarded to xr.open_zarr. Default ('None') lets xarray auto-detect.",
+        ),
+    ] = None
+
+    def is_remote_path(self) -> bool:
+        """Return True if ``path`` looks like a remote/fsspec URL (e.g. ``s3://``)."""
+        return "://" in self.path
+
+    @model_validator(mode="after")
+    def validate_zarr_path_accessible(self) -> Self:
+        """Check that a local cache dir exists, or initialize S3 auth for remote paths."""
+        if self.is_remote_path():
+            # Auto-load S3 credentials from S3_-prefixed environment variables so users do
+            # not have to explicitly configure 'auth_config: {}' for remote stores.
+            if self.auth_config is None:
+                self.auth_config = S3AuthConfig()
+        else:
+            path = Path(self.path)
+            if not path.exists():
+                path.mkdir(parents=True)
+            elif not path.is_dir() and access(path, R_OK):
+                msg = "Cache directory is not an accessible directory."
+                raise NotADirectoryError(msg)
+        return self

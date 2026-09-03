@@ -14,7 +14,7 @@ from veriflow.constants import (
     StandardDim,
 )
 
-__all__ = ["InputDataset", "OutputDataset"]
+__all__ = ["InputDataset"]
 
 
 @xr.register_dataset_accessor("verification")  # type:ignore[no-untyped-call, misc]
@@ -63,12 +63,12 @@ class InputDatasetExtension:
         return self.data_type in FORECAST_DATA_TYPES
 
     @property
-    def source(self) -> str:
-        """The source name."""
-        if "source" not in self._obj.attrs:  # type:ignore[misc]
-            msg = f"No source set on {self._obj} attrs."
+    def source_id(self) -> str:
+        """The source ID."""
+        if "source_id" not in self._obj.attrs:  # type:ignore[misc]
+            msg = f"No source_id set on {self._obj} attrs."
             raise ValueError(msg)
-        return str(self._obj.attrs["source"])  # type:ignore[misc]
+        return str(self._obj.attrs["source_id"])  # type:ignore[misc]
 
 
 class InputDataset:
@@ -92,7 +92,7 @@ class InputDataset:
 
         # Validate, and add to datastore
         for dataset in data:
-            self.datastore[dataset.verification.source] = dataset  # type:ignore[misc]
+            self.datastore[dataset.verification.source_id] = dataset  # type:ignore[misc]
 
     @staticmethod
     def map_historical_into_forecast_space(
@@ -163,22 +163,24 @@ class InputDataset:
         resulting DataArrays. This method is called by the verification pipeline at runtime
         to retrieve the correct data for one of the configured verification pairs.
         """
-        obs_ds = self.datastore[verification_pair.obs]
-        sim_ds = self.datastore[verification_pair.sim]
+        obs_ds = self.datastore[verification_pair.reference_source_id]
+        sim_ds = self.datastore[verification_pair.evaluation_source_id]
 
         variable = verification_pair.variable
         if variable not in obs_ds.data_vars:
             msg = (
                 f"Variable '{variable}' configured on verification pair "
-                f"'{verification_pair.id}' not found in obs source '{verification_pair.obs}'. "
+                f"'{verification_pair.id}' not found in obs source "
+                f"'{verification_pair.reference_source_id}'. "
                 f"Available variables: {sorted(obs_ds.data_vars)}."  # type:ignore[type-var]
             )
             raise ValueError(msg)
         if variable not in sim_ds.data_vars:
             msg = (
                 f"Variable '{variable}' configured on verification pair "
-                f"'{verification_pair.id}' not found in sim source '{verification_pair.sim}'. "
-                f"Available variables: {sorted(sim_ds.data_vars)}."  # type:ignore[type-var]
+                f"'{verification_pair.id}' not found in sim source "
+                f"'{verification_pair.evaluation_source_id}'. Available variables: "
+                f"{sorted(sim_ds.data_vars)}."  # type:ignore[type-var]
             )
             raise ValueError(msg)
 
@@ -198,6 +200,16 @@ class InputDataset:
         # dataset is guaranteed to carry a ``crs`` attribute (defaulting to EPSG:4326).
         obs.attrs.setdefault(StandardAttribute.crs, obs_ds.attrs[StandardAttribute.crs])  # type:ignore[misc]
         sim.attrs.setdefault(StandardAttribute.crs, sim_ds.attrs[StandardAttribute.crs])  # type:ignore[misc]
+
+        # Set the source id on the datasets
+        obs.attrs.setdefault(  # type:ignore[misc]
+            StandardAttribute.source_id,
+            obs_ds.attrs.get(StandardAttribute.source_id),  # type:ignore[misc]
+        )
+        sim.attrs.setdefault(  # type:ignore[misc]
+            StandardAttribute.source_id,
+            sim_ds.attrs.get(StandardAttribute.source_id),  # type:ignore[misc]
+        )
 
         if sim_ds.verification.is_forecast:  # type:ignore[misc]
             # Map historical into forecast space upon score computation
@@ -225,81 +237,3 @@ class InputDataset:
             "categorical scores."
         )
         raise ValueError(msg)
-
-
-class OutputDataset:
-    """The internal output dataset.
-
-    Contains input data, results from verification scores and metadata.
-    """
-
-    def __init__(
-        self,
-        input_dataset: InputDataset,
-    ) -> None:
-        self.input_dataset = input_dataset
-
-        # Internal datastore that stores results of score computation in a dictionary where the
-        #   key represent the pair_id of the VerificationPair and the value is an xr.Dataset that
-        #   contains all results from varying scores for that pair.
-        self.datastore: dict[VerificationPair, xr.Dataset] = {}
-
-    def add_score(
-        self,
-        score: xr.DataArray | xr.Dataset,
-        verification_pair: VerificationPair,
-    ) -> None:
-        """Add a score results to the datastore."""
-        # Convert to xr.Dataset
-        if isinstance(score, xr.DataArray):  # type:ignore[misc]
-            score = score.to_dataset()
-
-        # Add to the store, if not added before
-        if verification_pair not in self.datastore:
-            self.datastore[verification_pair] = score
-
-        # Pair has added data to the datastore before, so merge
-        else:
-            self.datastore[verification_pair] = xr.merge(
-                [self.datastore[verification_pair], score],  # type:ignore[list-item, assignment]
-            )
-
-    def get(
-        self,
-        verification_pair: VerificationPair,
-        *,
-        include_input_data: bool = True,
-    ) -> xr.Dataset:
-        """Get the output dataset for a given verification pair."""
-        if verification_pair in self.datastore:
-            # Get the results for this pair
-            dataset = self.datastore[verification_pair]
-
-            if include_input_data:
-                # Return results, include the input dataset (renamed obs/sim DataArrays to the
-                # source name to avoid collision when both sources expose the same variable name)
-                obs, sim = self.input_dataset.get_pair(verification_pair)
-                obs = obs.rename(verification_pair.obs)
-                sim = sim.rename(verification_pair.sim)
-                return xr.merge([obs, sim, dataset], compat="no_conflicts", join="outer")  # type:ignore[misc, no-any-return, call-overload]
-
-            # Return results, exclude input dataset
-            return dataset
-
-        # Return only input dataset (no results found in datastore)
-        obs, sim = self.input_dataset.get_pair(verification_pair)
-        obs = obs.rename(verification_pair.obs)
-        sim = sim.rename(verification_pair.sim)
-        return xr.merge([obs, sim], compat="no_conflicts", join="outer")  # type:ignore[misc, no-any-return, call-overload]
-
-    @property
-    def verification_pairs(self) -> list[VerificationPair]:
-        """Return the list of verification pairs that are stored in the output dataset."""
-        return list(self.datastore.keys())
-
-    def __repr__(self) -> str:
-        """Return a string representation of the output dataset."""
-        return (
-            f"OutputDataset with {len(self.datastore)} verification pairs: "
-            f"{self.verification_pairs}"
-        )

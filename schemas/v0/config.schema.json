@@ -14,6 +14,15 @@
       "additionalProperties": true,
       "description": "A cf-compliant NetCDF output config element.",
       "properties": {
+        "directory": {
+          "format": "path",
+          "title": "Directory",
+          "type": "string"
+        },
+        "filename": {
+          "title": "Filename",
+          "type": "string"
+        },
         "export_adapter": {
           "const": "cf_compliant_netcdf",
           "title": "Export Adapter",
@@ -38,15 +47,6 @@
           "default": null,
           "description": "Optional coordinate reference system for the output. When set, the results' coordinates are reprojected to this CRS before writing.",
           "title": "Crs"
-        },
-        "directory": {
-          "format": "path",
-          "title": "Directory",
-          "type": "string"
-        },
-        "filename": {
-          "title": "Filename",
-          "type": "string"
         },
         "conventions": {
           "const": "CF-1.7",
@@ -73,9 +73,9 @@
         }
       },
       "required": [
-        "export_adapter",
         "directory",
         "filename",
+        "export_adapter",
         "institution"
       ],
       "title": "CFCompliantNetCDFConfig",
@@ -366,11 +366,11 @@
           "title": "Import Adapter",
           "type": "string"
         },
-        "source": {
+        "source_id": {
           "description": "The source indicates the origin of the data. For simulated data this may, for example, refer to the model that produced the data. For observation this may, for example, be simply 'observed' or 'my_validated_observations_database'. The source should start with a letter, consists of only letters, digits and underscores. Spaces or punctuation are disallowed.",
           "minLength": 1,
           "pattern": "^[A-Za-z][A-Za-z0-9_]*$",
-          "title": "Source",
+          "title": "Source Id",
           "type": "string"
         },
         "data_type": {
@@ -418,7 +418,7 @@
       },
       "required": [
         "import_adapter",
-        "source",
+        "source_id",
         "data_type",
         "directory",
         "filename",
@@ -471,11 +471,11 @@
           "title": "Import Adapter",
           "type": "string"
         },
-        "source": {
+        "source_id": {
           "description": "The source indicates the origin of the data. For simulated data this may, for example, refer to the model that produced the data. For observation this may, for example, be simply 'observed' or 'my_validated_observations_database'. The source should start with a letter, consists of only letters, digits and underscores. Spaces or punctuation are disallowed.",
           "minLength": 1,
           "pattern": "^[A-Za-z][A-Za-z0-9_]*$",
-          "title": "Source",
+          "title": "Source Id",
           "type": "string"
         },
         "data_type": {
@@ -525,7 +525,7 @@
         "directory",
         "filename_glob",
         "import_adapter",
-        "source",
+        "source_id",
         "data_type",
         "netcdf_kind"
       ],
@@ -583,11 +583,11 @@
           "title": "Import Adapter",
           "type": "string"
         },
-        "source": {
+        "source_id": {
           "description": "The source indicates the origin of the data. For simulated data this may, for example, refer to the model that produced the data. For observation this may, for example, be simply 'observed' or 'my_validated_observations_database'. The source should start with a letter, consists of only letters, digits and underscores. Spaces or punctuation are disallowed.",
           "minLength": 1,
           "pattern": "^[A-Za-z][A-Za-z0-9_]*$",
-          "title": "Source",
+          "title": "Source Id",
           "type": "string"
         },
         "data_type": {
@@ -688,7 +688,7 @@
       },
       "required": [
         "import_adapter",
-        "source",
+        "source_id",
         "data_type",
         "location_ids",
         "parameter_ids",
@@ -841,11 +841,11 @@
           "title": "Import Adapter",
           "type": "string"
         },
-        "source": {
+        "source_id": {
           "description": "The source indicates the origin of the data. For simulated data this may, for example, refer to the model that produced the data. For observation this may, for example, be simply 'observed' or 'my_validated_observations_database'. The source should start with a letter, consists of only letters, digits and underscores. Spaces or punctuation are disallowed.",
           "minLength": 1,
           "pattern": "^[A-Za-z][A-Za-z0-9_]*$",
-          "title": "Source",
+          "title": "Source Id",
           "type": "string"
         },
         "data_type": {
@@ -892,7 +892,7 @@
         "directory",
         "filename_glob",
         "import_adapter",
-        "source",
+        "source_id",
         "data_type"
       ],
       "title": "NetCDFConfig",
@@ -1220,18 +1220,18 @@
           "title": "Id",
           "type": "string"
         },
-        "obs": {
+        "reference_source_id": {
           "description": "The source indicates the origin of the data. For simulated data this may, for example, refer to the model that produced the data. For observation this may, for example, be simply 'observed' or 'my_validated_observations_database'. The source should start with a letter, consists of only letters, digits and underscores. Spaces or punctuation are disallowed.",
           "minLength": 1,
           "pattern": "^[A-Za-z][A-Za-z0-9_]*$",
-          "title": "Obs",
+          "title": "Reference Source Id",
           "type": "string"
         },
-        "sim": {
+        "evaluation_source_id": {
           "description": "The source indicates the origin of the data. For simulated data this may, for example, refer to the model that produced the data. For observation this may, for example, be simply 'observed' or 'my_validated_observations_database'. The source should start with a letter, consists of only letters, digits and underscores. Spaces or punctuation are disallowed.",
           "minLength": 1,
           "pattern": "^[A-Za-z][A-Za-z0-9_]*$",
-          "title": "Sim",
+          "title": "Evaluation Source Id",
           "type": "string"
         },
         "variable": {
@@ -1243,8 +1243,8 @@
       },
       "required": [
         "id",
-        "obs",
-        "sim",
+        "reference_source_id",
+        "evaluation_source_id",
         "variable"
       ],
       "title": "VerificationPair",
@@ -1286,11 +1286,6 @@
     "ZarrCacheConfig": {
       "description": "Configuration for the veriflow cache.\n\nThe cache will be materialized as a Zarr store on the local filesystem or remote object storage\n(e.g. S3). When configured, the cache will be used to store and retrieve datasets from any\ndatasource. For example: when requesting forecast data from a datasource, and part of the data\nis already cached, the cache will be used to retrieve the cached data and only the missing data\nwill be fetched from the datasource.",
       "properties": {
-        "read_write_mode": {
-          "$ref": "#/$defs/ReadWriteMode",
-          "default": "r",
-          "description": "The read/write mode for the cache."
-        },
         "path": {
           "description": "Path to a single Zarr store. Local filesystem path (absolute or relative) or a remote URL such as 's3://bucket/key/store.zarr'.",
           "minLength": 1,
@@ -1337,6 +1332,11 @@
           "default": null,
           "description": "Whether to use consolidated metadata when opening the store. Forwarded to xr.open_zarr. Default ('None') lets xarray auto-detect.",
           "title": "Consolidated"
+        },
+        "read_write_mode": {
+          "$ref": "#/$defs/ReadWriteMode",
+          "default": "r",
+          "description": "The read/write mode for the cache."
         }
       },
       "required": [
@@ -1349,25 +1349,6 @@
       "additionalProperties": true,
       "description": "A Zarr config element.\n\nReads a single Zarr store via :func:`xarray.open_zarr`. The ``path`` may point to a\nlocal directory or a remote location (e.g. ``s3://bucket/key/store.zarr``). When the\npath uses an ``s3://`` URL, credentials and connection details are taken from\n``auth_config`` (an :class:`S3AuthConfig`), which is populated from environment\nvariables prefixed with ``S3_``. Additional ``storage_options`` are merged on top of\nthe ones derived from ``auth_config`` and forwarded to ``xr.open_zarr``.",
       "properties": {
-        "import_adapter": {
-          "const": "zarr",
-          "title": "Import Adapter",
-          "type": "string"
-        },
-        "source": {
-          "description": "The source indicates the origin of the data. For simulated data this may, for example, refer to the model that produced the data. For observation this may, for example, be simply 'observed' or 'my_validated_observations_database'. The source should start with a letter, consists of only letters, digits and underscores. Spaces or punctuation are disallowed.",
-          "minLength": 1,
-          "pattern": "^[A-Za-z][A-Za-z0-9_]*$",
-          "title": "Source",
-          "type": "string"
-        },
-        "data_type": {
-          "$ref": "#/$defs/DataType"
-        },
-        "spatial_type": {
-          "$ref": "#/$defs/SpatialType",
-          "default": "point"
-        },
         "path": {
           "description": "Path to a single Zarr store. Local filesystem path (absolute or relative) or a remote URL such as 's3://bucket/key/store.zarr'.",
           "minLength": 1,
@@ -1384,7 +1365,7 @@
             }
           ],
           "default": null,
-          "description": "Authentication configuration for remote stores. Only consulted when 'path' points to an 's3://' location. Credentials are loaded from S3_-prefixed environment variables; instantiate as 'auth_config: {}' in YAML to enable env-based loading."
+          "description": "Authentication configuration for remote stores. Only consulted when 'path' points to an 's3://' location. When the path is remote and this is left unset, credentials are loaded automatically from S3_-prefixed environment variables, so configuring 'auth_config: {}' in YAML is not required."
         },
         "storage_options": {
           "anyOf": [
@@ -1414,6 +1395,25 @@
           "default": null,
           "description": "Whether to use consolidated metadata when opening the store. Forwarded to xr.open_zarr. Default ('None') lets xarray auto-detect.",
           "title": "Consolidated"
+        },
+        "import_adapter": {
+          "const": "zarr",
+          "title": "Import Adapter",
+          "type": "string"
+        },
+        "source_id": {
+          "description": "The source indicates the origin of the data. For simulated data this may, for example, refer to the model that produced the data. For observation this may, for example, be simply 'observed' or 'my_validated_observations_database'. The source should start with a letter, consists of only letters, digits and underscores. Spaces or punctuation are disallowed.",
+          "minLength": 1,
+          "pattern": "^[A-Za-z][A-Za-z0-9_]*$",
+          "title": "Source Id",
+          "type": "string"
+        },
+        "data_type": {
+          "$ref": "#/$defs/DataType"
+        },
+        "spatial_type": {
+          "$ref": "#/$defs/SpatialType",
+          "default": "point"
         },
         "crs": {
           "anyOf": [
@@ -1464,10 +1464,10 @@
         }
       },
       "required": [
+        "path",
         "import_adapter",
-        "source",
-        "data_type",
-        "path"
+        "source_id",
+        "data_type"
       ],
       "title": "ZarrConfig",
       "type": "object"

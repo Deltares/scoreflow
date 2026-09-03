@@ -42,14 +42,14 @@ class TestDatasetBaseAttrs:
         return {
             "data_type": "observed_historical",
             "spatial_type": "point",
-            "source": "test_source",
+            "source_id": "test_source",
             "crs": "EPSG:4326",
         }
 
     def test_base_attrs_missing_source_raises(self) -> None:
         """Test that missing 'source' field raises ValidationError."""
         valid_dict = self.valid_dict.copy()
-        valid_dict.pop("source", None)
+        valid_dict.pop("source_id", None)
 
         with pytest.raises(ValidationError, match="Field required"):
             BaseAttrs.model_validate(valid_dict)
