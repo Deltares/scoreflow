@@ -366,11 +366,11 @@
           "title": "Import Adapter",
           "type": "string"
         },
-        "source": {
+        "source_id": {
           "description": "The source indicates the origin of the data. For simulated data this may, for example, refer to the model that produced the data. For observation this may, for example, be simply 'observed' or 'my_validated_observations_database'. The source should start with a letter, consists of only letters, digits and underscores. Spaces or punctuation are disallowed.",
           "minLength": 1,
           "pattern": "^[A-Za-z][A-Za-z0-9_]*$",
-          "title": "Source",
+          "title": "Source Id",
           "type": "string"
         },
         "data_type": {
@@ -418,7 +418,7 @@
       },
       "required": [
         "import_adapter",
-        "source",
+        "source_id",
         "data_type",
         "directory",
         "filename",
@@ -471,11 +471,11 @@
           "title": "Import Adapter",
           "type": "string"
         },
-        "source": {
+        "source_id": {
           "description": "The source indicates the origin of the data. For simulated data this may, for example, refer to the model that produced the data. For observation this may, for example, be simply 'observed' or 'my_validated_observations_database'. The source should start with a letter, consists of only letters, digits and underscores. Spaces or punctuation are disallowed.",
           "minLength": 1,
           "pattern": "^[A-Za-z][A-Za-z0-9_]*$",
-          "title": "Source",
+          "title": "Source Id",
           "type": "string"
         },
         "data_type": {
@@ -525,7 +525,7 @@
         "directory",
         "filename_glob",
         "import_adapter",
-        "source",
+        "source_id",
         "data_type",
         "netcdf_kind"
       ],
@@ -583,11 +583,11 @@
           "title": "Import Adapter",
           "type": "string"
         },
-        "source": {
+        "source_id": {
           "description": "The source indicates the origin of the data. For simulated data this may, for example, refer to the model that produced the data. For observation this may, for example, be simply 'observed' or 'my_validated_observations_database'. The source should start with a letter, consists of only letters, digits and underscores. Spaces or punctuation are disallowed.",
           "minLength": 1,
           "pattern": "^[A-Za-z][A-Za-z0-9_]*$",
-          "title": "Source",
+          "title": "Source Id",
           "type": "string"
         },
         "data_type": {
@@ -688,7 +688,7 @@
       },
       "required": [
         "import_adapter",
-        "source",
+        "source_id",
         "data_type",
         "location_ids",
         "parameter_ids",
@@ -841,11 +841,11 @@
           "title": "Import Adapter",
           "type": "string"
         },
-        "source": {
+        "source_id": {
           "description": "The source indicates the origin of the data. For simulated data this may, for example, refer to the model that produced the data. For observation this may, for example, be simply 'observed' or 'my_validated_observations_database'. The source should start with a letter, consists of only letters, digits and underscores. Spaces or punctuation are disallowed.",
           "minLength": 1,
           "pattern": "^[A-Za-z][A-Za-z0-9_]*$",
-          "title": "Source",
+          "title": "Source Id",
           "type": "string"
         },
         "data_type": {
@@ -892,7 +892,7 @@
         "directory",
         "filename_glob",
         "import_adapter",
-        "source",
+        "source_id",
         "data_type"
       ],
       "title": "NetCDFConfig",
@@ -1220,18 +1220,18 @@
           "title": "Id",
           "type": "string"
         },
-        "obs": {
+        "reference_source_id": {
           "description": "The source indicates the origin of the data. For simulated data this may, for example, refer to the model that produced the data. For observation this may, for example, be simply 'observed' or 'my_validated_observations_database'. The source should start with a letter, consists of only letters, digits and underscores. Spaces or punctuation are disallowed.",
           "minLength": 1,
           "pattern": "^[A-Za-z][A-Za-z0-9_]*$",
-          "title": "Obs",
+          "title": "Reference Source Id",
           "type": "string"
         },
-        "sim": {
+        "evaluation_source_id": {
           "description": "The source indicates the origin of the data. For simulated data this may, for example, refer to the model that produced the data. For observation this may, for example, be simply 'observed' or 'my_validated_observations_database'. The source should start with a letter, consists of only letters, digits and underscores. Spaces or punctuation are disallowed.",
           "minLength": 1,
           "pattern": "^[A-Za-z][A-Za-z0-9_]*$",
-          "title": "Sim",
+          "title": "Evaluation Source Id",
           "type": "string"
         },
         "variable": {
@@ -1243,8 +1243,8 @@
       },
       "required": [
         "id",
-        "obs",
-        "sim",
+        "reference_source_id",
+        "evaluation_source_id",
         "variable"
       ],
       "title": "VerificationPair",
@@ -1401,11 +1401,11 @@
           "title": "Import Adapter",
           "type": "string"
         },
-        "source": {
+        "source_id": {
           "description": "The source indicates the origin of the data. For simulated data this may, for example, refer to the model that produced the data. For observation this may, for example, be simply 'observed' or 'my_validated_observations_database'. The source should start with a letter, consists of only letters, digits and underscores. Spaces or punctuation are disallowed.",
           "minLength": 1,
           "pattern": "^[A-Za-z][A-Za-z0-9_]*$",
-          "title": "Source",
+          "title": "Source Id",
           "type": "string"
         },
         "data_type": {
@@ -1466,7 +1466,7 @@
       "required": [
         "path",
         "import_adapter",
-        "source",
+        "source_id",
         "data_type"
       ],
       "title": "ZarrConfig",
