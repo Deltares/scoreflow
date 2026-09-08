@@ -13,7 +13,7 @@ from veriflow.constants import (
 )
 from veriflow.datasources.base import BaseDatasource
 from veriflow.types import DataSpec
-from veriflow.utils import convert_byte_string_coord_to_utf8
+from veriflow.utils import convert_byte_string_coords_to_utf8
 
 __all__ = [
     "Zarr",
@@ -113,7 +113,7 @@ class Zarr(BaseDatasource):
             consolidated=self.config.consolidated,
         )
 
-        dataset = convert_byte_string_coord_to_utf8(dataset, StandardDim.station)  # type:ignore[misc]
+        dataset = convert_byte_string_coords_to_utf8(dataset, [StandardDim.station])  # type:ignore[misc]
 
         # Filter the dataset by configured stations and variables, if any. Set the
         # data_type attribute to the configured value, if any.
