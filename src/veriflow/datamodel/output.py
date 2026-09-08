@@ -119,7 +119,7 @@ class VeriflowAccessor:
         output_node = self.get_verification_pair_node(verification_pair_id)[DataTreeNode.OUTPUT]
         return list(output_node.children.keys())  # type:ignore[misc]
 
-    def path_exists_in_dt(self, path_in_dt: str) -> bool:
+    def _path_exists_in_dt(self, path_in_dt: str) -> bool:
         """Validate if a given path does not exist in the DataTree."""
         try:
             self.dt[path_in_dt]
@@ -128,9 +128,9 @@ class VeriflowAccessor:
         else:
             return True
 
-    def validate_path_does_not_exist(self, path_in_dt: str) -> None:
+    def _validate_path_does_not_exist(self, path_in_dt: str) -> None:
         """Validate the path does not exist in the DataTree. Raise ValueError if it does."""
-        if self.path_exists_in_dt(path_in_dt):
+        if self._path_exists_in_dt(path_in_dt):
             msg = f"Path '{path_in_dt}' already exists in the DataTree."
             raise ValueError(msg)
 
@@ -147,7 +147,7 @@ class VeriflowAccessor:
             result = result.to_dataset()
 
         path_in_dt = f"{verification_pair.id}/{DataTreeNode.OUTPUT}/{name}"
-        self.validate_path_does_not_exist(path_in_dt)
+        self._validate_path_does_not_exist(path_in_dt)
         self.dt[path_in_dt] = result
 
     def add_staged_input_data(
@@ -158,7 +158,7 @@ class VeriflowAccessor:
     ) -> None:
         """Add input data to the datastore."""
         base_path_in_dt = f"{verification_pair.id}/{DataTreeNode.INPUT_STAGED}"
-        self.validate_path_does_not_exist(base_path_in_dt)
+        self._validate_path_does_not_exist(base_path_in_dt)
 
         # Add reference data. We use `to_dataset()` to preserve the variable names and ensure
         # consistency in the DataTree structure.

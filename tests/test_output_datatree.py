@@ -145,10 +145,10 @@ def test_path_exists_in_dt(
     """Test path_exists_in_dt for both existing and non-existing paths."""
     dt = output_datatree_without_scores
     assert (
-        dt.veriflow.path_exists_in_dt(f"{fake_verification_pair.id}/{DataTreeNode.INPUT_STAGED}")
+        dt.veriflow._path_exists_in_dt(f"{fake_verification_pair.id}/{DataTreeNode.INPUT_STAGED}")
         is True
     )
-    assert dt.veriflow.path_exists_in_dt("does_not_exist") is False
+    assert dt.veriflow._path_exists_in_dt("does_not_exist") is False
 
 
 def test_validate_path_does_not_exist_raises(
