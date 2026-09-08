@@ -20,6 +20,7 @@ from veriflow.constants import (
 )
 from veriflow.datasources.base import BaseDatasource
 from veriflow.types import DataSpec
+from veriflow.utils import convert_byte_string_coords_to_utf8
 
 __all__ = [
     "FewsNetCDF",
@@ -59,22 +60,6 @@ class Preprocessor:
         self.variables = filter_variables
         self.stations = filter_stations
         self.lead_times = filter_lead_times
-
-    @staticmethod
-    def convert_byte_string_coord_to_utf8(
-        dataset: xr.Dataset,
-        coords: list[FewsNetcdfCoord],
-    ) -> xr.Dataset:
-        """Convert byte strings."""
-        for coord in coords:
-            dataset[coord] = xr.DataArray(
-                [  # type:ignore[misc]
-                    v.decode("utf-8") if isinstance(v, bytes) else v  # type:ignore[misc]
-                    for v in dataset[coord].to_numpy()  # type:ignore[misc]
-                ],
-                dims=dataset[coord].dims,
-            )
-        return dataset
 
     @staticmethod
     def rename_to_internal(
@@ -170,10 +155,7 @@ class Preprocessor:
     def __call__(self, dataset: xr.Dataset) -> xr.Dataset:
         """Sequence of processing tasks."""
         # Decode byte-string coords
-        dataset = Preprocessor.convert_byte_string_coord_to_utf8(
-            dataset,
-            coords=[FewsNetcdfCoord.station_id],
-        )
+        dataset = convert_byte_string_coords_to_utf8(dataset, [FewsNetcdfCoord.station_id])
 
         # Rename dims/coords to internal definitions
         dataset = Preprocessor.rename_to_internal(
@@ -425,10 +407,7 @@ def parse_lead_time_netcdf_files(
     dataset = dataset.sortby(StandardDim.lead_time)
 
     # Decode byte-string coords
-    dataset = Preprocessor.convert_byte_string_coord_to_utf8(
-        dataset,
-        coords=[FewsNetcdfCoord.station_id],
-    )
+    dataset = convert_byte_string_coords_to_utf8(dataset, [FewsNetcdfCoord.station_id])
 
     # Rename dims/coords to internal definitions
     dataset = Preprocessor.rename_to_internal(
